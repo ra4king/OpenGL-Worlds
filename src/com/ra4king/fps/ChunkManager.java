@@ -12,7 +12,7 @@ import com.ra4king.opengl.util.math.Vector3;
 public class ChunkManager {
 	private HashSet<Chunk> chunks;
 	
-	public static final int CHUNKS_SIDE = FPS.IS_33 ? 8 : 4;
+	public static final int CHUNKS_SIDE = 20;
 	
 	public ChunkManager() {
 		chunks = new HashSet<>();
@@ -23,7 +23,7 @@ public class ChunkManager {
 		for(int x = 0; x < CHUNKS_SIDE; x++)
 			for(int y = 0; y < CHUNKS_SIDE; y++)
 				for(int z = 0; z < CHUNKS_SIDE; z++) {
-					Chunk chunk = new Chunk(temp.set(x * Chunk.CUBES * Chunk.SPACING, y * Chunk.CUBES * Chunk.SPACING, -z * Chunk.CUBES * Chunk.SPACING));
+					Chunk chunk = new Chunk(temp.set(x * Chunk.CUBES * Chunk.SPACING, y * Chunk.CUBES * Chunk.SPACING, -z * Chunk.CUBES * Chunk.SPACING), true);
 					chunks.add(chunk);
 					
 					totalCubes += chunk.getCubeCount();
@@ -31,6 +31,9 @@ public class ChunkManager {
 		
 		System.out.println("Total cubes: " + totalCubes);
 	}
+	
+	private final Vector3 temp = new Vector3();
+	private final Vector3 temp2 = new Vector3();
 	
 	public BlockType getBlock(Vector3 v, float radius) {
 		float distance = Chunk.CUBE_SIZE / 2 + radius;
@@ -46,20 +49,20 @@ public class ChunkManager {
 		float ix = (int)(v.x() / d) * d;
 		float iy = (int)(v.y() / d) * d;
 		float iz = (int)(v.z() / d) * d;
-		Vector3 corner = new Vector3(ix, iy, iz);
+		temp.set(ix, iy, iz);
 		
 		int px = (int)(((v.x() + distance) % d) / Chunk.SPACING);
 		int py = (int)(((v.y() + distance) % d) / Chunk.SPACING);
 		int pz = (int)(((-v.z() + distance) % d) / Chunk.SPACING);
 		
 		for(Chunk chunk : chunks) {
-			if(chunk.getCorner().equals(corner)) {
+			if(chunk.getCorner().equals(temp)) {
 				BlockType block = chunk.get(px, py, pz);
 				
 				if(block == null)
 					return null;
 				
-				Vector3 vBlock = chunk.getCorner().copy().add(new Vector3(px, py, -pz).mult(Chunk.SPACING));// add(Chunk.CUBE_SIZE / 2, Chunk.CUBE_SIZE / 2, -Chunk.CUBE_SIZE / 2);
+				Vector3 vBlock = temp.set(chunk.getCorner()).add(temp2.set(px, py, -pz).mult(Chunk.SPACING));
 				
 				if(vBlock.sub(v).length() > distance)
 					return null;
@@ -75,9 +78,18 @@ public class ChunkManager {
 		// BLAH
 	}
 	
-	public void render(FrustumCulling culling, boolean viewChanged) {
+	private int vao = -1;
+	
+	public void render(FrustumCulling culling) {
+		if(vao == -1)
+			vao = GLUtils.get().glGenVertexArrays();
+		
+		GLUtils.get().glBindVertexArray(vao);
+		
 		for(Chunk chunk : chunks)
 			if(culling.isCubeInsideFrustum(chunk.getCorner(), Chunk.CUBES * Chunk.SPACING * Chunk.CUBE_SIZE))
-				chunk.render(culling, viewChanged);
+				chunk.render();
+		
+		GLUtils.get().glBindVertexArray(0);
 	}
 }

@@ -1,14 +1,14 @@
-#version 120
+#version 130
 
 const vec2 maps[] = vec2[6](vec2(-0.5f, 0.5f), vec2(0.5f, 0.5f), vec2(0.5f, -0.5f),
 							vec2(0.5f, -0.5f), vec2(-0.5f, -0.5f), vec2(-0.5f, 0.5f));
 
-varying vec2 mapping;
-varying vec4 bulletColor;
+out vec2 mapping;
+out vec4 bulletColor;
 
 uniform mat4 projectionMatrix, modelViewMatrix;
 
-#define BULLET_COUNT 2000
+#define BULLET_COUNT 100
 
 struct Bullet {
 	vec4 position;

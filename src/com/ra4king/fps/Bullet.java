@@ -27,7 +27,7 @@ public class Bullet {
 	}
 	
 	public Bullet(Vector3 position, Vector3 velocity, long lifeTime, boolean isSolid) {
-		this(position, velocity, lifeTime, isSolid, Math.random() < 0.5 ? new Vector3(1, 0, 1) : new Vector3(57f / 255f, 1, 20f / 255f));//(float)Math.random(), (float)Math.random(), (float)Math.random()));
+		this(position, velocity, lifeTime, isSolid, Math.random() < 0.5 ? new Vector3(0, 0, 1) : new Vector3(1, 165f / 255f, 0));//new Vector3((float)Math.random(), (float)Math.random(), (float)Math.random())); //Math.random() < 0.5 ? new Vector3(1, 0, 1) : new Vector3(57f / 255f, 1, 20f / 255f));//
 	}
 	
 	public Bullet(Vector3 position, Vector3 velocity, long lifeTime, boolean isSolid, Vector3 color) {
@@ -64,10 +64,12 @@ public class Bullet {
 		return color;
 	}
 	
+	private final Vector3 temp = new Vector3();
+	
 	public void update(long deltaTime) {
 		alive += deltaTime;
 		
-		position.add(velocity.copy().mult(deltaTime / (float)1e9));
+		position.add(temp.set(velocity).mult(deltaTime / (float)1e9));
 	}
 	
 	@Override

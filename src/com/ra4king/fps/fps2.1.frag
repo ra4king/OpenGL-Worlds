@@ -6,8 +6,8 @@ varying vec3 norm;
 uniform vec4 mainLightPosition, mainDiffuseColor, mainAmbientColor;
 
 uniform float numberOfLights;
-uniform vec4 lightPositions[50];
-uniform vec4 lightColors[50];
+uniform vec4 lightPositions[100];
+uniform vec4 lightColors[100];
 
 void main() {
 	vec3 normal = normalize(norm);
@@ -25,9 +25,10 @@ void main() {
 	
 	for(int a = 0; a < numberOfLights; a++) {
 		vec3 lightDistance = vec3(lightPositions[a]) - cameraSpacePosition;
-		float cos = max(0, dot(normal, normalize(lightDistance)));
+		float distSqr = dot(lightDistance, lightDistance);
 		
-		float atten = 1.0 / (1.0 + lightPositions[a].w * dot(lightDistance, lightDistance));
+		float cos = max(0, dot(normal, normalize(lightDistance)));
+		float atten = 1.0 / (1.0 + lightPositions[a].w * distSqr * log(distSqr));
 		
 		fragColor += lightColors[a] * atten * cos;
 	}

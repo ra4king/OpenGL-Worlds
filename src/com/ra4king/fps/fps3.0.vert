@@ -1,4 +1,4 @@
-#version 330
+#version 130
 
 const vec3 normals[] = vec3[6](vec3(0, 0, 1), vec3(0, 0, -1), vec3(0, 1, 0),
 							   vec3(0, -1, 0), vec3(1, 0, 0), vec3(-1, 0, 0));
@@ -50,16 +50,14 @@ out vec3 normal;
 
 uniform mat4 projectionMatrix, modelViewMatrix;
 
-#define CUBE_COUNT 16 * 16 * 16
+#define CUBE_COUNT 8 * 8 * 7
 
 struct Cube {
 	vec3 position;
 	float scale;
 };
 
-layout(std140) uniform CubeData {
-	Cube cubes[CUBE_COUNT];
-};
+uniform Cube cubes[CUBE_COUNT];
 
 void main() {
 	Cube cube = cubes[gl_VertexID / 36];

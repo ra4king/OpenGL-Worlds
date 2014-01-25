@@ -15,6 +15,8 @@ import java.util.HashMap;
 import java.util.List;
 
 import org.lwjgl.BufferUtils;
+import org.lwjgl.opengl.APPLEVertexArrayObject;
+import org.lwjgl.opengl.ARBVertexArrayObject;
 
 import com.ra4king.fps.FPS.FrustumCulling;
 import com.ra4king.opengl.util.ShaderProgram;
@@ -33,8 +35,8 @@ public class BulletManager {
 	
 	private HashMap<Bullet,Vector3> cameraWorldPositions = new HashMap<>();
 	
-	public static final int MAX_BULLET_COUNT = FPS.IS_33 ? 2000 : 20;
-	public static final long BULLET_LIFE = FPS.IS_33 ? (long)8e9 : (long)3e9;
+	public static final int MAX_BULLET_COUNT = GLUtils.get().VERSION >= 33 ? 2000 : 100;
+	public static final long BULLET_LIFE = (long)8e9;
 	
 	private final BulletRenderer renderer = new BulletRenderer();
 	
@@ -63,7 +65,7 @@ public class BulletManager {
 			if(bullet.isAlive()) {
 				boolean isAlive = true;
 				
-				if(bullet.isSolid()) {
+				if(false) {// bullet.isSolid()) {
 					Vector3 pos = bullet.getPosition();
 					
 					if(chunkManager.getBlock(pos, 0.5f * Bullet.SIZE) != null) {
@@ -148,34 +150,41 @@ public class BulletManager {
 	private class BulletRenderer {
 		private ShaderProgram bulletProgram;
 		private int projectionMatrixUniform, modelViewMatrixUniform;
+		private int bulletDataUniform;
 		
 		private FloatBuffer bulletDataBuffer;
 		private int vao, bulletDataVBO;
+		
+		private final boolean IS_MAC = System.getProperty("os.name").toLowerCase().contains("mac");
+		private final boolean HAS_VAO = GLUtils.get().VERSION >= 30;
 		
 		private BulletRenderer() {
 			bulletDataBuffer = BufferUtils.createFloatBuffer(MAX_BULLET_COUNT * 2 * 4);
 			
 			vao = glGenVertexArrays();
 			
-			if(FPS.IS_33)
+			if(GLUtils.get().VERSION >= 33)
 				bulletProgram = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream("bullet.vert")), Utils.readFully(getClass().getResourceAsStream("bullet.frag")));
-			else {
-				HashMap<Integer,String> attribs = new HashMap<>();
-				attribs.put(0, "position");
-				bulletProgram = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream("bullet2.1.vert")), Utils.readFully(getClass().getResourceAsStream("bullet2.1.frag")), attribs);
-			}
+			else if(GLUtils.get().VERSION >= 30)
+				bulletProgram = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream("bullet3.0.vert")), Utils.readFully(getClass().getResourceAsStream("bullet3.0.frag")));
+			else
+				bulletProgram = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream("bullet2.1.vert")), Utils.readFully(getClass().getResourceAsStream("bullet2.1.frag")));
 			
 			projectionMatrixUniform = bulletProgram.getUniformLocation("projectionMatrix");
 			modelViewMatrixUniform = bulletProgram.getUniformLocation("modelViewMatrix");
 			
-			int bulletDataUniform = bulletProgram.getUniformBlockIndex("BulletData");
-			glUniformBlockBinding(bulletProgram.getProgram(), bulletDataUniform, 2);
-			
-			bulletDataVBO = glGenBuffers();
-			glBindBuffer(GL_UNIFORM_BUFFER, bulletDataVBO);
-			glBufferData(GL_UNIFORM_BUFFER, bulletDataBuffer.capacity() * 4, GL_STREAM_DRAW);
-			glBindBufferBase(GL_UNIFORM_BUFFER, 2, bulletDataVBO);
-			glBindBuffer(GL_UNIFORM_BUFFER, 0);
+			if(GLUtils.get().VERSION >= 33) {
+				int bulletDataUniform = bulletProgram.getUniformBlockIndex("BulletData");
+				glUniformBlockBinding(bulletProgram.getProgram(), bulletDataUniform, 2);
+				
+				bulletDataVBO = glGenBuffers();
+				glBindBuffer(GL_UNIFORM_BUFFER, bulletDataVBO);
+				glBufferData(GL_UNIFORM_BUFFER, bulletDataBuffer.capacity() * 4, GL_STREAM_DRAW);
+				glBindBufferBase(GL_UNIFORM_BUFFER, 2, bulletDataVBO);
+				glBindBuffer(GL_UNIFORM_BUFFER, 0);
+			}
+			else
+				bulletDataUniform = bulletProgram.getUniformLocation("bulletData");
 		}
 		
 		public void render(Matrix4 projectionMatrix, MatrixStack modelViewMatrix, List<Bullet> bullets, FrustumCulling culling) {
@@ -192,8 +201,8 @@ public class BulletManager {
 			for(int a = 0; a < bullets.size() && bulletsDrawn < MAX_BULLET_COUNT; a++) {
 				Bullet b = bullets.get(a);
 				
-				if(culling != null && !culling.isCubeInsideFrustum(b.getPosition(), Bullet.SIZE))
-					continue;
+				// if(culling != null && !culling.isCubeInsideFrustum(b.getPosition(), Bullet.SIZE))
+				// continue;
 				
 				bulletsDrawn++;
 				
@@ -203,13 +212,29 @@ public class BulletManager {
 			
 			bulletDataBuffer.flip();
 			
-			glBindBuffer(GL_UNIFORM_BUFFER, bulletDataVBO);
-			glBufferSubData(GL_UNIFORM_BUFFER, 0, bulletDataBuffer);
-			glBindBuffer(GL_UNIFORM_BUFFER, 0);
+			if(GLUtils.get().VERSION >= 31) {
+				glBindBuffer(GL_UNIFORM_BUFFER, bulletDataVBO);
+				glBufferSubData(GL_UNIFORM_BUFFER, 0, bulletDataBuffer);
+				glBindBuffer(GL_UNIFORM_BUFFER, 0);
+			}
+			else
+				glUniform4(bulletDataUniform, bulletDataBuffer);
 			
-			glBindVertexArray(vao);
+			if(HAS_VAO)
+				glBindVertexArray(vao);
+			else if(IS_MAC)
+				APPLEVertexArrayObject.glBindVertexArrayAPPLE(vao);
+			else
+				ARBVertexArrayObject.glBindVertexArray(vao);
+			
 			glDrawArrays(GL_TRIANGLES, 0, bulletsDrawn * 6);
-			glBindVertexArray(0);
+			
+			if(HAS_VAO)
+				glBindVertexArray(vao);
+			else if(IS_MAC)
+				APPLEVertexArrayObject.glBindVertexArrayAPPLE(vao);
+			else
+				ARBVertexArrayObject.glBindVertexArray(vao);
 			
 			bulletProgram.end();
 			

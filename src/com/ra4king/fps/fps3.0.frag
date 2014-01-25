@@ -1,24 +1,23 @@
-#version 330
+#version 130
 
 in vec3 cameraSpacePosition;
-in vec3 normal;
+in vec3 norm;
 
-struct Light {
-	vec4 position;
-	vec4 color;
-};
+uniform vec4 mainLightPosition, mainDiffuseColor, mainAmbientColor;
 
-layout(std140) uniform Lights {
-	vec4 mainLightPosition, mainDiffuseColor, mainAmbientColor;
-	
-	float numberOfLights;
-	Light lightPositions[1000];
-};
+uniform float numberOfLights;
+uniform vec4 lightPositions[100];
+uniform vec4 lightColors[100];
 
 out vec4 fragColor;
 
 void main() {
-	vec3 normal = normalize(normal);
+	vec3 normal = normalize(norm);
+	
+	fragColor = vec4(1, 0, 0, 1);
+	
+	if(abs(4) == 4)
+		return;
 	
 	{
 		vec3 lightDistance = -cameraSpacePosition;
@@ -30,15 +29,13 @@ void main() {
 	}
 	
 	for(int a = 0; a < numberOfLights; a++) {
-		Light light = lightPositions[a];
-		
-		vec3 lightDistance = vec3(light.position) - cameraSpacePosition;
+		vec3 lightDistance = vec3(lightPositions[a]) - cameraSpacePosition;
 		float distSqr = dot(lightDistance, lightDistance);
 		
 		float cos = max(0, dot(normal, normalize(lightDistance)));
-		float atten = 1.0 / (1.0 + light.position.w * distSqr * log(distSqr));
+		float atten = 1.0 / (1.0 + lightPositions[a].w * distSqr * log(distSqr));
 		
-		fragColor += light.color * atten * cos;
+		fragColor += lightColors[a] * atten * cos;
 	}
 	
 	vec4 gamma = vec4(1.0 / 2.2);

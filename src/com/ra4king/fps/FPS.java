@@ -8,14 +8,13 @@ import static org.lwjgl.opengl.GL31.*;
 import static org.lwjgl.opengl.GL32.*;
 
 import java.nio.FloatBuffer;
-import java.util.HashMap;
 
 import org.lwjgl.BufferUtils;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
-import org.lwjgl.opengl.GLContext;
 import org.lwjgl.opengl.PixelFormat;
 
+import com.ra4king.fps.Camera.CameraUpdate;
 import com.ra4king.opengl.util.GLProgram;
 import com.ra4king.opengl.util.ShaderProgram;
 import com.ra4king.opengl.util.Utils;
@@ -30,42 +29,37 @@ import com.ra4king.opengl.util.math.Vector4;
  */
 public class FPS extends GLProgram {
 	public static void main(String[] args) throws Exception {
-		String os = System.getProperty("os.name").toLowerCase();
-		
-		String libraryPath;
-		if(os.contains("win"))
-			libraryPath = "E:/Roi Atalla/";
-		else if(os.contains("linux"))
-			libraryPath = "/home/ra4king/Dropbox/";
-		else {
-			System.out.println("System not supported!");
-			return;
+		if(args.length > 0 && args[0].equals("ide")) {
+			String os = System.getProperty("os.name").toLowerCase();
+			
+			String libraryPath;
+			if(os.contains("win"))
+				libraryPath = "E:/Roi Atalla/";
+			else if(os.contains("linux"))
+				libraryPath = "/home/ra4king/Dropbox/";
+			else {
+				System.out.println("System not supported!");
+				return;
+			}
+			
+			libraryPath += "Documents/Programming Files/Java Files/Personal Projects/Libraries/lwjgl/natives/";
+			
+			System.setProperty("org.lwjgl.librarypath", libraryPath);
 		}
-		
-		libraryPath += "Documents/Programming Files/Java Files/Personal Projects/Libraries/lwjgl/natives/";
-		
-		System.setProperty("org.lwjgl.librarypath", libraryPath);
 		
 		new FPS().run(new PixelFormat(16, 0, 8, 0, 4));
 	}
 	
 	private ShaderProgram program;
 	private int projectionMatrixUniform;
-	private int viewMatrixUniform;
-	private int modelMatrixUniform;
+	private int modelViewMatrixUniform;
 	
 	private int lightsUniformBufferVBO;
 	private FloatBuffer lightsBuffer;
 	
-	private Matrix4 projectionMatrix;
-	
-	private Vector3 position;
-	private Quaternion orientation;
-	private boolean viewChanged;
-	
-	private long mouseCooldown;
-	
 	private boolean isPaused;
+	
+	private Camera camera;
 	
 	private FrustumCulling culling;
 	private ChunkManager chunkManager;
@@ -73,15 +67,13 @@ public class FPS extends GLProgram {
 	
 	// private Fractal fractal;
 	
-	public static boolean IS_33;
-	
 	public FPS() {
-		super(false);//"FPS", 1280, 800, true);
+		super("FPS", 1280, 800, true);
 	}
 	
 	@Override
 	public void init() {
-		IS_33 = GLContext.getCapabilities().OpenGL33;
+		GLUtils.get();
 		
 		setFPS(0);
 		
@@ -101,57 +93,131 @@ public class FPS extends GLProgram {
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		
-		if(IS_33)
+		if(GLUtils.get().VERSION >= 32)
 			glEnable(GL_DEPTH_CLAMP);
 		
-		reload();
+		camera = new Camera(60, 1, 5000);
+		camera.setCameraUpdate(new CameraUpdate() {
+			private float deltaTimeBuffer;
+			private final Vector3 delta = new Vector3();
+			private final Quaternion inverse = new Quaternion();
+			
+			private long mouseCooldown;
+			
+			@Override
+			public void update(long deltaTime, Camera camera, final Matrix4 projectionMatrix, final Vector3 position, final Quaternion orientation) {
+				if(Keyboard.isKeyDown(Keyboard.KEY_R))
+					reset();
+				
+				deltaTimeBuffer += deltaTime;
+				
+				if(deltaTimeBuffer >= 1e9 / 120) {
+					final float speed = (Keyboard.isKeyDown(Keyboard.KEY_LSHIFT) | Keyboard.isKeyDown(Keyboard.KEY_RSHIFT) ? 20 : 150) * deltaTimeBuffer / (float)1e9;
+					final float rotSpeed = (2f / 15f) * speed;
+					
+					deltaTimeBuffer = 0;
+					
+					if(Mouse.isGrabbed()) {
+						int dy = Mouse.getDY();
+						if(dy != 0)
+							orientation.set(Utils.angleAxisDeg(-dy * rotSpeed, Vector3.RIGHT).mult(orientation));
+						
+						int dx = Mouse.getDX();
+						if(dx != 0)
+							orientation.set(Utils.angleAxisDeg(dx * rotSpeed, Vector3.UP).mult(orientation));
+						
+						// if(dx != 0 || dy != 0)
+						// viewChanged = true;
+					}
+					
+					if(Keyboard.isKeyDown(Keyboard.KEY_E)) {
+						orientation.set(Utils.angleAxisDeg(-2 * rotSpeed, Vector3.FORWARD).mult(orientation));
+						// viewChanged = true;
+					}
+					if(Keyboard.isKeyDown(Keyboard.KEY_Q)) {
+						orientation.set(Utils.angleAxisDeg(2 * rotSpeed, Vector3.FORWARD).mult(orientation));
+						// viewChanged = true;
+					}
+					
+					orientation.normalize();
+					
+					inverse.set(orientation).inverse();
+					
+					delta.set(0, 0, 0);
+					
+					if(Keyboard.isKeyDown(Keyboard.KEY_W))
+						delta.z(delta.z() + speed);
+					if(Keyboard.isKeyDown(Keyboard.KEY_S))
+						delta.z(-speed);
+					
+					if(Keyboard.isKeyDown(Keyboard.KEY_D))
+						delta.x(-speed);
+					if(Keyboard.isKeyDown(Keyboard.KEY_A))
+						delta.x(delta.x() + speed);
+					
+					if(Keyboard.isKeyDown(Keyboard.KEY_SPACE))
+						delta.y(-speed);
+					if(Keyboard.isKeyDown(Keyboard.KEY_LCONTROL))
+						delta.y(delta.y() + speed);
+					
+					// if(delta.length() != 0)
+					// viewChanged = true;
+					
+					position.add(inverse.mult(delta));
+				}
+				
+				if((Mouse.isButtonDown(0) || Keyboard.isKeyDown(Keyboard.KEY_C)) && (System.nanoTime() - mouseCooldown) > (long)3e8) {
+					int bulletSpeed = 400;
+					
+					bulletManager.addBullet(new Bullet(position.copy().mult(-1).add(inverse.mult(rightBullet)), inverse.mult(Vector3.FORWARD).mult(bulletSpeed), BulletManager.BULLET_LIFE));
+					bulletManager.addBullet(new Bullet(position.copy().mult(-1).add(inverse.mult(leftBullet)), inverse.mult(Vector3.FORWARD).mult(bulletSpeed), BulletManager.BULLET_LIFE));
+					mouseCooldown = System.nanoTime();
+				}
+			}
+		});
 		
-		reset();
+		reload();
+	}
+	
+	private void reset() {
+		// float mid = ChunkManager.CHUNKS_SIDE * Chunk.CUBES * Chunk.SPACING / 2;
+		camera.getPosition().set(0, 0, 0);// rsrmid, mid, -mid).mult(-1);
+		camera.getOrientation().reset();
 	}
 	
 	@Override
 	public void resized() {
 		super.resized();
 		
-		projectionMatrix = new Matrix4().clearToPerspectiveDeg(60, getWidth(), getHeight(), 1, 2000);
-		
-		viewChanged = true;
-	}
-	
-	private void reset() {
-		// float mid = ChunkManager.CHUNKS_SIDE * Chunk.CUBES * Chunk.SPACING / 2;
-		position = new Vector3(0, 0, 0);// rsrmid, mid, -mid).mult(-1);
-		orientation = new Quaternion();
-		
-		viewChanged = true;
+		camera.setWindowSize(getWidth(), getHeight());
 	}
 	
 	private int mainLightPositionUniform, mainDiffuseColorUniform, mainAmbientColorUniform;
 	private int numberOfLightsUniform;
 	private int lightPositionsUniform, lightColorsUniform;
+	public static int cubesUniform;
 	
 	private FloatBuffer lightsColorBuffer;
 	
 	private void reload() {
-		if(FPS.IS_33)
+		if(GLUtils.get().VERSION >= 33)
 			program = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream("fps.vert")), Utils.readFully(getClass().getResourceAsStream("fps.frag")));
+		else if(GLUtils.get().VERSION >= 30)
+			program = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream("fps3.0.vert")), Utils.readFully(getClass().getResourceAsStream("fps3.0.frag")));
 		else {
-			HashMap<Integer,String> attribs = new HashMap<>();
-			attribs.put(0, "position");
-			attribs.put(1, "normal");
-			program = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream("fps2.1.vert")), Utils.readFully(getClass().getResourceAsStream("fps2.1.frag")), attribs);
+			throw new RuntimeException("2.1 and below not supported.");
+			
+			// program = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream("fps2.1.vert")), Utils.readFully(getClass().getResourceAsStream("fps2.1.frag")));
 		}
 		
 		lightsBuffer = BufferUtils.createFloatBuffer((BulletManager.MAX_BULLET_COUNT * 2 + 4) * 4 * 4);
 		
-		if(FPS.IS_33) {
-			if(FPS.IS_33) {
-				int lightsBlockIndex = program.getUniformBlockIndex("Lights");
-				glUniformBlockBinding(program.getProgram(), lightsBlockIndex, 1);
-
-				int cubeDataUniform = glGetUniformBlockIndex(program.getProgram(), "CubeData");
-				glUniformBlockBinding(program.getProgram(), cubeDataUniform, 3);
-			}
+		if(GLUtils.get().VERSION >= 33) {
+			int lightsBlockIndex = program.getUniformBlockIndex("Lights");
+			glUniformBlockBinding(program.getProgram(), lightsBlockIndex, 1);
+			
+			int cubeDataUniform = glGetUniformBlockIndex(program.getProgram(), "CubeData");
+			glUniformBlockBinding(program.getProgram(), cubeDataUniform, 3);
 			
 			lightsUniformBufferVBO = glGenBuffers();
 			glBindBuffer(GL_UNIFORM_BUFFER, lightsUniformBufferVBO);
@@ -160,6 +226,8 @@ public class FPS extends GLProgram {
 			glBindBuffer(GL_UNIFORM_BUFFER, 0);
 		}
 		else {
+			cubesUniform = program.getUniformLocation("cubes");
+			
 			mainLightPositionUniform = program.getUniformLocation("mainLightPosition");
 			mainDiffuseColorUniform = program.getUniformLocation("mainDiffuseColor");
 			mainAmbientColorUniform = program.getUniformLocation("mainAmbientColor");
@@ -171,8 +239,7 @@ public class FPS extends GLProgram {
 		}
 		
 		projectionMatrixUniform = program.getUniformLocation("projectionMatrix");
-		viewMatrixUniform = program.getUniformLocation("viewMatrix");
-		modelMatrixUniform = program.getUniformLocation("modelMatrix");
+		modelViewMatrixUniform = program.getUniformLocation("modelViewMatrix");
 		
 		culling = new FrustumCulling();
 		
@@ -182,19 +249,15 @@ public class FPS extends GLProgram {
 		// fractal = new Fractal();
 	}
 	
-	private long deltaTimeBuffer;
 	private long secondTimeBuffer;
 	
-	private Vector3 delta = new Vector3();
+	private final Vector3 delta = new Vector3();
+	
+	private final Vector3 rightBullet = new Vector3(2, -1, -3);
+	private final Vector3 leftBullet = new Vector3(-2, -1, -3);
 	
 	@Override
 	public void update(long deltaTime) {
-		if(Keyboard.isKeyDown(Keyboard.KEY_R))
-			reset();
-		
-		// fractal.update(deltaTime);
-		
-		deltaTimeBuffer += deltaTime;
 		secondTimeBuffer += deltaTime;
 		
 		if(secondTimeBuffer >= 1e9) {
@@ -202,73 +265,9 @@ public class FPS extends GLProgram {
 			secondTimeBuffer -= 1e9;
 		}
 		
-		Quaternion inverse = null;
+		camera.update(deltaTime);
 		
-		if(deltaTimeBuffer >= 1e9 / 120) {
-			final float speed = (Keyboard.isKeyDown(Keyboard.KEY_LSHIFT) | Keyboard.isKeyDown(Keyboard.KEY_RSHIFT) ? 20 : 150) * deltaTimeBuffer / (float)1e9;
-			final float rotSpeed = (2f / 15f) * speed;
-			
-			deltaTimeBuffer = 0;
-			
-			if(Mouse.isGrabbed()) {
-				int dy = Mouse.getDY();
-				if(dy != 0)
-					orientation = Utils.angleAxisDeg(-dy * rotSpeed, new Vector3(1, 0, 0)).mult(orientation);
-				
-				int dx = Mouse.getDX();
-				if(dx != 0)
-					orientation = Utils.angleAxisDeg(dx * rotSpeed, new Vector3(0, 1, 0)).mult(orientation);
-				
-				if(dx != 0 || dy != 0)
-					viewChanged = true;
-			}
-			
-			if(Keyboard.isKeyDown(Keyboard.KEY_E)) {
-				orientation = Utils.angleAxisDeg(rotSpeed, new Vector3(0, 0, 1)).mult(orientation);
-				viewChanged = true;
-			}
-			if(Keyboard.isKeyDown(Keyboard.KEY_Q)) {
-				orientation = Utils.angleAxisDeg(-rotSpeed, new Vector3(0, 0, 1)).mult(orientation);
-				viewChanged = true;
-			}
-			
-			orientation.normalize();
-			
-			inverse = orientation.copy().inverse();
-			
-			delta.set(0, 0, 0);
-			
-			if(Keyboard.isKeyDown(Keyboard.KEY_W))
-				delta.z(delta.z() + speed);
-			if(Keyboard.isKeyDown(Keyboard.KEY_S))
-				delta.z(-speed);
-			
-			if(Keyboard.isKeyDown(Keyboard.KEY_D))
-				delta.x(-speed);
-			if(Keyboard.isKeyDown(Keyboard.KEY_A))
-				delta.x(delta.x() + speed);
-			
-			if(Keyboard.isKeyDown(Keyboard.KEY_SPACE))
-				delta.y(-speed);
-			if(Keyboard.isKeyDown(Keyboard.KEY_LCONTROL))
-				delta.y(delta.y() + speed);
-			
-			if(delta.length() != 0)
-				viewChanged = true;
-			
-			position.add(inverse.mult(delta));
-		}
-		
-		if(inverse == null)
-			inverse = orientation.copy().inverse();
-		
-		if(Mouse.isButtonDown(0) && (System.nanoTime() - mouseCooldown) > (long)3e8) {
-			int bulletSpeed = 400;
-			
-			bulletManager.addBullet(new Bullet(position.copy().mult(-1).add(inverse.mult(new Vector3(2, -1, -3))), inverse.mult(new Vector3(0, 0.005f, -1)).normalize().mult(bulletSpeed), BulletManager.BULLET_LIFE));
-			bulletManager.addBullet(new Bullet(position.copy().mult(-1).add(inverse.mult(new Vector3(-2, -1, -3))), inverse.mult(new Vector3(0, 0.005f, -1)).normalize().mult(bulletSpeed), BulletManager.BULLET_LIFE));
-			mouseCooldown = System.nanoTime();
-		}
+		// fractal.update(deltaTime);
 		
 		if(!isPaused)
 			bulletManager.update(deltaTime);
@@ -294,9 +293,11 @@ public class FPS extends GLProgram {
 	}
 	
 	private final Vector4 mainDiffuseColor = new Vector4(1f, 1f, 1f, 1);
-	private final Vector4 mainAmbientColor = new Vector4(0.001f, 0.001f, 0.001f, 1);
+	private final Vector4 mainAmbientColor = new Vector4(0.01f, 0.01f, 0.01f, 1);
 	
 	private final Bullet aim = new Bullet(new Vector3(), new Vector3(), Long.MAX_VALUE, false, new Vector3(1));
+	
+	private final Matrix4 viewMatrix = new Matrix4(), projectionViewMatrix = new Matrix4();
 	
 	@Override
 	public void render() {
@@ -304,34 +305,33 @@ public class FPS extends GLProgram {
 		
 		program.begin();
 		
-		glUniformMatrix4(projectionMatrixUniform, false, projectionMatrix.toBuffer());
+		glUniformMatrix4(projectionMatrixUniform, false, camera.getProjectionMatrix().toBuffer());
 		
-		Matrix4 viewMatrix = orientation.toMatrix().translate(position);
+		camera.getOrientation().toMatrix(viewMatrix).translate(camera.getPosition());
 		
-		culling.setupPlanes(projectionMatrix.copy().mult(viewMatrix));
+		culling.setupPlanes(projectionViewMatrix.set(camera.getProjectionMatrix()).mult(viewMatrix));
 		
 		final float mainK = 0.001f;
 		
 		lightsBuffer.clear();
 		
-		if(IS_33)
+		if(GLUtils.get().VERSION >= 33)
 			lightsBuffer.position(4 * 4);
 		else
 			lightsColorBuffer.clear();
 		
-		int bulletCount = bulletManager.getBulletLightData(viewMatrix, lightsBuffer, IS_33 ? lightsBuffer : lightsColorBuffer);
+		int bulletCount = bulletManager.getBulletLightData(viewMatrix, lightsBuffer, GLUtils.get().VERSION >= 33 ? lightsBuffer : lightsColorBuffer);
 		
 		lightsBuffer.flip();
 		
-		if(IS_33) {
+		Vector3 position = camera.getPosition();
+		if(GLUtils.get().VERSION >= 33) {
 			lightsBuffer.put(position.toBuffer());
 			lightsBuffer.put(mainK);
 			lightsBuffer.put(mainDiffuseColor.toBuffer());
 			lightsBuffer.put(mainAmbientColor.toBuffer());
 			
-			lightsBuffer.put(bulletCount).put(0).put(0).put(0);
-			
-			lightsBuffer.rewind();
+			lightsBuffer.put(bulletCount).put(0).put(0).put(0).rewind();
 			
 			glBindBuffer(GL_UNIFORM_BUFFER, lightsUniformBufferVBO);
 			glBufferSubData(GL_UNIFORM_BUFFER, 0, lightsBuffer);
@@ -349,15 +349,14 @@ public class FPS extends GLProgram {
 			glUniform4(lightColorsUniform, lightsColorBuffer);
 		}
 		
-		glUniformMatrix4(viewMatrixUniform, false, viewMatrix.toBuffer());
-		glUniformMatrix4(modelMatrixUniform, false, new Matrix4().clearToIdentity().toBuffer());
+		glUniformMatrix4(modelViewMatrixUniform, false, viewMatrix.toBuffer());
 		
 		// fractal.render(new MatrixStack());
 		
-		chunkManager.render(culling, viewChanged);
+		chunkManager.render(culling);// viewChanged);
 		program.end();
 		
-		bulletManager.render(projectionMatrix, new MatrixStack().setTop(viewMatrix), culling);
+		bulletManager.render(camera.getProjectionMatrix(), new MatrixStack().setTop(viewMatrix), culling);
 		
 		glDepthMask(false);
 		
@@ -372,7 +371,7 @@ public class FPS extends GLProgram {
 		
 		glDepthMask(true);
 		
-		viewChanged = false;
+		// viewChanged = false;
 	}
 	
 	public static class FrustumCulling {
@@ -383,8 +382,10 @@ public class FPS extends GLProgram {
 			
 			public static final Plane[] values = values();
 			
+			private final Vector3 temp = new Vector3();
+			
 			public float distanceFromPoint(Vector3 point) {
-				return new Vector3(plane).dot(point) + plane.w();
+				return temp.set(plane).dot(point) + plane.w();
 			}
 		}
 		
@@ -408,22 +409,22 @@ public class FPS extends GLProgram {
 					matrix.get(15) + scale * matrix.get(row + 12)).normalize();
 		}
 		
+		private final Vector3 temp = new Vector3();
+		
 		public boolean isCubeInsideFrustum(Vector3 center, float sideLength) {
-			Vector3 v = center.copy();
-			
 			for(Plane p : Plane.values) {
 				float d = sideLength / 2;
 				
 				boolean isIn;
 				
-				isIn = p.distanceFromPoint(v.set(center).add(d, d, d)) >= 0;
-				isIn |= p.distanceFromPoint(v.set(center).add(d, d, -d)) >= 0;
-				isIn |= p.distanceFromPoint(v.set(center).add(d, -d, d)) >= 0;
-				isIn |= p.distanceFromPoint(v.set(center).add(d, -d, -d)) >= 0;
-				isIn |= p.distanceFromPoint(v.set(center).add(-d, d, d)) >= 0;
-				isIn |= p.distanceFromPoint(v.set(center).add(-d, d, -d)) >= 0;
-				isIn |= p.distanceFromPoint(v.set(center).add(-d, -d, d)) >= 0;
-				isIn |= p.distanceFromPoint(v.set(center).add(-d, -d, -d)) >= 0;
+				isIn = p.distanceFromPoint(temp.set(center).add(d, d, d)) >= 0;
+				isIn |= p.distanceFromPoint(temp.set(center).add(d, d, -d)) >= 0;
+				isIn |= p.distanceFromPoint(temp.set(center).add(d, -d, d)) >= 0;
+				isIn |= p.distanceFromPoint(temp.set(center).add(d, -d, -d)) >= 0;
+				isIn |= p.distanceFromPoint(temp.set(center).add(-d, d, d)) >= 0;
+				isIn |= p.distanceFromPoint(temp.set(center).add(-d, d, -d)) >= 0;
+				isIn |= p.distanceFromPoint(temp.set(center).add(-d, -d, d)) >= 0;
+				isIn |= p.distanceFromPoint(temp.set(center).add(-d, -d, -d)) >= 0;
 				
 				if(!isIn)
 					return false;

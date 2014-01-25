@@ -2,17 +2,14 @@ package com.ra4king.fps;
 
 import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.opengl.GL15.*;
+import static org.lwjgl.opengl.GL20.*;
 import static org.lwjgl.opengl.GL30.*;
 import static org.lwjgl.opengl.GL31.*;
 
 import java.nio.FloatBuffer;
 
 import org.lwjgl.BufferUtils;
-import org.lwjgl.opengl.APPLEVertexArrayObject;
-import org.lwjgl.opengl.ARBVertexArrayObject;
-import org.lwjgl.opengl.GLContext;
 
-import com.ra4king.fps.FPS.FrustumCulling;
 import com.ra4king.opengl.util.math.Vector3;
 
 /**
@@ -26,19 +23,26 @@ public class Chunk {
 	private final BlockType[] blocks;
 	private final Vector3 corner;
 	
-	private final int cubeCount;
+	private int cubeCount;
 	
 	private final ChunkRenderer renderer;
 	
-	public static final int CUBES = 16;
+	public static final int CUBES = GLUtils.get().VERSION >= 33 ? 16 : 8;
 	public static final float CUBE_SIZE = 2;
 	public static final float SPACING = 7;
 	
-	public Chunk(Vector3 corner) {
+	public Chunk(Vector3 corner, boolean random) {
 		this.corner = corner.copy();
 		
 		blocks = new BlockType[CUBES * CUBES * CUBES];
 		
+		if(random)
+			initializeRandomly();
+
+		renderer = new ChunkRenderer();
+	}
+	
+	public void initializeRandomly() {
 		cubeCount = (int)(Math.random() * blocks.length / 10);
 		
 		for(int a = 0; a < cubeCount; a++) {
@@ -54,8 +58,6 @@ public class Chunk {
 				blocks[ix] = BlockType.DIRT;
 			} while(ix == -1);
 		}
-		
-		renderer = new ChunkRenderer();
 	}
 	
 	public int getCubeCount() {
@@ -70,23 +72,43 @@ public class Chunk {
 		return blocks[x * CUBES * CUBES + y * CUBES + z];
 	}
 	
+	public void add(BlockType block, int x, int y, int z) {
+		if(x >= CUBES || x < 0 ||
+				y >= CUBES || y < 0 ||
+				z >= CUBES || z < 0)
+			throw new IllegalArgumentException("Invalid block position.");
+		
+		blocks[x * CUBES * CUBES + y * CUBES + z] = block;
+	}
+	
 	public void update(long deltaTime) {
 		
 	}
 	
-	public void render(FrustumCulling culling, boolean viewChanged) {
-		renderer.render(culling, viewChanged);
+	public void render() {
+		renderer.render();
 	}
 	
 	private class ChunkRenderer {
-		private int vao;
 		private int dataVBO;
 		
-		private final boolean IS_MAC = System.getProperty("os.name").toLowerCase().contains("mac");
-		private final boolean HAS_VAO = GLContext.getCapabilities().OpenGL30;
+		private FloatBuffer buffer;
 		
 		public ChunkRenderer() {
-			FloatBuffer buffer = BufferUtils.createFloatBuffer(getCubeCount() * 4);
+			buffer = BufferUtils.createFloatBuffer(CUBES * CUBES * CUBES);
+			
+			if(GLUtils.get().VERSION >= 33) {
+				dataVBO = glGenBuffers();
+				glBindBuffer(GL_UNIFORM_BUFFER, dataVBO);
+				glBufferData(GL_UNIFORM_BUFFER, buffer.capacity() * 4, GL_STATIC_DRAW);
+				glBindBuffer(GL_UNIFORM_BUFFER, 0);
+			}
+			
+			updateVBO();
+		}
+		
+		public void updateVBO() {
+			buffer.clear();
 			
 			for(int x = 0; x < CUBES; x++) {
 				for(int y = 0; y < CUBES; y++) {
@@ -101,31 +123,18 @@ public class Chunk {
 			
 			buffer.flip();
 			
-			dataVBO = glGenBuffers();
 			glBindBuffer(GL_UNIFORM_BUFFER, dataVBO);
-			glBufferData(GL_UNIFORM_BUFFER, buffer, GL_STATIC_DRAW);
+			glBufferSubData(GL_UNIFORM_BUFFER, 0, buffer);
 			glBindBuffer(GL_UNIFORM_BUFFER, 0);
-			
-			vao = HAS_VAO ? glGenVertexArrays() : (IS_MAC ? APPLEVertexArrayObject.glGenVertexArraysAPPLE() : ARBVertexArrayObject.glGenVertexArrays());
 		}
 		
-		public void render(FrustumCulling culling, boolean viewChanged) {
-			if(HAS_VAO)
-				glBindVertexArray(vao);
-			else if(IS_MAC)
-				APPLEVertexArrayObject.glBindVertexArrayAPPLE(vao);
+		public void render() {
+			if(GLUtils.get().VERSION >= 31)
+				glBindBufferBase(GL_UNIFORM_BUFFER, 3, dataVBO);
 			else
-				ARBVertexArrayObject.glBindVertexArray(vao);
+				glUniform1(FPS.cubesUniform, buffer);
 			
-			glBindBufferBase(GL_UNIFORM_BUFFER, 3, dataVBO);
 			glDrawArrays(GL_TRIANGLES, 0, getCubeCount() * 36);
-			
-			if(HAS_VAO)
-				glBindVertexArray(0);
-			else if(IS_MAC)
-				APPLEVertexArrayObject.glBindVertexArrayAPPLE(0);
-			else
-				ARBVertexArrayObject.glBindVertexArray(0);
 		}
 	}
 }
