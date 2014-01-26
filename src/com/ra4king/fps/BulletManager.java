@@ -1,5 +1,6 @@
 package com.ra4king.fps;
 
+import static com.ra4king.fps.FPS.*;
 import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.opengl.GL15.*;
 import static org.lwjgl.opengl.GL20.*;
@@ -18,7 +19,7 @@ import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.APPLEVertexArrayObject;
 import org.lwjgl.opengl.ARBVertexArrayObject;
 
-import com.ra4king.fps.FPS.FrustumCulling;
+import com.ra4king.fps.FPS.*;
 import com.ra4king.opengl.util.ShaderProgram;
 import com.ra4king.opengl.util.Utils;
 import com.ra4king.opengl.util.math.Matrix4;
@@ -164,11 +165,11 @@ public class BulletManager {
 			vao = glGenVertexArrays();
 			
 			if(GLUtils.get().VERSION >= 33)
-				bulletProgram = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream("bullet.vert")), Utils.readFully(getClass().getResourceAsStream("bullet.frag")));
+				bulletProgram = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream(SHADERS_ROOT_PATH + "bullet.vert")), Utils.readFully(getClass().getResourceAsStream(SHADERS_ROOT_PATH + "bullet.frag")));
 			else if(GLUtils.get().VERSION >= 30)
-				bulletProgram = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream("bullet3.0.vert")), Utils.readFully(getClass().getResourceAsStream("bullet3.0.frag")));
+				bulletProgram = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream(SHADERS_ROOT_PATH + "bullet3.0.vert")), Utils.readFully(getClass().getResourceAsStream(SHADERS_ROOT_PATH + "bullet3.0.frag")));
 			else
-				bulletProgram = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream("bullet2.1.vert")), Utils.readFully(getClass().getResourceAsStream("bullet2.1.frag")));
+				bulletProgram = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream(SHADERS_ROOT_PATH + "bullet2.1.vert")), Utils.readFully(getClass().getResourceAsStream(SHADERS_ROOT_PATH + "bullet2.1.frag")));
 			
 			projectionMatrixUniform = bulletProgram.getUniformLocation("projectionMatrix");
 			modelViewMatrixUniform = bulletProgram.getUniformLocation("modelViewMatrix");

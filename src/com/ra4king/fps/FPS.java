@@ -65,6 +65,8 @@ public class FPS extends GLProgram {
 	private ChunkManager chunkManager;
 	private BulletManager bulletManager;
 	
+	public static final String SHADERS_ROOT_PATH = "/res/shaders/";
+	
 	// private Fractal fractal;
 	
 	public FPS() {
@@ -201,13 +203,13 @@ public class FPS extends GLProgram {
 	
 	private void reload() {
 		if(GLUtils.get().VERSION >= 33)
-			program = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream("fps.vert")), Utils.readFully(getClass().getResourceAsStream("fps.frag")));
+			program = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream(SHADERS_ROOT_PATH + "fps.vert")), Utils.readFully(getClass().getResourceAsStream(SHADERS_ROOT_PATH + "fps.frag")));
 		else if(GLUtils.get().VERSION >= 30)
-			program = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream("fps3.0.vert")), Utils.readFully(getClass().getResourceAsStream("fps3.0.frag")));
+			program = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream(SHADERS_ROOT_PATH + "fps3.0.vert")), Utils.readFully(getClass().getResourceAsStream(SHADERS_ROOT_PATH + "fps3.0.frag")));
 		else {
 			throw new RuntimeException("2.1 and below not supported.");
 			
-			// program = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream("fps2.1.vert")), Utils.readFully(getClass().getResourceAsStream("fps2.1.frag")));
+			// program = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream(SHADERS_ROOT_PATH + "fps2.1.vert")), Utils.readFully(getClass().getResourceAsStream(SHADERS_ROOT_PATH + "fps2.1.frag")));
 		}
 		
 		lightsBuffer = BufferUtils.createFloatBuffer((BulletManager.MAX_BULLET_COUNT * 2 + 4) * 4 * 4);
