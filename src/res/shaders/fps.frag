@@ -4,15 +4,25 @@ in vec3 cameraSpacePosition;
 in vec3 normal;
 
 struct Light {
-	vec4 position;
-	vec4 color;
+	vec3 color;
+	float k;
 };
 
+struct PointLight {
+	vec3 position;
+	float range;
+	Light light;
+};
+
+#define MAX_NUM_LIGHTS 500
+
 layout(std140) uniform Lights {
-	vec4 mainLightPosition, mainDiffuseColor, mainAmbientColor;
+	Light mainDiffuseLight;
+	vec3 mainAmbientColor;
 	
 	float numberOfLights;
-	Light lightPositions[1000];
+	
+	PointLight lightPositions[MAX_NUM_LIGHTS];
 };
 
 out vec4 fragColor;
@@ -20,25 +30,30 @@ out vec4 fragColor;
 void main() {
 	vec3 normal = normalize(normal);
 	
+	fragColor = vec4(mainAmbientColor, 1);
+	
 	{
 		vec3 lightDistance = -cameraSpacePosition;
+		
 		float cos = max(0, dot(normal, normalize(lightDistance)));
+		float atten = 1.0 / (1.0 + mainDiffuseLight.k * dot(lightDistance, lightDistance));
 		
-		float atten = 1.0 / (1.0 + mainLightPosition.w * dot(lightDistance, lightDistance));
-		
-		fragColor = mainDiffuseColor * atten * cos + mainAmbientColor;
+		fragColor.xyz += vec3(1, 0.5, 0.5) * mainDiffuseLight.color * atten * cos;
 	}
 	
-	for(int a = 0; a < numberOfLights; a++) {
-		Light light = lightPositions[a];
+	for(int a = int(numberOfLights) - 1; a >= 0; a--) {
+		PointLight pointLight = lightPositions[a];
 		
-		vec3 lightDistance = vec3(light.position) - cameraSpacePosition;
-		float distSqr = dot(lightDistance, lightDistance);
+		vec3 lightDistance = pointLight.position - cameraSpacePosition;
+		
+		float lightDistanceSqr = dot(lightDistance, lightDistance);
+		if(lightDistanceSqr > pointLight.range * pointLight.range)
+			continue;
 		
 		float cos = max(0, dot(normal, normalize(lightDistance)));
-		float atten = 1.0 / (1.0 + light.position.w * distSqr * log(distSqr));
+		float atten = 1.0 / (1.0 + pointLight.light.k * lightDistanceSqr);
 		
-		fragColor += light.color * atten * cos;
+		fragColor.xyz += (pointLight.light.color * atten * cos) * 0.2;
 	}
 	
 	vec4 gamma = vec4(1.0 / 2.2);

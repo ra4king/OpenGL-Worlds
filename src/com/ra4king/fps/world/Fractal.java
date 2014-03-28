@@ -1,4 +1,4 @@
-package com.ra4king.fps;
+package com.ra4king.fps.world;
 
 import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.opengl.GL15.*;

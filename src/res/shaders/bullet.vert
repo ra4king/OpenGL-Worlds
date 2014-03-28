@@ -1,34 +1,22 @@
 #version 330
 
-const vec2 maps[] = vec2[6](vec2(-0.5f, 0.5f), vec2(0.5f, 0.5f), vec2(0.5f, -0.5f),
-							vec2(0.5f, -0.5f), vec2(-0.5f, -0.5f), vec2(-0.5f, 0.5f));
+struct Bullet {
+	vec4 position;
+	vec4 color;
+};
+
+layout(location = 0) in vec2 vertex;
+layout(location = 1) in Bullet bullet; //1 per instance 
 
 out vec2 mapping;
 out vec4 bulletColor;
 
 uniform mat4 projectionMatrix, modelViewMatrix;
 
-#define BULLET_COUNT 2000
-
-struct Bullet {
-	vec4 position;
-	vec4 color;
-};
-
-layout(std140) uniform BulletData {
-	Bullet bulletData[BULLET_COUNT];
-};
-
 void main() {
-	int mapIndex = gl_VertexID % 6;
-	int dataIndex = gl_VertexID / 6;
+	mapping = vertex * 2;
 	
-	mapping = maps[mapIndex] * 2;
+	bulletColor = bullet.color;
 	
-	vec4 position = bulletData[dataIndex].position;
-	vec4 color = bulletData[dataIndex].color;
-	
-	bulletColor = color;
-	
-	gl_Position = projectionMatrix * (modelViewMatrix * vec4(position.xyz, 1) + vec4(position.w * maps[mapIndex], 0, 0));
+	gl_Position = projectionMatrix * (modelViewMatrix * vec4(bullet.position.xyz, 1) + vec4(bullet.position.w * vertex, 0, 0));
 }

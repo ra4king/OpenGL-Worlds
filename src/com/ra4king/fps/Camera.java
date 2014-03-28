@@ -32,7 +32,7 @@ public class Camera {
 	
 	public void update(long deltaTime) {
 		if(cameraUpdate != null)
-			cameraUpdate.update(deltaTime, this, projectionMatrix, position, orientation);
+			cameraUpdate.updateCamera(deltaTime, this, projectionMatrix, position, orientation);
 	}
 	
 	public CameraUpdate getCameraUpdate() {
@@ -68,6 +68,6 @@ public class Camera {
 	}
 	
 	public static interface CameraUpdate {
-		public void update(long deltaTime, Camera camera, Matrix4 projectionMatrix, Vector3 position, Quaternion orientation);
+		public void updateCamera(long deltaTime, Camera camera, Matrix4 projectionMatrix, Vector3 position, Quaternion orientation);
 	}
 }
