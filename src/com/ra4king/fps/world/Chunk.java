@@ -125,18 +125,42 @@ public class Chunk {
 
 		if(random)
 			initializeRandomly();
-
+		else
+			initializeAll();
+		
 		renderer = new ChunkRenderer();
 	}
 	
 	public void initializeRandomly() {
-		cubeCount = blocks.length;// (int)(Math.random() * blocks.length / 10);
+		cubeCount = (int)(Math.random() * blocks.length / 10);
+
+		for(int a = 0; a < cubeCount; a++) {
+			int ix;
+			do {
+				ix = (int)(Math.random() * blocks.length);
+				
+				if(blocks[ix] != null) {
+					ix = -1;
+					continue;
+				}
+				
+				int x = ix / (CUBES_SIDE * CUBES_SIDE);
+				int y = (ix % (CUBES_SIDE * CUBES_SIDE)) / CUBES_SIDE;
+				int z = ix % CUBES_SIDE;
+				
+				blocks[ix] = new BlockInfo(chunkInfo, x, y, z, BlockType.DIRT);
+			} while(ix == -1);
+		}
+	}
+	
+	public void initializeAll() {
+		cubeCount = blocks.length;
 		
 		for(int a = 0; a < cubeCount; a++) {
 			int ix;
 			do {
-				ix = a;// (int)(Math.random() * blocks.length);
-
+				ix = a;
+				
 				if(blocks[ix] != null) {
 					ix = -1;
 					continue;
@@ -205,7 +229,7 @@ public class Chunk {
 		renderer.cubesRendered = 0;
 		return r;
 	}
-
+	
 	public void render() {
 		renderer.render();
 	}
@@ -216,7 +240,7 @@ public class Chunk {
 		private int dataVBO;
 		
 		private int lastRenderCount;
-	
+		
 		public ChunkRenderer() {
 			dataVBO = glGenBuffers();
 		}
@@ -241,15 +265,15 @@ public class Chunk {
 							return false;
 					}
 				}
-	}
-
+			}
+			
 			return true;
 		}
 		
 		private int updateVBO() {
 			if(!modified)
 				return lastRenderCount;
-
+			
 			modified = false;
 			
 			int cubesToDraw = 0;
@@ -265,18 +289,22 @@ public class Chunk {
 						
 						cubesToDraw++;
 						
-						tempCubeBuffer.put((block.chunkInfo.chunkCornerX + x) * SPACING + CUBE_SIZE / 2)
-								.put((block.chunkInfo.chunkCornerY + y) * SPACING + CUBE_SIZE / 2)
-								.put(-((block.chunkInfo.chunkCornerZ + z) * SPACING + CUBE_SIZE / 2))
-								.put(CUBE_SIZE / 2);
-					}
+						float size = x % CUBES_SIDE == 0 ||
+								y % CUBES_SIDE == 0 ||
+								z % CUBES_SIDE == 0 ? CUBE_SIZE / 2 : CUBE_SIZE;
+						
+						tempCubeBuffer.put((block.chunkInfo.chunkCornerX + x) * SPACING + size / 2)
+								.put((block.chunkInfo.chunkCornerY + y) * SPACING + size / 2)
+								.put(-((block.chunkInfo.chunkCornerZ + z) * SPACING + size / 2))
+								.put(size / 2);
+	}
 				}
 			}
 			
-			tempCubeBuffer.flip();
-			
 			if(cubesToDraw == 0)
 				return 0;
+			
+			tempCubeBuffer.flip();
 			
 			glBindBuffer(GL_ARRAY_BUFFER, dataVBO);
 			
@@ -289,7 +317,7 @@ public class Chunk {
 			
 			return lastRenderCount = cubesToDraw;
 		}
-
+		
 		private long cubesRendered;
 		
 		public void render() {

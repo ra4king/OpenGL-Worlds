@@ -31,7 +31,7 @@ public class World implements CameraUpdate {
 		camera = new Camera(60, 1, 5000);
 		camera.setCameraUpdate(this);
 		
-		chunkManager = new ChunkManager(true);
+		chunkManager = new ChunkManager(false);
 		bulletManager = new BulletManager(chunkManager);
 		
 		reset();

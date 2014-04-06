@@ -33,7 +33,7 @@ public class BulletManager {
 	public int getBlocksDestroyedCount() {
 		return blocksDestroyed;
 	}
-
+	
 	public void update(long deltaTime) {
 		ArrayList<Bullet> temp = new ArrayList<>();
 		
@@ -43,7 +43,7 @@ public class BulletManager {
 			if(bullet.isAlive()) {
 				boolean isAlive = true;
 				
-				if(false) {// bullet.isSolid()) {
+				if(bullet.isSolid()) {
 					Vector3 pos = bullet.getPosition();
 					
 					BlockInfo block;

@@ -295,6 +295,8 @@ public class WorldRenderer {
 				chunksRendered++;
 			}
 		
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+		
 		frameCount++;
 		
 		GLUtils.get().glBindVertexArray(0);

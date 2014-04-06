@@ -2,6 +2,7 @@
 
 in vec3 cameraSpacePosition;
 in vec3 normal;
+in vec3 color;
 
 struct Light {
 	vec3 color;
@@ -30,7 +31,7 @@ out vec4 fragColor;
 void main() {
 	vec3 normal = normalize(normal);
 	
-	fragColor = vec4(mainAmbientColor, 1);
+	fragColor = vec4(mainAmbientColor + color, 1);
 	
 	{
 		vec3 lightDistance = -cameraSpacePosition;
