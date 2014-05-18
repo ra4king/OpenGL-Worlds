@@ -28,7 +28,7 @@ import com.ra4king.opengl.util.math.MatrixStack;
 import com.ra4king.opengl.util.math.Vector3;
 
 /**
- * @author ra4king
+ * @author Roi Atalla
  */
 public class BulletRenderer {
 	private BulletManager bulletManager;

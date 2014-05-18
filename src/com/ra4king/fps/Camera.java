@@ -5,7 +5,7 @@ import com.ra4king.opengl.util.math.Quaternion;
 import com.ra4king.opengl.util.math.Vector3;
 
 /**
- * @author ra4king
+ * @author Roi Atalla
  */
 public class Camera {
 	private final Matrix4 projectionMatrix;

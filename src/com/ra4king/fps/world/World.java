@@ -13,7 +13,7 @@ import com.ra4king.opengl.util.math.Quaternion;
 import com.ra4king.opengl.util.math.Vector3;
 
 /**
- * @author ra4king
+ * @author Roi Atalla
  */
 public class World implements CameraUpdate {
 	private float deltaTimeBuffer;
@@ -150,7 +150,7 @@ public class World implements CameraUpdate {
 				position.add(inverse.mult(delta));
 		}
 		
-		if((Mouse.isButtonDown(0) || Keyboard.isKeyDown(Keyboard.KEY_C)) && (System.nanoTime() - mouseCooldown) > (long)1e8) {
+		if((Mouse.isButtonDown(0) || Keyboard.isKeyDown(Keyboard.KEY_C)) && (System.nanoTime() - mouseCooldown) > (long)7e7) {
 			int bulletSpeed = 200;
 			
 			bulletManager.addBullet(new Bullet(position.copy().mult(-1).add(inverse.mult(rightBullet)), inverse.mult(Vector3.FORWARD).mult(bulletSpeed), 3, 500));

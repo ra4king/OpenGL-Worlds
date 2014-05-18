@@ -11,7 +11,7 @@ import com.ra4king.opengl.util.math.Vector3;
 import com.ra4king.opengl.util.math.Vector4;
 
 /**
- * @author ra4king
+ * @author Roi Atalla
  */
 public final class GLUtils {
 	public final int VERSION;

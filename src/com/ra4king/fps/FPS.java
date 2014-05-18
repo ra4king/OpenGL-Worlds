@@ -11,7 +11,7 @@ import com.ra4king.fps.world.World;
 import com.ra4king.opengl.util.GLProgram;
 
 /**
- * @author ra4king
+ * @author Roi Atalla
  */
 public class FPS extends GLProgram {
 	public static void main(String[] args) throws Exception {

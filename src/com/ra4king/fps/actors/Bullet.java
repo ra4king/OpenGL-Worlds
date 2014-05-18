@@ -3,7 +3,7 @@ package com.ra4king.fps.actors;
 import com.ra4king.opengl.util.math.Vector3;
 
 /**
- * @author ra4king
+ * @author Roi Atalla
  */
 public class Bullet {
 	private final Vector3 position, velocity;

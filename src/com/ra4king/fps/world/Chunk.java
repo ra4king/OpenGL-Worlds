@@ -10,7 +10,7 @@ import java.nio.FloatBuffer;
 import org.lwjgl.BufferUtils;
 
 /**
- * @author ra4king
+ * @author Roi Atalla
  */
 public class Chunk {
 	public enum BlockType {
@@ -122,7 +122,7 @@ public class Chunk {
 		this.chunkInfo = chunkInfo;
 		
 		blocks = new BlockInfo[CUBES_SIDE * CUBES_SIDE * CUBES_SIDE];
-
+		
 		if(random)
 			initializeRandomly();
 		else
@@ -133,7 +133,7 @@ public class Chunk {
 	
 	public void initializeRandomly() {
 		cubeCount = (int)(Math.random() * blocks.length / 10);
-
+		
 		for(int a = 0; a < cubeCount; a++) {
 			int ix;
 			do {
@@ -297,7 +297,7 @@ public class Chunk {
 								.put((block.chunkInfo.chunkCornerY + y) * SPACING + size / 2)
 								.put(-((block.chunkInfo.chunkCornerZ + z) * SPACING + size / 2))
 								.put(size / 2);
-	}
+					}
 				}
 			}
 			

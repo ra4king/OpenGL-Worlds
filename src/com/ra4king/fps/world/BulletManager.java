@@ -7,7 +7,7 @@ import com.ra4king.fps.world.Chunk.BlockInfo;
 import com.ra4king.opengl.util.math.Vector3;
 
 /**
- * @author ra4king
+ * @author Roi Atalla
  */
 public class BulletManager {
 	private ArrayList<Bullet> bullets;
