@@ -284,7 +284,7 @@ public class Chunk {
 				for(int y = 0; y < CUBES_SIDE; y++) {
 					for(int z = 0; z < CUBES_SIDE; z++) {
 						BlockInfo block;
-						if((block = get(x, y, z)) == null || isSurrounded(x, y, z))
+						if((block = get(x, y, z)) == null)// || isSurrounded(x, y, z))
 							continue;
 						
 						cubesToDraw++;
