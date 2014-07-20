@@ -23,7 +23,7 @@ public class ChunkManager {
 		for(int x = 0; x < CHUNKS_SIDE; x++)
 			for(int y = 0; y < CHUNKS_SIDE; y++)
 				for(int z = 0; z < CHUNKS_SIDE; z++) {
-					Chunk chunk = new Chunk(this, new ChunkInfo(x * Chunk.CUBES_SIDE, y * Chunk.CUBES_SIDE, z * Chunk.CUBES_SIDE), random);
+					Chunk chunk = new Chunk(this, new ChunkInfo(x * Chunk.CUBES_WIDTH, y * Chunk.CUBES_HEIGHT, z * Chunk.CUBES_DEPTH), random);
 					chunks.add(chunk);
 					
 					totalCubes += chunk.getCubeCount();
@@ -35,17 +35,17 @@ public class ChunkManager {
 	public HashSet<Chunk> getChunks() {
 		return chunks;
 	}
-
+	
 	private final Vector3 temp = new Vector3();
 	
 	public BlockInfo getBlock(int x, int y, int z) {
-		int chunkX = (x / Chunk.CUBES_SIDE) * Chunk.CUBES_SIDE;
-		int chunkY = (y / Chunk.CUBES_SIDE) * Chunk.CUBES_SIDE;
-		int chunkZ = (z / Chunk.CUBES_SIDE) * Chunk.CUBES_SIDE;
+		int chunkX = (x / Chunk.CUBES_WIDTH) * Chunk.CUBES_WIDTH;
+		int chunkY = (y / Chunk.CUBES_HEIGHT) * Chunk.CUBES_HEIGHT;
+		int chunkZ = (z / Chunk.CUBES_DEPTH) * Chunk.CUBES_DEPTH;
 		
 		for(Chunk c : chunks) {
 			if(c.getChunkInfo().cornerEquals(chunkX, chunkY, chunkZ))
-				return c.get(x % Chunk.CUBES_SIDE, y % Chunk.CUBES_SIDE, z % Chunk.CUBES_SIDE);
+				return c.get(x % Chunk.CUBES_WIDTH, y % Chunk.CUBES_HEIGHT, z % Chunk.CUBES_DEPTH);
 		}
 		
 		return null;
@@ -54,17 +54,19 @@ public class ChunkManager {
 	public BlockInfo getBlock(Vector3 v, float radius) {
 		final float d = Chunk.CUBE_SIZE / 2 + radius;
 		
-		final float chunkLength = Chunk.CUBES_SIDE * Chunk.SPACING;
+		final float chunkWidth = Chunk.CUBES_WIDTH * Chunk.SPACING;
+		final float chunkHeight = Chunk.CUBES_HEIGHT * Chunk.SPACING;
+		final float chunkDepth = Chunk.CUBES_DEPTH * Chunk.SPACING;
 		
-		if(v.x() < -d || v.x() > CHUNKS_SIDE * chunkLength + d ||
-				v.y() < -d || v.y() > CHUNKS_SIDE * chunkLength + d ||
-				v.z() > d || v.z() < -CHUNKS_SIDE * chunkLength - d) {
+		if(v.x() < -d || v.x() > CHUNKS_SIDE * chunkWidth + d ||
+				v.y() < -d || v.y() > CHUNKS_SIDE * chunkHeight + d ||
+				v.z() > d || v.z() < -CHUNKS_SIDE * chunkDepth - d) {
 			return null;
 		}
 		
-		int ix = Math.round((int)(v.x() / chunkLength) * Chunk.CUBES_SIDE); //
-		int iy = Math.round((int)(v.y() / chunkLength) * Chunk.CUBES_SIDE); // Chunk position
-		int iz = Math.round((int)(-v.z() / chunkLength) * Chunk.CUBES_SIDE); //
+		int ix = Math.round((int)(v.x() / chunkWidth) * Chunk.CUBES_WIDTH); //
+		int iy = Math.round((int)(v.y() / chunkHeight) * Chunk.CUBES_HEIGHT); // Chunk position
+		int iz = Math.round((int)(-v.z() / chunkDepth) * Chunk.CUBES_DEPTH); //
 		
 		int px = Math.round((v.x() - ix * Chunk.SPACING) / Chunk.SPACING); //
 		int py = Math.round((v.y() - iy * Chunk.SPACING) / Chunk.SPACING); // Cube position in chunk
@@ -98,20 +100,20 @@ public class ChunkManager {
 								closestBlock = block;
 							}
 						}
-	}
+					}
 				}
 				
 				return lowestDistance <= d * d ? closestBlock : null;
 			}
-	}
-	
+		}
+		
 		return null;
 	}
 	
 	public void setBlock(int cubeX, int cubeY, int cubeZ) {
 		for(Chunk chunk : chunks) {
 			if(chunk.getChunkInfo().containsBlock(cubeX, cubeY, cubeZ)) {
-				chunk.set(BlockType.DIRT, cubeX % Chunk.CUBES_SIDE, cubeY % Chunk.CUBES_SIDE, cubeZ % Chunk.CUBES_SIDE);
+				chunk.set(BlockType.DIRT, cubeX % Chunk.CUBES_WIDTH, cubeY % Chunk.CUBES_HEIGHT, cubeZ % Chunk.CUBES_DEPTH);
 				return;
 			}
 		}
@@ -126,7 +128,19 @@ public class ChunkManager {
 		return false;
 	}
 	
+	private long elapsedTime;
+	
 	public void update(long deltaTime) {
+		elapsedTime += deltaTime;
 		
+		if(elapsedTime > 1e9) {
+			elapsedTime -= 1e9;
+			
+			long triangles = 0;
+			for(Chunk chunk : chunks)
+				triangles += chunk.getLastTriangleRenderCount();
+			
+			System.out.printf("%d triangles rendered\n", triangles);
+		}
 	}
 }

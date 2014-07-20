@@ -15,7 +15,7 @@ import com.ra4king.opengl.util.GLProgram;
  */
 public class OpenGLWorld extends GLProgram {
 	public static void main(String[] args) throws Exception {
-		new OpenGLWorld().run(new PixelFormat(16, 0, 8, 0, 4));
+		new OpenGLWorld().run(true, new PixelFormat(16, 0, 8, 0, 4));
 	}
 	
 	private World world;
@@ -24,12 +24,12 @@ public class OpenGLWorld extends GLProgram {
 	// private Fractal fractal;
 	
 	public OpenGLWorld() {
-		super("OpenGLWorld", 1280, 800, true);
+		super("OpenGLWorld", 800, 600, true);
 	}
 	
 	@Override
 	public void init() {
-		GLUtils.get();
+		GLUtils.init();
 		
 		setFPS(0);
 		

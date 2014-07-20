@@ -6,9 +6,10 @@ import static org.lwjgl.opengl.GL20.*;
 import static org.lwjgl.opengl.GL30.*;
 import static org.lwjgl.opengl.GL31.*;
 import static org.lwjgl.opengl.GL32.*;
-import static org.lwjgl.opengl.GL33.*;
 
+import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
+import java.util.HashMap;
 
 import org.lwjgl.BufferUtils;
 import org.lwjgl.input.Keyboard;
@@ -21,6 +22,7 @@ import com.ra4king.fps.world.Chunk;
 import com.ra4king.fps.world.World;
 import com.ra4king.opengl.util.ShaderProgram;
 import com.ra4king.opengl.util.Utils;
+import com.ra4king.opengl.util.math.Matrix3;
 import com.ra4king.opengl.util.math.Matrix4;
 import com.ra4king.opengl.util.math.MatrixStack;
 import com.ra4king.opengl.util.math.Vector3;
@@ -33,18 +35,33 @@ public class WorldRenderer {
 	
 	private BulletRenderer bulletRenderer;
 	
-	private int vao;
-	
 	private ShaderProgram worldProgram;
 	private int projectionMatrixUniform;
-	private int modelViewMatrixUniform;
+	private int viewMatrixUniform;
+	private int normalMatrixUniform;
 	
-	private static final int MAX_NUM_LIGHTS = 500;
+	private LightSystem lightSystem;
 	
-	private FloatBuffer lightsBuffer;
-	private int lightsUniformBufferVBO;
+	private static final int MAX_NUM_LIGHTS;
 	
 	private FrustumCulling culling;
+	
+	static {
+		switch(GLUtils.get().GL_VERSION) {
+			case 31:
+				MAX_NUM_LIGHTS = 100;
+				break;
+			case 30:
+				MAX_NUM_LIGHTS = 100;
+				break;
+			case 21:
+				MAX_NUM_LIGHTS = 50;
+				break;
+			default:
+				MAX_NUM_LIGHTS = 10;
+				break;
+		}
+	}
 	
 	public WorldRenderer(World world) {
 		this.world = world;
@@ -63,7 +80,7 @@ public class WorldRenderer {
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		
-		if(GLUtils.get().VERSION >= 32)
+		if(GLUtils.get().GL_VERSION >= 32)
 			glEnable(GL_DEPTH_CLAMP);
 		
 		// private int mainLightPositionUniform, mainDiffuseColorUniform, mainAmbientColorUniform;
@@ -72,10 +89,10 @@ public class WorldRenderer {
 		
 		// private FloatBuffer lightsColorBuffer;
 		
-		// if(GLUtils.get().VERSION >= 33)
+		// if(GLUtils.get().GL_VERSION >= 33)
 		// worldProgram = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream(GLUtils.get().SHADERS_ROOT_PATH + "fps.vert")),
 		// Utils.readFully(getClass().getResourceAsStream(GLUtils.get().SHADERS_ROOT_PATH + "fps.frag")));
-		// else if(GLUtils.get().VERSION >= 30)
+		// else if(GLUtils.get().GL_VERSION >= 30)
 		// worldProgram = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream(GLUtils.get().SHADERS_ROOT_PATH + "fps3.0.vert")),
 		// Utils.readFully(getClass().getResourceAsStream(GLUtils.get().SHADERS_ROOT_PATH + "fps3.0.frag")));
 		// else {
@@ -93,125 +110,26 @@ public class WorldRenderer {
 	}
 	
 	private void loadShaders() {
-		float[] unitCube = {
-				-0.5f, 0.5f, 0.5f,
-				0, 0, 1,
-				0.5f, 0.5f, 0.5f,
-				0, 0, 1,
-				0.5f, -0.5f, 0.5f,
-				0, 0, 1,
-				0.5f, -0.5f, 0.5f,
-				0, 0, 1,
-				-0.5f, -0.5f, 0.5f,
-				0, 0, 1,
-				-0.5f, 0.5f, 0.5f,
-				0, 0, 1,
-				
-				0.5f, 0.5f, -0.5f,
-				0, 0, -1,
-				-0.5f, 0.5f, -0.5f,
-				0, 0, -1,
-				-0.5f, -0.5f, -0.5f,
-				0, 0, -1,
-				-0.5f, -0.5f, -0.5f,
-				0, 0, -1,
-				0.5f, -0.5f, -0.5f,
-				0, 0, -1,
-				0.5f, 0.5f, -0.5f,
-				0, 0, -1,
-				
-				-0.5f, 0.5f, -0.5f,
-				0, 1, 0,
-				0.5f, 0.5f, -0.5f,
-				0, 1, 0,
-				0.5f, 0.5f, 0.5f,
-				0, 1, 0,
-				0.5f, 0.5f, 0.5f,
-				0, 1, 0,
-				-0.5f, 0.5f, 0.5f,
-				0, 1, 0,
-				-0.5f, 0.5f, -0.5f,
-				0, 1, 0,
-				
-				-0.5f, -0.5f, 0.5f,
-				0, -1, 0,
-				0.5f, -0.5f, 0.5f,
-				0, -1, 0,
-				0.5f, -0.5f, -0.5f,
-				0, -1, 0,
-				0.5f, -0.5f, -0.5f,
-				0, -1, 0,
-				-0.5f, -0.5f, -0.5f,
-				0, -1, 0,
-				-0.5f, -0.5f, 0.5f,
-				0, -1, 0,
-				
-				0.5f, 0.5f, 0.5f,
-				1, 0, 0,
-				0.5f, 0.5f, -0.5f,
-				1, 0, 0,
-				0.5f, -0.5f, -0.5f,
-				1, 0, 0,
-				0.5f, -0.5f, -0.5f,
-				1, 0, 0,
-				0.5f, -0.5f, 0.5f,
-				1, 0, 0,
-				0.5f, 0.5f, 0.5f,
-				1, 0, 0,
-				
-				-0.5f, 0.5f, -0.5f,
-				-1, 0, 0,
-				-0.5f, 0.5f, 0.5f,
-				-1, 0, 0,
-				-0.5f, -0.5f, 0.5f,
-				-1, 0, 0,
-				-0.5f, -0.5f, 0.5f,
-				-1, 0, 0,
-				-0.5f, -0.5f, -0.5f,
-				-1, 0, 0,
-				-0.5f, 0.5f, -0.5f,
-				-1, 0, 0,
-		};
+		String shaderName = "fps" + GLUtils.get().GL_VERSION;
 		
-		FloatBuffer cubeBuffer = BufferUtils.createFloatBuffer(unitCube.length);
-		cubeBuffer.put(unitCube).flip();
+		HashMap<Integer,String> attributes = new HashMap<Integer,String>();
+		attributes.put(0, "position");
+		attributes.put(1, "normal");
 		
-		glBindBuffer(GL_ARRAY_BUFFER, glGenBuffers());
-		glBufferData(GL_ARRAY_BUFFER, cubeBuffer, GL_STATIC_DRAW);
+		worldProgram = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream(GLUtils.get().SHADERS_ROOT_PATH + shaderName + ".vert")),
+				Utils.readFully(getClass().getResourceAsStream(GLUtils.get().SHADERS_ROOT_PATH + shaderName + ".frag")),
+				attributes);
 		
-		worldProgram = new ShaderProgram(
-				Utils.readFully(getClass().getResourceAsStream(GLUtils.get().SHADERS_ROOT_PATH + "fps.vert")),
-				Utils.readFully(getClass().getResourceAsStream(GLUtils.get().SHADERS_ROOT_PATH + "fps.frag")));
+		if(GLUtils.get().GL_VERSION >= 31)
+			lightSystem = new UniformBufferLightSystem();
+		else
+			lightSystem = new UniformArrayLightSystem();
 		
-		vao = GLUtils.get().glGenVertexArrays();
-		GLUtils.get().glBindVertexArray(vao);
-		
-		glEnableVertexAttribArray(0);
-		glEnableVertexAttribArray(1);
-		glVertexAttribDivisor(0, 1);
-		glVertexAttribDivisor(1, 1);
-		
-		glEnableVertexAttribArray(2);
-		glEnableVertexAttribArray(3);
-		glVertexAttribPointer(2, 3, GL_FLOAT, false, 6 * 4, 0);
-		glVertexAttribPointer(3, 3, GL_FLOAT, false, 6 * 4, 3 * 4);
-		
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-		GLUtils.get().glBindVertexArray(0);
-		
-		lightsBuffer = BufferUtils.createFloatBuffer(MAX_NUM_LIGHTS * 2 * 4 + 2 * 4);
-		
-		int lightsBlockIndex = worldProgram.getUniformBlockIndex("Lights");
-		glUniformBlockBinding(worldProgram.getProgram(), lightsBlockIndex, 1);
-		
-		lightsUniformBufferVBO = glGenBuffers();
-		glBindBuffer(GL_UNIFORM_BUFFER, lightsUniformBufferVBO);
-		glBufferData(GL_UNIFORM_BUFFER, lightsBuffer.capacity() * 4, GL_STREAM_DRAW);
-		glBindBufferBase(GL_UNIFORM_BUFFER, 1, lightsUniformBufferVBO);
-		glBindBuffer(GL_UNIFORM_BUFFER, 0);
+		lightSystem.setupLights(worldProgram);
 		
 		projectionMatrixUniform = worldProgram.getUniformLocation("projectionMatrix");
-		modelViewMatrixUniform = worldProgram.getUniformLocation("modelViewMatrix");
+		viewMatrixUniform = worldProgram.getUniformLocation("viewMatrix");
+		normalMatrixUniform = worldProgram.getUniformLocation("normalMatrix");
 	}
 	
 	private long timePassed;
@@ -238,68 +156,57 @@ public class WorldRenderer {
 			
 			System.out.println("Average of " + (chunksRendered / frameCount) + " chunks rendered.");
 			
-			long cubesRendered = 0;
-			for(Chunk c : world.getChunkManager().getChunks())
-				cubesRendered += c.getCubesRendered();
+			// long cubesRendered = 0;
+			// for(Chunk c : world.getChunkManager().getChunks())
+			// cubesRendered += c.getCubesRendered();
 			
-			System.out.println("Average of " + (cubesRendered / frameCount) + " cubes renderered.\n");
+			// System.out.println("Average of " + (cubesRendered / frameCount) + " cubes renderered.\n");
 			
 			frameCount = chunksRendered = 0;
 		}
 	}
 	
 	private final Vector3 mainDiffuseColor = new Vector3(1f, 1f, 1f);
-	private final Vector3 mainAmbientColor = new Vector3(0.01f, 0.01f, 0.01f);
+	private final Vector3 mainAmbientColor = new Vector3(0.1f, 0.1f, 0.1f);
 	
 	private final Bullet aim = new Bullet(new Vector3(), new Vector3(), 4, 0, Long.MAX_VALUE, false, new Vector3(1));
 	
 	private final Matrix4 viewMatrix = new Matrix4(), cullingProjectionMatrix = new Matrix4();
+	private final Matrix3 normalMatrix = new Matrix3();
+	
 	private final MatrixStack tempStack = new MatrixStack();
 	
 	private final Vector3 renderTemp = new Vector3();
 	
 	public void render() {
-		worldProgram.begin();
-		
 		Camera camera = world.getCamera();
 		
+		// Convert Camera's Quaternion to a Matrix4 and translate it by the camera's position
 		world.getCamera().getOrientation().toMatrix(viewMatrix).translate(camera.getPosition());
 		
-		glUniformMatrix4(projectionMatrixUniform, false, camera.getProjectionMatrix().toBuffer());
-		glUniformMatrix4(modelViewMatrixUniform, false, viewMatrix.toBuffer());
+		worldProgram.begin();
 		
-		culling.setupPlanes(cullingProjectionMatrix.set(camera.getProjectionMatrix()).mult(viewMatrix));
+		glUniformMatrix4(projectionMatrixUniform, false, camera.getProjectionMatrix().toBuffer());
+		glUniformMatrix4(viewMatrixUniform, false, viewMatrix.toBuffer());
+		
+		normalMatrix.set(viewMatrix).inverse().transpose();
+		glUniformMatrix3(normalMatrixUniform, false, normalMatrix.toBuffer());
 		
 		final float mainK = 0.001f;
+		lightSystem.renderLights(mainDiffuseColor, mainK, mainAmbientColor, viewMatrix, bulletRenderer);
 		
-		lightsBuffer.clear();
+		// Setting up the 6 planes that define the edges of the frustum
+		culling.setupPlanes(cullingProjectionMatrix.set(camera.getProjectionMatrix()).mult(viewMatrix));
 		
-		lightsBuffer.put(mainDiffuseColor.toBuffer());
-		lightsBuffer.put(mainK);
-		
-		lightsBuffer.put(mainAmbientColor.toBuffer());
-		
-		bulletRenderer.getBulletLightData(viewMatrix, lightsBuffer, MAX_NUM_LIGHTS);
-		
-		lightsBuffer.flip();
-		
-		glBindBuffer(GL_UNIFORM_BUFFER, lightsUniformBufferVBO);
-		glBufferSubData(GL_UNIFORM_BUFFER, 0, lightsBuffer);
-		glBindBuffer(GL_UNIFORM_BUFFER, 0);
-		
-		GLUtils.get().glBindVertexArray(vao);
-		
-		for(Chunk chunk : world.getChunkManager().getChunks())
-			if(culling.isCubeInsideFrustum(renderTemp.set(chunk.getChunkInfo().chunkCornerX, chunk.getChunkInfo().chunkCornerY, -chunk.getChunkInfo().chunkCornerZ).mult(Chunk.SPACING), Chunk.CUBES_SIDE * Chunk.SPACING * 2)) {
-				chunk.render();
+		for(Chunk chunk : world.getChunkManager().getChunks()) {
+			if(culling.isRectPrismInsideFrustum(renderTemp.set(chunk.getChunkInfo().chunkCornerX, chunk.getChunkInfo().chunkCornerY, -chunk.getChunkInfo().chunkCornerZ).mult(Chunk.SPACING),
+					Chunk.CUBES_WIDTH * Chunk.SPACING * 2,
+					Chunk.CUBES_HEIGHT * Chunk.SPACING * 2,
+					Chunk.CUBES_DEPTH * Chunk.SPACING * 2)) {
+				chunk.render(viewMatrix, normalMatrix);
 				chunksRendered++;
 			}
-		
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-		
-		frameCount++;
-		
-		GLUtils.get().glBindVertexArray(0);
+		}
 		
 		worldProgram.end();
 		
@@ -308,9 +215,116 @@ public class WorldRenderer {
 		glDepthMask(false);
 		
 		glDisable(GL_DEPTH_TEST);
-		bulletRenderer.render(new Matrix4().clearToOrtho(-GLUtils.get().getWidth() / 2, GLUtils.get().getWidth() / 2, -GLUtils.get().getHeight() / 2, GLUtils.get().getHeight() / 2, -1, 1), new MatrixStack(), null, aim);
+		bulletRenderer.render(new Matrix4().clearToOrtho(-GLUtils.get().getWidth() / 2, GLUtils.get().getWidth() / 2, -GLUtils.get().getHeight() / 2, GLUtils.get().getHeight() / 2, -1, 1), new
+				MatrixStack(), null, aim);
 		glEnable(GL_DEPTH_TEST);
 		
 		glDepthMask(true);
+		
+		frameCount++;
+	}
+	
+	private static interface LightSystem {
+		void setupLights(ShaderProgram program);
+		
+		void renderLights(Vector3 diffuseColor, float mainK, Vector3 ambientColor, Matrix4 viewMatrix, BulletRenderer bulletRenderer);
+	}
+	
+	private static class UniformArrayLightSystem implements LightSystem {
+		private FloatBuffer lightsBuffer;
+		private int ambientLightUniform;
+		private int numLightsUniform;
+		private int lightsArrayUniform;
+		
+		@Override
+		public void setupLights(ShaderProgram program) {
+			lightsBuffer = BufferUtils.createFloatBuffer(MAX_NUM_LIGHTS * 2 * 4);
+			ambientLightUniform = program.getUniformLocation("ambientLight");
+			numLightsUniform = program.getUniformLocation("numberOfLights");
+			lightsArrayUniform = program.getUniformLocation("lights");
+			
+			if(ambientLightUniform == -1)
+				throw new IllegalArgumentException("Invalid program, missing ambientLight uniform");
+			if(numLightsUniform == -1)
+				throw new IllegalArgumentException("Invalid program, missing numberOfLights uniform");
+			if(lightsArrayUniform == -1)
+				throw new IllegalArgumentException("Invalid program, missing lights array uniform");
+		}
+		
+		@Override
+		public void renderLights(Vector3 diffuseColor, float mainK, Vector3 ambientColor, Matrix4 viewMatrix, BulletRenderer bulletRenderer) {
+			lightsBuffer.clear();
+			
+			int bulletCount = bulletRenderer.getBulletLightData(viewMatrix, lightsBuffer, MAX_NUM_LIGHTS - 1);
+			
+			lightsBuffer.put(0f).put(0f).put(0f); // camera position
+			lightsBuffer.put(5000f); // camera light range
+			lightsBuffer.put(diffuseColor.toBuffer());
+			lightsBuffer.put(mainK);
+			
+			lightsBuffer.flip();
+			
+			glUniform4(lightsArrayUniform, lightsBuffer);
+			glUniform1i(numLightsUniform, bulletCount + 1);
+			glUniform3(ambientLightUniform, ambientColor.toBuffer());
+		}
+	}
+	
+	private static class UniformBufferLightSystem implements LightSystem {
+		private FloatBuffer bulletsBuffer;
+		private int lightsUniformBufferVBO;
+		
+		@Override
+		public void setupLights(ShaderProgram program) {
+			bulletsBuffer = BufferUtils.createFloatBuffer(MAX_NUM_LIGHTS * 2 * 4);
+			
+			final int BUFFER_BLOCK_BINDING = 1;
+			
+			int lightsBlockIndex = program.getUniformBlockIndex("Lights");
+			
+			if(lightsBlockIndex == -1) {
+				throw new IllegalArgumentException("Uniform Block 'Lights not found.");
+			}
+			
+			glUniformBlockBinding(program.getProgram(), lightsBlockIndex, BUFFER_BLOCK_BINDING);
+			
+			lightsUniformBufferVBO = glGenBuffers();
+			glBindBuffer(GL_UNIFORM_BUFFER, lightsUniformBufferVBO);
+			glBufferData(GL_UNIFORM_BUFFER, 4 * (MAX_NUM_LIGHTS * 2 * 4 + 4), GL_STREAM_DRAW);
+			glBindBufferBase(GL_UNIFORM_BUFFER, BUFFER_BLOCK_BINDING, lightsUniformBufferVBO);
+			glBindBuffer(GL_UNIFORM_BUFFER, 0);
+		}
+		
+		@Override
+		public void renderLights(Vector3 diffuseColor, float mainK, Vector3 ambientColor, Matrix4 viewMatrix, BulletRenderer bulletRenderer) {
+			glBindBuffer(GL_UNIFORM_BUFFER, lightsUniformBufferVBO);
+			
+			ByteBuffer mapBuffer = glMapBuffer(GL_UNIFORM_BUFFER, GL_WRITE_ONLY, null);
+			
+			FloatBuffer lightsBuffer = mapBuffer.asFloatBuffer();
+			
+			bulletsBuffer.clear();
+			
+			// Fill buffer with each bullet's position as each bullet is a light source
+			int bulletCount = bulletRenderer.getBulletLightData(viewMatrix, bulletsBuffer, MAX_NUM_LIGHTS - 1);
+			
+			bulletsBuffer.flip();
+			
+			lightsBuffer.put(ambientColor.toBuffer());
+			lightsBuffer.put(bulletCount + 1);
+			
+			lightsBuffer.put(bulletsBuffer);
+			
+			lightsBuffer.put(0).put(0).put(0); // camera position
+			lightsBuffer.put(5000); // camera light range
+			lightsBuffer.put(diffuseColor.toBuffer());
+			lightsBuffer.put(mainK);
+			
+			lightsBuffer.flip();
+			
+			glUnmapBuffer(GL_UNIFORM_BUFFER);
+			
+			glBindBuffer(GL_UNIFORM_BUFFER, 0);
+		}
 	}
 }

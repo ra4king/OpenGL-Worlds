@@ -1,5 +1,8 @@
 package com.ra4king.fps;
 
+import static org.lwjgl.opengl.GL15.*;
+import static org.lwjgl.opengl.GL33.*;
+
 import org.lwjgl.opengl.APPLEVertexArrayObject;
 import org.lwjgl.opengl.ARBVertexArrayObject;
 import org.lwjgl.opengl.Display;
@@ -14,25 +17,32 @@ import com.ra4king.opengl.util.math.Vector4;
  * @author Roi Atalla
  */
 public final class GLUtils {
-	public final int VERSION;
+	public final int GL_VERSION;
 	
 	public final boolean IS_MAC;
 	
 	public final boolean HAS_VAO;
 	public final boolean HAS_ARB_VAO;
 	
-	public int CUBES_UNIFORM;
+	private int queryObject;
 	
 	public final String SHADERS_ROOT_PATH = "/res/shaders/";
 	
 	private GLUtils() {
-		VERSION = GLContext.getCapabilities().OpenGL33 ? 33 : GLContext.getCapabilities().OpenGL30 ? 30 : GLContext.getCapabilities().OpenGL21 ? 21 : 0;
+		GL_VERSION = GLContext.getCapabilities().OpenGL31 ? 31 : GLContext.getCapabilities().OpenGL30 ? 30 : GLContext.getCapabilities().OpenGL21 ? 21 : 0;
 		
 		IS_MAC = System.getProperty("os.name").toLowerCase().contains("mac");
 		
-		HAS_VAO = VERSION >= 30;
+		HAS_VAO = GL_VERSION >= 30;
 		HAS_ARB_VAO = GLContext.getCapabilities().GL_ARB_vertex_array_object;
+		
+		queryObject = glGenQueries();
 	}
+	
+	/**
+	 * Dummy init method to force initialization of GLUtils singleton instance.
+	 */
+	public static void init() {}
 	
 	private static final GLUtils glUtils = new GLUtils();
 	
@@ -68,6 +78,11 @@ public final class GLUtils {
 			return ARBVertexArrayObject.glGenVertexArrays();
 		else
 			throw new UnsupportedOperationException("VAOs not supported on this system.");
+	}
+	
+	public long getTimeStamp() {
+		glQueryCounter(queryObject, GL_TIMESTAMP);
+		return glGetQueryObjecti64(queryObject, GL_QUERY_RESULT);
 	}
 	
 	public static class FrustumCulling {
@@ -108,19 +123,25 @@ public final class GLUtils {
 		private final Vector3 temp = new Vector3();
 		
 		public boolean isCubeInsideFrustum(Vector3 center, float sideLength) {
+			return isRectPrismInsideFrustum(center, sideLength, sideLength, sideLength);
+		}
+		
+		public boolean isRectPrismInsideFrustum(Vector3 center, float width, float height, float depth) {
 			for(Plane p : Plane.values) {
-				float d = sideLength / 2;
+				float widthHalf = width / 2;
+				float heightHalf = height / 2;
+				float depthHalf = depth / 2;
 				
 				boolean isIn;
 				
-				isIn = p.distanceFromPoint(temp.set(center).add(d, d, d)) >= 0;
-				isIn |= p.distanceFromPoint(temp.set(center).add(d, d, -d)) >= 0;
-				isIn |= p.distanceFromPoint(temp.set(center).add(d, -d, d)) >= 0;
-				isIn |= p.distanceFromPoint(temp.set(center).add(d, -d, -d)) >= 0;
-				isIn |= p.distanceFromPoint(temp.set(center).add(-d, d, d)) >= 0;
-				isIn |= p.distanceFromPoint(temp.set(center).add(-d, d, -d)) >= 0;
-				isIn |= p.distanceFromPoint(temp.set(center).add(-d, -d, d)) >= 0;
-				isIn |= p.distanceFromPoint(temp.set(center).add(-d, -d, -d)) >= 0;
+				isIn = p.distanceFromPoint(temp.set(center).add(widthHalf, heightHalf, depthHalf)) >= 0;
+				isIn |= p.distanceFromPoint(temp.set(center).add(widthHalf, heightHalf, -depthHalf)) >= 0;
+				isIn |= p.distanceFromPoint(temp.set(center).add(widthHalf, -heightHalf, depthHalf)) >= 0;
+				isIn |= p.distanceFromPoint(temp.set(center).add(widthHalf, -heightHalf, -depthHalf)) >= 0;
+				isIn |= p.distanceFromPoint(temp.set(center).add(-widthHalf, heightHalf, depthHalf)) >= 0;
+				isIn |= p.distanceFromPoint(temp.set(center).add(-widthHalf, heightHalf, -depthHalf)) >= 0;
+				isIn |= p.distanceFromPoint(temp.set(center).add(-widthHalf, -heightHalf, depthHalf)) >= 0;
+				isIn |= p.distanceFromPoint(temp.set(center).add(-widthHalf, -heightHalf, -depthHalf)) >= 0;
 				
 				if(!isIn)
 					return false;

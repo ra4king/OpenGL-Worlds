@@ -3,7 +3,6 @@ package com.ra4king.fps.renderers;
 import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.opengl.GL15.*;
 import static org.lwjgl.opengl.GL20.*;
-import static org.lwjgl.opengl.GL30.*;
 import static org.lwjgl.opengl.GL31.*;
 import static org.lwjgl.opengl.GL33.*;
 
@@ -39,15 +38,13 @@ public class BulletRenderer {
 	private FloatBuffer bulletDataBuffer;
 	private int vao, bulletDataVBO;
 	
-	private final boolean IS_MAC = System.getProperty("os.name").toLowerCase().contains("mac");
-	private final boolean HAS_VAO = GLUtils.get().VERSION >= 30;
-	
 	public BulletRenderer(BulletManager bulletManager) {
 		this.bulletManager = bulletManager;
 		
 		bulletDataBuffer = BufferUtils.createFloatBuffer(500 * 2 * 4);
 		
-		bulletProgram = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream(GLUtils.get().SHADERS_ROOT_PATH + "bullet.vert")), Utils.readFully(getClass().getResourceAsStream(GLUtils.get().SHADERS_ROOT_PATH + "bullet.frag")));
+		bulletProgram = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream(GLUtils.get().SHADERS_ROOT_PATH + "bullet.vert")),
+				Utils.readFully(getClass().getResourceAsStream(GLUtils.get().SHADERS_ROOT_PATH + "bullet.frag")));
 		
 		projectionMatrixUniform = bulletProgram.getUniformLocation("projectionMatrix");
 		modelViewMatrixUniform = bulletProgram.getUniformLocation("modelViewMatrix");
@@ -56,8 +53,10 @@ public class BulletRenderer {
 		glBindBuffer(GL_ARRAY_BUFFER, bulletDataVBO);
 		glBufferData(GL_ARRAY_BUFFER, bulletDataBuffer.capacity() * 4, GL_STREAM_DRAW);
 		
-		float[] bulletMappings = { -0.5f, 0.5f, 0.5f, 0.5f, 0.5f, -0.5f,
-				0.5f, -0.5f, -0.5f, -0.5f, -0.5f, 0.5f };
+		float[] bulletMappings = {
+				-0.5f, 0.5f, 0.5f, 0.5f, 0.5f, -0.5f,
+				0.5f, -0.5f, -0.5f, -0.5f, -0.5f, 0.5f
+		};
 		
 		FloatBuffer bulletMappingsBuffer = BufferUtils.createFloatBuffer(bulletMappings.length);
 		bulletMappingsBuffer.put(bulletMappings).flip();
@@ -66,7 +65,7 @@ public class BulletRenderer {
 		glBindBuffer(GL_ARRAY_BUFFER, bulletMappingsVBO);
 		glBufferData(GL_ARRAY_BUFFER, bulletMappingsBuffer, GL_STATIC_DRAW);
 		
-		vao = glGenVertexArrays();
+		vao = GLUtils.get().glGenVertexArrays();
 		GLUtils.get().glBindVertexArray(vao);
 		
 		glEnableVertexAttribArray(0);
@@ -87,28 +86,26 @@ public class BulletRenderer {
 	
 	private HashMap<Bullet,Vector3> cameraWorldPositions = new HashMap<>();
 	
-	public void getBulletLightData(Matrix4 viewMatrix, FloatBuffer bulletData, int maxBulletCount) {
-		int bulletCount = 0;
-		
-		final float bulletK = 0.0001f, nonSolidBulletK = 0.05f;
+	public int getBulletLightData(Matrix4 viewMatrix, FloatBuffer bulletData, int maxBulletCount) {
+		final float bulletK = 0.01f, nonSolidBulletK = 0.05f;
 		
 		cameraWorldPositions.clear();
 		sort(viewMatrix);
 		
 		ArrayList<Bullet> bullets = bulletManager.getBullets();
 		
-		bulletData.put(Math.min(bullets.size(), maxBulletCount));
+		int count = Math.min(bullets.size(), maxBulletCount);
 		
-		for(Bullet b : bullets) {
-			if(bulletCount < maxBulletCount) {
-				bulletCount++;
-				
-				bulletData.put(cameraWorldPositions.get(b).toBuffer());
-				bulletData.put(b.getRange());
-				bulletData.put(b.getColor().toBuffer());
-				bulletData.put((b.isSolid() ? bulletK : nonSolidBulletK) / b.getAlpha());
-			}
+		for(int a = 0; a < count; a++) {
+			Bullet b = bullets.get(a);
+			
+			bulletData.put(cameraWorldPositions.get(b).toBuffer());
+			bulletData.put(b.getRange());
+			bulletData.put(b.getColor().toBuffer());
+			bulletData.put((b.isSolid() ? bulletK : nonSolidBulletK) / b.getAlpha());
 		}
+		
+		return count;
 	}
 	
 	private void sort(Matrix4 viewMatrix) {
@@ -136,7 +133,7 @@ public class BulletRenderer {
 	
 	public void render(Matrix4 projectionMatrix, MatrixStack modelViewMatrix, FrustumCulling culling, Bullet ... bullets) {
 		List<Bullet> bulletList = Arrays.asList(bullets);
-		sort(modelViewMatrix.getTop(), bulletList, new HashMap<>());
+		sort(modelViewMatrix.getTop(), bulletList, new HashMap<Bullet,Vector3>());
 		
 		render(projectionMatrix, modelViewMatrix, bulletList, culling);
 	}
