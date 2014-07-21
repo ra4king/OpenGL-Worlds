@@ -21,107 +21,99 @@ import com.ra4king.opengl.util.math.Vector3;
  * @author Roi Atalla
  */
 public class Chunk {
-	public enum BlockType {
-		DIRT(1);
-		
-		public final int order;
-		
-		private BlockType(int order) {
-			this.order = order;
-		}
-	}
-	
-	public static class BlockInfo {
-		public final ChunkInfo chunkInfo;
-		public final int x, y, z;
-		public BlockType type;
-		
-		public BlockInfo(ChunkInfo chunkInfo, int x, int y, int z, BlockType type) {
-			this.chunkInfo = chunkInfo;
-			this.x = x;
-			this.y = y;
-			this.z = z;
-			this.type = type;
-		}
-		
-		public BlockInfo(BlockInfo b) {
-			this.chunkInfo = new ChunkInfo(b.chunkInfo);
-			this.x = b.x;
-			this.y = b.y;
-			this.z = b.z;
-			this.type = b.type;
-		}
-		
-		@Override
-		public boolean equals(Object o) {
-			if(o instanceof BlockInfo) {
-				BlockInfo blockInfo = (BlockInfo)o;
-				return chunkInfo.equals(blockInfo.chunkInfo) && x == blockInfo.x && y == blockInfo.y && z == blockInfo.z;
-			}
+	public static final int CUBES_WIDTH = 16, CUBES_HEIGHT = 16, CUBES_DEPTH = 16;
+	private static final int CUBE_DATA_SIZE = CUBES_WIDTH * CUBES_HEIGHT * CUBES_DEPTH *
+			3 * /* 3 faces visible */
+			4 * /* 4 vertices per face */
+			2 * /* 2 attributes per vertex */
+			3 * /* 3 floats per attribute */
+			4 /* 4 bytes per float */;
+	private static final int INDEX_DATA_SIZE = CUBES_WIDTH * CUBES_HEIGHT * CUBES_DEPTH *
+			3 * /* 3 faces visible */
+			6 * /* 6 indices per face */
+			2 /* 2 bytes per index */;
+	public static final float CUBE_SIZE = 2;
+	public static final float SPACING = CUBE_SIZE; // cannot be less than CUBE_SIZE
+	private static final Vector3 normals[] = {
+			new Vector3(0, 0, 1),
+			new Vector3(0, 0, -1),
+			new Vector3(0, 1, 0),
+			new Vector3(0, -1, 0),
+			new Vector3(1, 0, 0),
+			new Vector3(-1, 0, 0)
+	};
+	private static final short[] indices = { 0, 1, 2, 2, 3, 0 };
+	private static final Vector3 unitCube[] = {
+			// front face triangle 1
+			new Vector3(-0.5f, 0.5f, 0.5f),
+			new Vector3(0.5f, 0.5f, 0.5f),
+			new Vector3(0.5f, -0.5f, 0.5f),
+			// front face triangle 2
+			// new Vector3(0.5f, -0.5f, 0.5f),
+			new Vector3(-0.5f, -0.5f, 0.5f),
+			// new Vector3(-0.5f, 0.5f, 0.5f),
 			
-			return false;
-		}
-		
-		public int getWorldX() {
-			return chunkInfo.chunkCornerX + x;
-		}
-		
-		public int getWorldY() {
-			return chunkInfo.chunkCornerY + y;
-		}
-		
-		public int getWorldZ() {
-			return chunkInfo.chunkCornerZ + z;
-		}
-	}
-	
-	public static class ChunkInfo {
-		public final int chunkCornerX, chunkCornerY, chunkCornerZ;
-		
-		public ChunkInfo(int chunkCornerX, int chunkCornerY, int chunkCornerZ) {
-			this.chunkCornerX = chunkCornerX;
-			this.chunkCornerY = chunkCornerY;
-			this.chunkCornerZ = chunkCornerZ;
-		}
-		
-		public ChunkInfo(ChunkInfo c) {
-			this.chunkCornerX = c.chunkCornerX;
-			this.chunkCornerY = c.chunkCornerY;
-			this.chunkCornerZ = c.chunkCornerZ;
-		}
-		
-		public boolean cornerEquals(int x, int y, int z) {
-			return chunkCornerX == x && chunkCornerY == y && chunkCornerZ == z;
-		}
-		
-		public boolean containsBlock(int x, int y, int z) {
-			return cornerEquals((x / CUBES_WIDTH) * CUBES_WIDTH, (y / CUBES_HEIGHT) * CUBES_HEIGHT, (z / CUBES_DEPTH) * CUBES_DEPTH);
-		}
-		
-		@Override
-		public boolean equals(Object o) {
-			if(o instanceof ChunkInfo) {
-				ChunkInfo chunkInfo = (ChunkInfo)o;
-				return cornerEquals(chunkInfo.chunkCornerX, chunkInfo.chunkCornerY, chunkInfo.chunkCornerZ);
-			}
+			// back face triangle 1
+			new Vector3(0.5f, 0.5f, -0.5f),
+			new Vector3(-0.5f, 0.5f, -0.5f),
+			new Vector3(-0.5f, -0.5f, -0.5f),
+			// back face triangle 2
+			// new Vector3(-0.5f, -0.5f, -0.5f),
+			new Vector3(0.5f, -0.5f, -0.5f),
+			// new Vector3(0.5f, 0.5f, -0.5f),
 			
-			return false;
-		}
-	}
-	
-	private ChunkManager manager;
-	
+			// top face triangle 1
+			new Vector3(-0.5f, 0.5f, -0.5f),
+			new Vector3(0.5f, 0.5f, -0.5f),
+			new Vector3(0.5f, 0.5f, 0.5f),
+			// top face triangle 2
+			// new Vector3(0.5f, 0.5f, 0.5f),
+			new Vector3(-0.5f, 0.5f, 0.5f),
+			// new Vector3(-0.5f, 0.5f, -0.5f),
+			
+			// bottom face triangle 1
+			new Vector3(-0.5f, -0.5f, 0.5f),
+			new Vector3(0.5f, -0.5f, 0.5f),
+			new Vector3(0.5f, -0.5f, -0.5f),
+			// bottom face triangle 2
+			// new Vector3(0.5f, -0.5f, -0.5f),
+			new Vector3(-0.5f, -0.5f, -0.5f),
+			// new Vector3(-0.5f, -0.5f, 0.5f),
+			
+			// right face triangle 1
+			new Vector3(0.5f, 0.5f, 0.5f),
+			new Vector3(0.5f, 0.5f, -0.5f),
+			new Vector3(0.5f, -0.5f, -0.5f),
+			// right face triangle 2
+			// new Vector3(0.5f, -0.5f, -0.5f),
+			new Vector3(0.5f, -0.5f, 0.5f),
+			// new Vector3(0.5f, 0.5f, 0.5f),
+			
+			// left face triangle 1
+			new Vector3(-0.5f, 0.5f, -0.5f),
+			new Vector3(-0.5f, 0.5f, 0.5f),
+			new Vector3(-0.5f, -0.5f, 0.5f),
+			// left face triangle 2
+			// new Vector3(-0.5f, -0.5f, 0.5f),
+			new Vector3(-0.5f, -0.5f, -0.5f),
+			// new Vector3(-0.5f, 0.5f, -0.5f)
+	};
+	private static final FloatBuffer tempCubeBuffer, tempDirectCubeBuffer;
+	private static final ShortBuffer tempIndicesBuffer, tempDirectIndicesBuffer;
 	// z * width * height + y * width + x
 	private final BlockInfo[] blocks;
 	private final ChunkInfo chunkInfo;
-	
+	private ChunkManager manager;
 	private ChunkRenderer renderer;
-	
 	private int cubeCount;
-	
-	public static final int CUBES_WIDTH = 16, CUBES_HEIGHT = 16, CUBES_DEPTH = 16;
-	public static final float CUBE_SIZE = 2;
-	public static final float SPACING = CUBE_SIZE; // cannot be less than CUBE_SIZE
+	private int lastTriangleRenderCount;
+	static {
+		tempCubeBuffer = FloatBuffer.allocate(CUBE_DATA_SIZE / 4);
+		tempDirectCubeBuffer = BufferUtils.createFloatBuffer(CUBE_DATA_SIZE / 4);
+		
+		tempIndicesBuffer = ShortBuffer.allocate(INDEX_DATA_SIZE / 2);
+		tempDirectIndicesBuffer = BufferUtils.createShortBuffer(INDEX_DATA_SIZE / 2);
+	}
 	
 	public Chunk(ChunkManager manager, ChunkInfo chunkInfo, boolean random) {
 		this.manager = manager;
@@ -236,8 +228,6 @@ public class Chunk {
 		return block != null;
 	}
 	
-	private int lastTriangleRenderCount;
-	
 	public int getLastTriangleRenderCount() {
 		return lastTriangleRenderCount;
 	}
@@ -246,101 +236,102 @@ public class Chunk {
 		renderer.render(viewMatrix, normalMatrix);
 	}
 	
-	private static final Vector3 normals[] = {
-			new Vector3(0, 0, 1),
-			new Vector3(0, 0, -1),
-			new Vector3(0, 1, 0),
-			new Vector3(0, -1, 0),
-			new Vector3(1, 0, 0),
-			new Vector3(-1, 0, 0)
-	};
-	
-	private static final short[] indices = { 0, 1, 2, 2, 3, 0 };
-	
-	private static final Vector3 unitCube[] = {
-			// front face triangle 1
-			new Vector3(-0.5f, 0.5f, 0.5f),
-			new Vector3(0.5f, 0.5f, 0.5f),
-			new Vector3(0.5f, -0.5f, 0.5f),
-			// front face triangle 2
-			// new Vector3(0.5f, -0.5f, 0.5f),
-			new Vector3(-0.5f, -0.5f, 0.5f),
-			// new Vector3(-0.5f, 0.5f, 0.5f),
-			
-			// back face triangle 1
-			new Vector3(0.5f, 0.5f, -0.5f),
-			new Vector3(-0.5f, 0.5f, -0.5f),
-			new Vector3(-0.5f, -0.5f, -0.5f),
-			// back face triangle 2
-			// new Vector3(-0.5f, -0.5f, -0.5f),
-			new Vector3(0.5f, -0.5f, -0.5f),
-			// new Vector3(0.5f, 0.5f, -0.5f),
-			
-			// top face triangle 1
-			new Vector3(-0.5f, 0.5f, -0.5f),
-			new Vector3(0.5f, 0.5f, -0.5f),
-			new Vector3(0.5f, 0.5f, 0.5f),
-			// top face triangle 2
-			// new Vector3(0.5f, 0.5f, 0.5f),
-			new Vector3(-0.5f, 0.5f, 0.5f),
-			// new Vector3(-0.5f, 0.5f, -0.5f),
-			
-			// bottom face triangle 1
-			new Vector3(-0.5f, -0.5f, 0.5f),
-			new Vector3(0.5f, -0.5f, 0.5f),
-			new Vector3(0.5f, -0.5f, -0.5f),
-			// bottom face triangle 2
-			// new Vector3(0.5f, -0.5f, -0.5f),
-			new Vector3(-0.5f, -0.5f, -0.5f),
-			// new Vector3(-0.5f, -0.5f, 0.5f),
-			
-			// right face triangle 1
-			new Vector3(0.5f, 0.5f, 0.5f),
-			new Vector3(0.5f, 0.5f, -0.5f),
-			new Vector3(0.5f, -0.5f, -0.5f),
-			// right face triangle 2
-			// new Vector3(0.5f, -0.5f, -0.5f),
-			new Vector3(0.5f, -0.5f, 0.5f),
-			// new Vector3(0.5f, 0.5f, 0.5f),
-			
-			// left face triangle 1
-			new Vector3(-0.5f, 0.5f, -0.5f),
-			new Vector3(-0.5f, 0.5f, 0.5f),
-			new Vector3(-0.5f, -0.5f, 0.5f),
-			// left face triangle 2
-			// new Vector3(-0.5f, -0.5f, 0.5f),
-			new Vector3(-0.5f, -0.5f, -0.5f),
-			// new Vector3(-0.5f, 0.5f, -0.5f)
-	};
-	
-	private static final int CUBE_DATA_SIZE = CUBES_WIDTH * CUBES_HEIGHT * CUBES_DEPTH *
-			3 * /* 3 faces visible */
-			4 * /* 4 vertices per face */
-			2 * /* 2 attributes per vertex */
-			3 * /* 3 floats per attribute */
-			4 /* 4 bytes per float */;
-	
-	private static final int INDEX_DATA_SIZE = CUBES_WIDTH * CUBES_HEIGHT * CUBES_DEPTH *
-			3 * /* 3 faces visible */
-			6 * /* 6 indices per face */
-			2 /* 2 bytes per index */;
-	
-	private static final FloatBuffer tempCubeBuffer, tempDirectCubeBuffer;
-	private static final ShortBuffer tempIndicesBuffer, tempDirectIndicesBuffer;
-	
-	static {
-		tempCubeBuffer = FloatBuffer.allocate(CUBE_DATA_SIZE / 4);
-		tempDirectCubeBuffer = BufferUtils.createFloatBuffer(CUBE_DATA_SIZE / 4);
+	public enum BlockType {
+		DIRT(1);
 		
-		tempIndicesBuffer = ShortBuffer.allocate(INDEX_DATA_SIZE / 2);
-		tempDirectIndicesBuffer = BufferUtils.createShortBuffer(INDEX_DATA_SIZE / 2);
+		public final int order;
+		
+		private BlockType(int order) {
+			this.order = order;
+		}
+	}
+	
+	public static class BlockInfo {
+		public final ChunkInfo chunkInfo;
+		public final int x, y, z;
+		public BlockType type;
+		
+		public BlockInfo(ChunkInfo chunkInfo, int x, int y, int z, BlockType type) {
+			this.chunkInfo = chunkInfo;
+			this.x = x;
+			this.y = y;
+			this.z = z;
+			this.type = type;
+		}
+		
+		public BlockInfo(BlockInfo b) {
+			this.chunkInfo = new ChunkInfo(b.chunkInfo);
+			this.x = b.x;
+			this.y = b.y;
+			this.z = b.z;
+			this.type = b.type;
+		}
+		
+		@Override
+		public boolean equals(Object o) {
+			if(o instanceof BlockInfo) {
+				BlockInfo blockInfo = (BlockInfo)o;
+				return chunkInfo.equals(blockInfo.chunkInfo) && x == blockInfo.x && y == blockInfo.y && z == blockInfo.z;
+			}
+			
+			return false;
+		}
+		
+		public int getWorldX() {
+			return chunkInfo.chunkCornerX + x;
+		}
+		
+		public int getWorldY() {
+			return chunkInfo.chunkCornerY + y;
+		}
+		
+		public int getWorldZ() {
+			return chunkInfo.chunkCornerZ + z;
+		}
+	}
+	
+	public static class ChunkInfo {
+		public final int chunkCornerX, chunkCornerY, chunkCornerZ;
+		
+		public ChunkInfo(int chunkCornerX, int chunkCornerY, int chunkCornerZ) {
+			this.chunkCornerX = chunkCornerX;
+			this.chunkCornerY = chunkCornerY;
+			this.chunkCornerZ = chunkCornerZ;
+		}
+		
+		public ChunkInfo(ChunkInfo c) {
+			this.chunkCornerX = c.chunkCornerX;
+			this.chunkCornerY = c.chunkCornerY;
+			this.chunkCornerZ = c.chunkCornerZ;
+		}
+		
+		public boolean cornerEquals(int x, int y, int z) {
+			return chunkCornerX == x && chunkCornerY == y && chunkCornerZ == z;
+		}
+		
+		public boolean containsBlock(int x, int y, int z) {
+			return cornerEquals((x / CUBES_WIDTH) * CUBES_WIDTH, (y / CUBES_HEIGHT) * CUBES_HEIGHT, (z / CUBES_DEPTH) * CUBES_DEPTH);
+		}
+		
+		@Override
+		public boolean equals(Object o) {
+			if(o instanceof ChunkInfo) {
+				ChunkInfo chunkInfo = (ChunkInfo)o;
+				return cornerEquals(chunkInfo.chunkCornerX, chunkInfo.chunkCornerY, chunkInfo.chunkCornerZ);
+			}
+			
+			return false;
+		}
 	}
 	
 	private class ChunkRenderer {
 		private int chunkVAO;
 		private int dataVBO;
 		private int indicesVBO;
-		
+		private Vector3 posTemp = new Vector3();
+		private Vector3 cameraPosTemp = new Vector3();
+		private Vector3 normalTemp = new Vector3();
+		private Vector3 cubeTemp = new Vector3();
 		public ChunkRenderer() {
 			chunkVAO = GLUtils.get().glGenVertexArrays();
 			GLUtils.get().glBindVertexArray(chunkVAO);
@@ -364,7 +355,7 @@ public class Chunk {
 			glBindBuffer(GL_ARRAY_BUFFER, 0);
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 		}
-		
+
 		private boolean isSurrounded(BlockInfo block) {
 			int x = block.x;
 			int y = block.y;
@@ -392,13 +383,8 @@ public class Chunk {
 			return true;
 		}
 		
-		private Vector3 posTemp = new Vector3();
-		private Vector3 cameraPosTemp = new Vector3();
-		private Vector3 normalTemp = new Vector3();
-		private Vector3 cubeTemp = new Vector3();
-		
 		public void render(Matrix4 viewMatrix, Matrix3 normalMatrix) {
-			final boolean USE_MAPPED_BUFFERS = true;
+			final boolean USE_MAPPED_BUFFERS = false;
 			
 			int trianglesDrawn = 0;
 			
@@ -407,8 +393,31 @@ public class Chunk {
 			glBindBuffer(GL_ARRAY_BUFFER, dataVBO);
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indicesVBO);
 			
-			tempCubeBuffer.clear();
-			tempIndicesBuffer.clear();
+			FloatBuffer cubeBuffer;
+			ShortBuffer indicesBuffer;
+			
+			if(USE_MAPPED_BUFFERS) {
+				ByteBuffer tempMappedBuffer = glMapBufferRange(GL_ARRAY_BUFFER, 0, CUBE_DATA_SIZE, GL_MAP_WRITE_BIT, null);
+				if(tempMappedBuffer == null) {
+					Utils.checkGLError("mapped buffer");
+					System.exit(0);
+				}
+				cubeBuffer = tempMappedBuffer.asFloatBuffer();
+				
+				tempMappedBuffer = glMapBufferRange(GL_ELEMENT_ARRAY_BUFFER, 0, INDEX_DATA_SIZE, GL_MAP_WRITE_BIT, null);
+				if(tempMappedBuffer == null) {
+					Utils.checkGLError("mapped buffer 2");
+					System.exit(0);
+				}
+				indicesBuffer = tempMappedBuffer.asShortBuffer();
+			}
+			else {
+				cubeBuffer = Chunk.tempCubeBuffer;
+				indicesBuffer = Chunk.tempIndicesBuffer;
+				
+				cubeBuffer.clear();
+				indicesBuffer.clear();
+			}
 			
 			for(BlockInfo block : blocks) {
 				if(block == null || isSurrounded(block))
@@ -434,17 +443,17 @@ public class Chunk {
 							cubeTemp.add(block.getWorldX() * CUBE_SIZE, block.getWorldY() * CUBE_SIZE, -block.getWorldZ() * CUBE_SIZE);
 							
 							try {
-								tempCubeBuffer.put(cubeTemp.toBuffer());
-								tempCubeBuffer.put(norm.toBuffer());
+								cubeBuffer.put(cubeTemp.toBuffer());
+								cubeBuffer.put(norm.toBuffer());
 							} catch(Exception exc) {
-								System.out.println(tempCubeBuffer.position() + " " + tempCubeBuffer.capacity());
+								System.out.println(cubeBuffer.position() + " " + cubeBuffer.capacity());
 								exc.printStackTrace();
 								System.exit(0);
 							}
 						}
 						
 						for(int b = 0; b < indices.length; b++) {
-							tempIndicesBuffer.put((short)(indices[b] + indexOffset));
+							indicesBuffer.put((short)(indices[b] + indexOffset));
 						}
 						
 						indexOffset += 4;
@@ -453,43 +462,20 @@ public class Chunk {
 				}
 			}
 			
-			tempCubeBuffer.flip();
-			tempIndicesBuffer.flip();
-			
 			if(USE_MAPPED_BUFFERS) {
-				ByteBuffer tempMappedBuffer = glMapBufferRange(GL_ARRAY_BUFFER, 0, CUBE_DATA_SIZE, GL_MAP_WRITE_BIT, null);
-				
-				if(tempMappedBuffer == null) {
-					Utils.checkGLError("mapped buffer");
-					System.exit(0);
-				}
-				
-				FloatBuffer tempDirectCubeBuffer = tempMappedBuffer.asFloatBuffer();
-				
-				tempDirectCubeBuffer.put(tempCubeBuffer);
-				
 				glUnmapBuffer(GL_ARRAY_BUFFER);
-				
-				tempMappedBuffer = glMapBufferRange(GL_ELEMENT_ARRAY_BUFFER, 0, INDEX_DATA_SIZE, GL_MAP_WRITE_BIT, null);
-				
-				if(tempMappedBuffer == null) {
-					Utils.checkGLError("mapped buffer 2");
-					System.exit(0);
-				}
-				
-				ShortBuffer tempDirectIndicesBuffer = tempMappedBuffer.asShortBuffer();
-				
-				tempDirectIndicesBuffer.put(tempIndicesBuffer);
-				
 				glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER);
 			}
 			else {
+				cubeBuffer.flip();
+				indicesBuffer.flip();
+
 				tempDirectCubeBuffer.clear();
-				tempDirectCubeBuffer.put(tempCubeBuffer);
-				tempDirectCubeBuffer.flip();
+				tempDirectCubeBuffer.put(cubeBuffer);
+	tempDirectCubeBuffer.flip();
 				
 				tempDirectIndicesBuffer.clear();
-				tempDirectIndicesBuffer.put(tempIndicesBuffer);
+				tempDirectIndicesBuffer.put(indicesBuffer);
 				tempDirectIndicesBuffer.flip();
 				
 				glBufferSubData(GL_ARRAY_BUFFER, 0, tempDirectCubeBuffer);
