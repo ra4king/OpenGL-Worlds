@@ -16,16 +16,14 @@ import com.ra4king.opengl.util.math.Vector3;
  * @author Roi Atalla
  */
 public class World implements CameraUpdate {
-	private float deltaTimeBuffer;
-	
-	private long mouseCooldown;
-	
 	private Camera camera;
-	
 	private ChunkManager chunkManager;
 	private BulletManager bulletManager;
 	
 	private boolean isPaused;
+	private long mouseCooldown;
+	private long timePassed;
+	private int bulletCount;
 	
 	public World() {
 		camera = new Camera(60, 1, 5000);
@@ -50,8 +48,8 @@ public class World implements CameraUpdate {
 	}
 	
 	private void reset() {
-		camera.setPosition(new Vector3(10, 10, -10));
-		camera.setOrientation(Utils.lookAt(new Vector3(-161, -161, 161), camera.getPosition(), new Vector3(0, 1, 0)).toQuaternion().normalize());
+		camera.setPosition(new Vector3(-10, -10, 10));
+		camera.setOrientation(Utils.lookAt(camera.getPosition(), new Vector3(161, 161, -161), new Vector3(0, 1, 0)).toQuaternion().normalize());
 	}
 	
 	public void resized() {
@@ -62,8 +60,6 @@ public class World implements CameraUpdate {
 		if(key == Keyboard.KEY_P)
 			isPaused = !isPaused;
 	}
-	
-	private long timePassed;
 	
 	public void update(long deltaTime) {
 		camera.update(deltaTime);
@@ -82,13 +78,12 @@ public class World implements CameraUpdate {
 			bulletManager.update(deltaTime);
 	}
 	
-	private final Vector3 delta = new Vector3();
 	private final Quaternion inverse = new Quaternion();
-	
 	private final Vector3 rightBullet = new Vector3(2, -1, -3);
 	private final Vector3 leftBullet = new Vector3(-2, -1, -3);
 	
-	private int bulletCount;
+	private final Vector3 delta = new Vector3();
+	private float deltaTimeBuffer;
 	
 	@Override
 	public void updateCamera(long deltaTime, Camera camera, Matrix4 projectionMatrix, Vector3 position, Quaternion orientation) {
@@ -117,7 +112,7 @@ public class World implements CameraUpdate {
 			}
 			
 			if(Keyboard.isKeyDown(Keyboard.KEY_E)) {
-				orientation.set(Utils.angleAxisDeg(-4 * rotSpeed, Vector3.FORWARD).mult(orientation));
+				orientation.set(Utils.angleAxisDeg(-4f * rotSpeed, Vector3.FORWARD).mult(orientation));
 				// viewChanged = true;
 			}
 			if(Keyboard.isKeyDown(Keyboard.KEY_Q)) {
@@ -129,32 +124,32 @@ public class World implements CameraUpdate {
 			
 			inverse.set(orientation).inverse();
 			
-			delta.set(0, 0, 0);
+			delta.set(0f, 0f, 0f);
 			
 			if(Keyboard.isKeyDown(Keyboard.KEY_W))
-				delta.z(speed);
+				delta.z(-speed);
 			if(Keyboard.isKeyDown(Keyboard.KEY_S))
-				delta.z(delta.z() - speed);
+				delta.z(delta.z() + speed);
 			
 			if(Keyboard.isKeyDown(Keyboard.KEY_D))
-				delta.x(-speed);
+				delta.x(speed);
 			if(Keyboard.isKeyDown(Keyboard.KEY_A))
-				delta.x(delta.x() + speed);
+				delta.x(delta.x() - speed);
 			
 			if(Keyboard.isKeyDown(Keyboard.KEY_SPACE))
-				delta.y(-speed);
+				delta.y(speed);
 			if(Keyboard.isKeyDown(Keyboard.KEY_LCONTROL))
-				delta.y(delta.y() + speed);
+				delta.y(delta.y() - speed);
 			
-			if(delta.x() != 0 || delta.y() != 0 || delta.z() != 0)
+			if(delta.x() != 0f || delta.y() != 0f || delta.z() != 0f)
 				position.add(inverse.mult(delta));
 		}
 		
 		if((Mouse.isButtonDown(0) || Keyboard.isKeyDown(Keyboard.KEY_C)) && (System.nanoTime() - mouseCooldown) > (long)7e7) {
 			int bulletSpeed = 200;
 			
-			bulletManager.addBullet(new Bullet(position.copy().mult(-1).add(inverse.mult(rightBullet)), inverse.mult(Vector3.FORWARD).mult(bulletSpeed), 3, 500));
-			bulletManager.addBullet(new Bullet(position.copy().mult(-1).add(inverse.mult(leftBullet)), inverse.mult(Vector3.FORWARD).mult(bulletSpeed), 3, 500));
+			bulletManager.addBullet(new Bullet(position.copy().add(inverse.mult(rightBullet)), inverse.mult(Vector3.FORWARD).mult(bulletSpeed), 3, 500));
+			bulletManager.addBullet(new Bullet(position.copy().add(inverse.mult(leftBullet)), inverse.mult(Vector3.FORWARD).mult(bulletSpeed), 3, 500));
 			mouseCooldown = System.nanoTime();
 			
 			bulletCount += 2;

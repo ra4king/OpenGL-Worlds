@@ -31,20 +31,19 @@ import com.ra4king.opengl.util.math.Vector3;
  * @author Roi Atalla
  */
 public class WorldRenderer {
+	private static final int MAX_NUM_LIGHTS;
+
 	private World world;
 	
-	private BulletRenderer bulletRenderer;
-	
 	private ShaderProgram worldProgram;
+	
+	private FrustumCulling culling;
+	private BulletRenderer bulletRenderer;
+	private LightSystem lightSystem;
+	
 	private int projectionMatrixUniform;
 	private int viewMatrixUniform;
 	private int normalMatrixUniform;
-	
-	private LightSystem lightSystem;
-	
-	private static final int MAX_NUM_LIGHTS;
-	
-	private FrustumCulling culling;
 	
 	static {
 		switch(GLUtils.get().GL_VERSION) {
@@ -134,19 +133,22 @@ public class WorldRenderer {
 	
 	private long timePassed;
 	private int frameCount, chunksRendered;
-	
 	private boolean isKeyDown;
+	private long renderTime;
 	
 	public void update(long deltaTime) {
 		timePassed += deltaTime;
 		
-		if(Keyboard.isKeyDown(Keyboard.KEY_R) && !isKeyDown) {
-			loadShaders();
-			System.out.println("Shaders reloaded.");
-			isKeyDown = true;
+		if(Keyboard.isKeyDown(Keyboard.KEY_R)) {
+			if(!isKeyDown) {
+				loadShaders();
+				System.out.println("Shaders reloaded.");
+				isKeyDown = true;
+			}
 		}
-		else
+		else {
 			isKeyDown = false;
+		}
 		
 		while(timePassed >= 1e9) {
 			timePassed -= 1e9;
@@ -154,13 +156,14 @@ public class WorldRenderer {
 			if(frameCount == 0)
 				continue;
 			
-			System.out.println("Average of " + (chunksRendered / frameCount) + " chunks rendered.");
+			long triangles = 0;
+			for(Chunk chunk : world.getChunkManager().getChunks())
+				triangles += chunk.getChunkRenderer().getLastTriangleRenderCount();
 			
-			// long cubesRendered = 0;
-			// for(Chunk c : world.getChunkManager().getChunks())
-			// cubesRendered += c.getCubesRendered();
+			System.out.printf("Average of %d chunks rendered, %d triangles, %.3f ms\n",
+					chunksRendered / frameCount, triangles, (double)renderTime / (1e6 * frameCount));
 			
-			// System.out.println("Average of " + (cubesRendered / frameCount) + " cubes renderered.\n");
+			renderTime = 0;
 			
 			frameCount = chunksRendered = 0;
 		}
@@ -168,21 +171,18 @@ public class WorldRenderer {
 	
 	private final Vector3 mainDiffuseColor = new Vector3(1f, 1f, 1f);
 	private final Vector3 mainAmbientColor = new Vector3(0.1f, 0.1f, 0.1f);
-	
 	private final Bullet aim = new Bullet(new Vector3(), new Vector3(), 4, 0, Long.MAX_VALUE, false, new Vector3(1));
-	
 	private final Matrix4 viewMatrix = new Matrix4(), cullingProjectionMatrix = new Matrix4();
 	private final Matrix3 normalMatrix = new Matrix3();
-	
 	private final MatrixStack tempStack = new MatrixStack();
-	
+	private final Vector3 cameraPosTemp = new Vector3();
 	private final Vector3 renderTemp = new Vector3();
 	
 	public void render() {
 		Camera camera = world.getCamera();
 		
 		// Convert Camera's Quaternion to a Matrix4 and translate it by the camera's position
-		world.getCamera().getOrientation().toMatrix(viewMatrix).translate(camera.getPosition());
+		world.getCamera().getOrientation().toMatrix(viewMatrix).translate(cameraPosTemp.set(camera.getPosition()).mult(-1));
 		
 		worldProgram.begin();
 		
@@ -198,15 +198,22 @@ public class WorldRenderer {
 		// Setting up the 6 planes that define the edges of the frustum
 		culling.setupPlanes(cullingProjectionMatrix.set(camera.getProjectionMatrix()).mult(viewMatrix));
 		
+		long before = System.nanoTime();
+		
+		float halfSpacing = Chunk.SPACING * 0.5f;
+
 		for(Chunk chunk : world.getChunkManager().getChunks()) {
-			if(culling.isRectPrismInsideFrustum(renderTemp.set(chunk.getChunkInfo().chunkCornerX, chunk.getChunkInfo().chunkCornerY, -chunk.getChunkInfo().chunkCornerZ).mult(Chunk.SPACING),
-					Chunk.CUBES_WIDTH * Chunk.SPACING * 2,
-					Chunk.CUBES_HEIGHT * Chunk.SPACING * 2,
-					Chunk.CUBES_DEPTH * Chunk.SPACING * 2)) {
-				chunk.render(viewMatrix, normalMatrix);
+			if(culling.isRectPrismInsideFrustum(renderTemp.set(chunk.getChunkInfo().chunkCornerX, chunk.getChunkInfo().chunkCornerY, -chunk.getChunkInfo().chunkCornerZ)
+					.mult(Chunk.SPACING).sub(halfSpacing, halfSpacing, halfSpacing),
+					Chunk.CHUNK_CUBE_WIDTH * Chunk.SPACING,
+					Chunk.CHUNK_CUBE_HEIGHT * Chunk.SPACING,
+					-Chunk.CHUNK_CUBE_DEPTH * Chunk.SPACING)) {
+				chunk.getChunkRenderer().render(viewMatrix, normalMatrix);
 				chunksRendered++;
 			}
 		}
+		
+		renderTime += System.nanoTime() - before;
 		
 		worldProgram.end();
 		

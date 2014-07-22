@@ -14,8 +14,8 @@ import com.ra4king.opengl.util.GLProgram;
  * @author Roi Atalla
  */
 public class OpenGLWorld extends GLProgram {
-	public static void main(String[] args) throws Exception {
-		new OpenGLWorld().run(true, new PixelFormat(16, 0, 8, 0, 4));
+	public OpenGLWorld() {
+		super("OpenGLWorld", 800, 600, true);
 	}
 	
 	private World world;
@@ -23,12 +23,14 @@ public class OpenGLWorld extends GLProgram {
 	
 	// private Fractal fractal;
 	
-	public OpenGLWorld() {
-		super("OpenGLWorld", 800, 600, true);
+	public static void main(String[] args) throws Exception {
+		new OpenGLWorld().run(true, new PixelFormat(16, 0, 8, 0, 4));
 	}
 	
 	@Override
 	public void init() {
+		setPrintDebug(true);
+
 		GLUtils.init();
 		
 		setFPS(0);
@@ -47,9 +49,8 @@ public class OpenGLWorld extends GLProgram {
 	}
 	
 	@Override
-	public void update(long deltaTime) {
-		world.update(deltaTime);
-		worldRenderer.update(deltaTime);
+	public boolean shouldStop() {
+		return false;
 	}
 	
 	@Override
@@ -61,8 +62,9 @@ public class OpenGLWorld extends GLProgram {
 	}
 	
 	@Override
-	public boolean shouldStop() {
-		return false;
+	public void update(long deltaTime) {
+		world.update(deltaTime);
+		worldRenderer.update(deltaTime);
 	}
 	
 	@Override

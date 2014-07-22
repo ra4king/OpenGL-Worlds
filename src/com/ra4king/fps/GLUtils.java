@@ -88,12 +88,9 @@ public final class GLUtils {
 	public static class FrustumCulling {
 		private enum Plane {
 			LEFT, RIGHT, BOTTOM, TOP, NEAR, FAR;
-			
-			private Vector4 plane;
-			
 			public static final Plane[] values = values();
-			
-			private final Vector3 temp = new Vector3();
+			private static final Vector3 temp = new Vector3();
+			private Vector4 plane;
 			
 			public float distanceFromPoint(Vector3 point) {
 				return temp.set(plane).dot(point) + plane.w();
@@ -120,31 +117,35 @@ public final class GLUtils {
 					matrix.get(15) + scale * matrix.get(row + 12)).normalize();
 		}
 		
-		private final Vector3 temp = new Vector3();
+		private final Vector3 cubeTemp = new Vector3();
 		
 		public boolean isCubeInsideFrustum(Vector3 center, float sideLength) {
-			return isRectPrismInsideFrustum(center, sideLength, sideLength, sideLength);
+			float half = sideLength * 0.5f;
+			return isRectPrismInsideFrustum(cubeTemp.set(center).sub(half, half, half), sideLength, sideLength, sideLength);
 		}
 		
-		public boolean isRectPrismInsideFrustum(Vector3 center, float width, float height, float depth) {
+		private final Vector3 temp = new Vector3();
+		
+		public boolean isRectPrismInsideFrustum(Vector3 corner, float width, float height, float depth) {
 			for(Plane p : Plane.values) {
-				float widthHalf = width / 2;
-				float heightHalf = height / 2;
-				float depthHalf = depth / 2;
+				if(p.distanceFromPoint(temp.set(corner)) >= 0)
+					continue;
+				if(p.distanceFromPoint(temp.set(corner).add(width, 0, 0)) >= 0)
+					continue;
+				if(p.distanceFromPoint(temp.set(corner).add(0, height, 0)) >= 0)
+					continue;
+				if(p.distanceFromPoint(temp.set(corner).add(0, 0, depth)) >= 0)
+					continue;
+				if(p.distanceFromPoint(temp.set(corner).add(width, height, 0)) >= 0)
+					continue;
+				if(p.distanceFromPoint(temp.set(corner).add(width, 0, depth)) >= 0)
+					continue;
+				if(p.distanceFromPoint(temp.set(corner).add(0, height, depth)) >= 0)
+					continue;
+				if(p.distanceFromPoint(temp.set(corner).add(width, height, depth)) >= 0)
+					continue;
 				
-				boolean isIn;
-				
-				isIn = p.distanceFromPoint(temp.set(center).add(widthHalf, heightHalf, depthHalf)) >= 0;
-				isIn |= p.distanceFromPoint(temp.set(center).add(widthHalf, heightHalf, -depthHalf)) >= 0;
-				isIn |= p.distanceFromPoint(temp.set(center).add(widthHalf, -heightHalf, depthHalf)) >= 0;
-				isIn |= p.distanceFromPoint(temp.set(center).add(widthHalf, -heightHalf, -depthHalf)) >= 0;
-				isIn |= p.distanceFromPoint(temp.set(center).add(-widthHalf, heightHalf, depthHalf)) >= 0;
-				isIn |= p.distanceFromPoint(temp.set(center).add(-widthHalf, heightHalf, -depthHalf)) >= 0;
-				isIn |= p.distanceFromPoint(temp.set(center).add(-widthHalf, -heightHalf, depthHalf)) >= 0;
-				isIn |= p.distanceFromPoint(temp.set(center).add(-widthHalf, -heightHalf, -depthHalf)) >= 0;
-				
-				if(!isIn)
-					return false;
+				return false;
 			}
 			
 			return true;
