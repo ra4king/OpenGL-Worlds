@@ -14,24 +14,24 @@ import com.ra4king.opengl.util.GLProgram;
  * @author Roi Atalla
  */
 public class OpenGLWorld extends GLProgram {
-	public OpenGLWorld() {
-		super("OpenGLWorld", 800, 600, true);
+	public static void main(String[] args) throws Exception {
+		new OpenGLWorld().run(true, new PixelFormat(16, 0, 8, 0, 4));
 	}
 	
 	private World world;
 	private WorldRenderer worldRenderer;
 	
 	// private Fractal fractal;
-	
-	public static void main(String[] args) throws Exception {
-		new OpenGLWorld().run(true, new PixelFormat(16, 0, 8, 0, 4));
+
+	public OpenGLWorld() {
+		super("OpenGLWorld", 800, 600, true);
 	}
 	
 	@Override
 	public void init() {
 		setPrintDebug(true);
 
-		GLUtils.init();
+	GLUtils.init();
 		
 		setFPS(0);
 		
