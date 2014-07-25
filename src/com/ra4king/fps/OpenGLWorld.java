@@ -22,7 +22,7 @@ public class OpenGLWorld extends GLProgram {
 	private WorldRenderer worldRenderer;
 	
 	// private Fractal fractal;
-
+	
 	public OpenGLWorld() {
 		super("OpenGLWorld", 800, 600, true);
 	}
@@ -33,12 +33,12 @@ public class OpenGLWorld extends GLProgram {
 		
 		GLUtils.init();
 		
-		if(GLUtils.get().GL_VERSION < 21) {
+		if(GLUtils.GL_VERSION < 21) {
 			System.out.println("Your OpenGL version is too old.");
 			System.exit(1);
 		}
-
-	setFPS(0);
+		
+		setFPS(0);
 		
 		// Mouse.setGrabbed(true);
 		
@@ -95,7 +95,7 @@ public class OpenGLWorld extends GLProgram {
 			worldUpdateTime = worldRenderUpdateTime = frames = 0;
 		}
 	}
-
+	
 	@Override
 	public void render() {
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

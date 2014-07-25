@@ -53,7 +53,7 @@ public class World implements CameraUpdate {
 	}
 	
 	public void resized() {
-		camera.setWindowSize(GLUtils.get().getWidth(), GLUtils.get().getHeight());
+		camera.setWindowSize(GLUtils.getWidth(), GLUtils.getHeight());
 	}
 	
 	public void keyPressed(int key, char c) {
@@ -164,7 +164,7 @@ public class World implements CameraUpdate {
 		}
 		
 		if((Mouse.isButtonDown(0) || Keyboard.isKeyDown(Keyboard.KEY_C)) && (System.nanoTime() - mouseCooldown) > (long)7e7) {
-			int bulletSpeed = 200;
+			int bulletSpeed = 160;
 			
 			bulletManager.addBullet(new Bullet(position.copy().add(inverse.mult(rightBullet)), inverse.mult(Vector3.FORWARD).mult(bulletSpeed), 3, 500));
 			bulletManager.addBullet(new Bullet(position.copy().add(inverse.mult(leftBullet)), inverse.mult(Vector3.FORWARD).mult(bulletSpeed), 3, 500));

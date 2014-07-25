@@ -43,8 +43,8 @@ public class BulletRenderer {
 		
 		bulletDataBuffer = BufferUtils.createFloatBuffer(500 * 2 * 4);
 		
-		bulletProgram = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream(GLUtils.get().SHADERS_ROOT_PATH + "bullet.vert")),
-				Utils.readFully(getClass().getResourceAsStream(GLUtils.get().SHADERS_ROOT_PATH + "bullet.frag")));
+		bulletProgram = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream(GLUtils.SHADERS_ROOT_PATH + "bullet.vert")),
+				Utils.readFully(getClass().getResourceAsStream(GLUtils.SHADERS_ROOT_PATH + "bullet.frag")));
 		
 		projectionMatrixUniform = bulletProgram.getUniformLocation("projectionMatrix");
 		modelViewMatrixUniform = bulletProgram.getUniformLocation("modelViewMatrix");
@@ -65,8 +65,8 @@ public class BulletRenderer {
 		glBindBuffer(GL_ARRAY_BUFFER, bulletMappingsVBO);
 		glBufferData(GL_ARRAY_BUFFER, bulletMappingsBuffer, GL_STATIC_DRAW);
 		
-		vao = GLUtils.get().glGenVertexArrays();
-		GLUtils.get().glBindVertexArray(vao);
+		vao = GLUtils.glGenVertexArrays();
+		GLUtils.glBindVertexArray(vao);
 		
 		glEnableVertexAttribArray(0);
 		glVertexAttribPointer(0, 2, GL_FLOAT, false, 0, 0);
@@ -81,7 +81,7 @@ public class BulletRenderer {
 		
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 		
-		GLUtils.get().glBindVertexArray(0);
+		GLUtils.glBindVertexArray(0);
 	}
 	
 	private HashMap<Bullet,Vector3> cameraWorldPositions = new HashMap<>();
@@ -177,13 +177,13 @@ public class BulletRenderer {
 		
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 		
-		GLUtils.get().glBindVertexArray(vao);
+		GLUtils.glBindVertexArray(vao);
 		
 		glDepthMask(false);
 		glDrawArraysInstanced(GL_TRIANGLES, 0, 6, bulletDrawnCount);
 		glDepthMask(true);
 		
-		GLUtils.get().glBindVertexArray(0);
+		GLUtils.glBindVertexArray(0);
 		
 		bulletProgram.end();
 	}

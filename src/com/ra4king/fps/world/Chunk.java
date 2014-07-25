@@ -4,7 +4,7 @@ package com.ra4king.fps.world;
  * @author Roi Atalla
  */
 public class Chunk {
-	public static final int CHUNK_CUBE_WIDTH = 16, CHUNK_CUBE_HEIGHT = 16, CHUNK_CUBE_DEPTH = 16;
+	public static final int CHUNK_CUBE_WIDTH = 64, CHUNK_CUBE_HEIGHT = 64, CHUNK_CUBE_DEPTH = 64;
 	public static final float CUBE_SIZE = 2;
 	public static final float SPACING = CUBE_SIZE; // cannot be less than CUBE_SIZE
 	

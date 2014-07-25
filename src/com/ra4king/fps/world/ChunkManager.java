@@ -11,7 +11,7 @@ import com.ra4king.opengl.util.math.Vector3;
  * @author Roi Atalla
  */
 public class ChunkManager {
-	public static final int CHUNKS_SIDE = 10;
+	public static final int CHUNKS_SIDE = 3;
 
 	private HashSet<Chunk> chunks;
 	
@@ -19,6 +19,8 @@ public class ChunkManager {
 		chunks = new HashSet<>();
 		
 		int totalCubes = 0;
+		
+		long before = System.nanoTime();
 		
 		for(int x = 0; x < CHUNKS_SIDE; x++)
 			for(int y = 0; y < CHUNKS_SIDE; y++)
@@ -28,29 +30,30 @@ public class ChunkManager {
 					
 					totalCubes += chunk.getCubeCount();
 				}
+		long after = System.nanoTime();
 		
-		System.out.println("Total cubes: " + totalCubes);
+		System.out.printf("Total cubes %d generated in %.3f ms\n", totalCubes, (after - before) / 1e6);
 	}
 	
 	public HashSet<Chunk> getChunks() {
 		return chunks;
 	}
 	
-	public BlockInfo getBlock(int x, int y, int z) {
-		int chunkX = (x / Chunk.CHUNK_CUBE_WIDTH) * Chunk.CHUNK_CUBE_WIDTH;
-		int chunkY = (y / Chunk.CHUNK_CUBE_HEIGHT) * Chunk.CHUNK_CUBE_HEIGHT;
-		int chunkZ = (z / Chunk.CHUNK_CUBE_DEPTH) * Chunk.CHUNK_CUBE_DEPTH;
-
-		for(Chunk c : chunks) {
-			if(c.getChunkInfo().cornerEquals(chunkX, chunkY, chunkZ))
-				return c.get(x % Chunk.CHUNK_CUBE_WIDTH, y % Chunk.CHUNK_CUBE_HEIGHT, z % Chunk.CHUNK_CUBE_DEPTH);
-		}
-		
-		return null;
-	}
+	// public BlockInfo getBlock(int x, int y, int z) {
+	// int chunkX = (x / Chunk.CHUNK_CUBE_WIDTH) * Chunk.CHUNK_CUBE_WIDTH;
+	// int chunkY = (y / Chunk.CHUNK_CUBE_HEIGHT) * Chunk.CHUNK_CUBE_HEIGHT;
+	// int chunkZ = (z / Chunk.CHUNK_CUBE_DEPTH) * Chunk.CHUNK_CUBE_DEPTH;
+	//
+	// for(Chunk c : chunks) {
+	// if(c.getChunkInfo().cornerEquals(chunkX, chunkY, chunkZ))
+	// return c.get(x % Chunk.CHUNK_CUBE_WIDTH, y % Chunk.CHUNK_CUBE_HEIGHT, z % Chunk.CHUNK_CUBE_DEPTH);
+	// }
+	//
+	// return null;
+	// }
 	
 	private final Vector3 temp = new Vector3();
-
+	
 	public BlockInfo getBlock(Vector3 v, float radius) {
 		final float d = Chunk.CUBE_SIZE / 2 + radius;
 		

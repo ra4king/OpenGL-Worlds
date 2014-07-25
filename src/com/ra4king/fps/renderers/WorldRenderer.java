@@ -9,6 +9,7 @@ import static org.lwjgl.opengl.GL32.*;
 
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
+import java.nio.ShortBuffer;
 import java.util.HashMap;
 import java.util.HashSet;
 
@@ -40,7 +41,9 @@ public class WorldRenderer {
 	
 	private FrustumCulling culling;
 	
+	private int cubeVBO, indicesVBO;
 	private HashSet<ChunkRenderer> chunkRenderers;
+
 	private BulletRenderer bulletRenderer;
 	private LightSystem lightSystem;
 	
@@ -49,20 +52,10 @@ public class WorldRenderer {
 	private int normalMatrixUniform;
 	
 	static {
-		switch(GLUtils.get().GL_VERSION) {
-			case 31:
-				MAX_NUM_LIGHTS = 100;
-				break;
-			case 30:
-				MAX_NUM_LIGHTS = 100;
-				break;
-			case 21:
-				MAX_NUM_LIGHTS = 50;
-				break;
-			default:
-				MAX_NUM_LIGHTS = 10;
-				break;
-		}
+		if(GLUtils.GL_VERSION >= 31)
+			MAX_NUM_LIGHTS = 100;
+		else
+			MAX_NUM_LIGHTS = 30;
 	}
 	
 	public WorldRenderer(World world) {
@@ -82,41 +75,43 @@ public class WorldRenderer {
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		
-		if(GLUtils.get().GL_VERSION >= 32)
+		if(GLUtils.GL_VERSION >= 32)
 			glEnable(GL_DEPTH_CLAMP);
-		
+	
 		loadShaders();
 		
 		culling = new FrustumCulling();
 		
 		bulletRenderer = new BulletRenderer(world.getBulletManager());
 		
-		chunkRenderers = new HashSet<>();
+		loadCube();
+
+	chunkRenderers = new HashSet<>();
 		for(Chunk chunk : world.getChunkManager().getChunks()) {
-			chunkRenderers.add(new ChunkRenderer(chunk));
+			chunkRenderers.add(new ChunkRenderer(chunk, cubeVBO, indicesVBO));
 		}
 	}
 	
 	private void loadShaders() {
 		int version;
-		if(GLUtils.get().GL_VERSION >= 31)
+		if(GLUtils.GL_VERSION >= 31)
 			version = 31;
-		else if(GLUtils.get().GL_VERSION == 30)
+		else if(GLUtils.GL_VERSION == 30)
 			version = 30;
 		else
 			version = 21;
-	
+		
 		String shaderName = "fps" + version;
 		
 		HashMap<Integer,String> attributes = new HashMap<Integer,String>();
 		attributes.put(0, "position");
 		attributes.put(1, "normal");
 		
-		worldProgram = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream(GLUtils.get().SHADERS_ROOT_PATH + shaderName + ".vert")),
-				Utils.readFully(getClass().getResourceAsStream(GLUtils.get().SHADERS_ROOT_PATH + shaderName + ".frag")),
-				attributes);
+		worldProgram = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream(GLUtils.SHADERS_ROOT_PATH + shaderName + ".vert")),
+				Utils.readFully(getClass().getResourceAsStream(GLUtils.SHADERS_ROOT_PATH + shaderName + ".frag")),
+		attributes);
 		
-		if(GLUtils.get().GL_VERSION >= 31)
+		if(GLUtils.GL_VERSION >= 31)
 			lightSystem = new UniformBufferLightSystem();
 		else
 			lightSystem = new UniformArrayLightSystem();
@@ -126,6 +121,98 @@ public class WorldRenderer {
 		projectionMatrixUniform = worldProgram.getUniformLocation("projectionMatrix");
 		viewMatrixUniform = worldProgram.getUniformLocation("viewMatrix");
 		normalMatrixUniform = worldProgram.getUniformLocation("normalMatrix");
+	}
+	
+	private void loadCube() {
+		final short[] indices = { 0, 1, 2, 2, 3, 0 };
+		
+		final Vector3 normals[] = {
+				new Vector3(0, 0, 1),
+				new Vector3(0, 0, -1),
+				new Vector3(0, 1, 0),
+				new Vector3(0, -1, 0),
+				new Vector3(1, 0, 0),
+				new Vector3(-1, 0, 0)
+		};
+		
+		final Vector3 unitCube[] = {
+				// front face triangle 1
+				new Vector3(-0.5f, 0.5f, 0.5f),
+				new Vector3(0.5f, 0.5f, 0.5f),
+				new Vector3(0.5f, -0.5f, 0.5f),
+				// front face triangle 2
+				// new Vector3(0.5f, -0.5f, 0.5f),
+				new Vector3(-0.5f, -0.5f, 0.5f),
+				// new Vector3(-0.5f, 0.5f, 0.5f),
+				
+				// back face triangle 1
+				new Vector3(0.5f, 0.5f, -0.5f),
+				new Vector3(-0.5f, 0.5f, -0.5f),
+				new Vector3(-0.5f, -0.5f, -0.5f),
+				// back face triangle 2
+				// new Vector3(-0.5f, -0.5f, -0.5f),
+				new Vector3(0.5f, -0.5f, -0.5f),
+				// new Vector3(0.5f, 0.5f, -0.5f),
+				
+				// top face triangle 1
+				new Vector3(-0.5f, 0.5f, -0.5f),
+				new Vector3(0.5f, 0.5f, -0.5f),
+				new Vector3(0.5f, 0.5f, 0.5f),
+				// top face triangle 2
+				// new Vector3(0.5f, 0.5f, 0.5f),
+				new Vector3(-0.5f, 0.5f, 0.5f),
+				// new Vector3(-0.5f, 0.5f, -0.5f),
+				
+				// bottom face triangle 1
+				new Vector3(-0.5f, -0.5f, 0.5f),
+				new Vector3(0.5f, -0.5f, 0.5f),
+				new Vector3(0.5f, -0.5f, -0.5f),
+				// bottom face triangle 2
+				// new Vector3(0.5f, -0.5f, -0.5f),
+				new Vector3(-0.5f, -0.5f, -0.5f),
+				// new Vector3(-0.5f, -0.5f, 0.5f),
+				
+				// right face triangle 1
+				new Vector3(0.5f, 0.5f, 0.5f),
+				new Vector3(0.5f, 0.5f, -0.5f),
+				new Vector3(0.5f, -0.5f, -0.5f),
+				// right face triangle 2
+				// new Vector3(0.5f, -0.5f, -0.5f),
+				new Vector3(0.5f, -0.5f, 0.5f),
+				// new Vector3(0.5f, 0.5f, 0.5f),
+				
+				// left face triangle 1
+				new Vector3(-0.5f, 0.5f, -0.5f),
+				new Vector3(-0.5f, 0.5f, 0.5f),
+				new Vector3(-0.5f, -0.5f, 0.5f),
+				// left face triangle 2
+				// new Vector3(-0.5f, -0.5f, 0.5f),
+				new Vector3(-0.5f, -0.5f, -0.5f),
+				// new Vector3(-0.5f, 0.5f, -0.5f)
+		};
+		
+		FloatBuffer cubeBuffer = BufferUtils.createFloatBuffer(unitCube.length * 2 * 3);
+		for(int a = 0; a < unitCube.length; a++) {
+			cubeBuffer.put(unitCube[a].toBuffer());
+			cubeBuffer.put(normals[a / 4].toBuffer());
+		}
+		cubeBuffer.flip();
+		
+		ShortBuffer indicesBuffer = BufferUtils.createShortBuffer(indices.length * 6);
+		for(int a = 0; a < 6 * indices.length; a++) {
+			indicesBuffer.put((short)(indices[a % 6] + (a / indices.length) * 4));
+		}
+		indicesBuffer.flip();
+		
+		cubeVBO = glGenBuffers();
+		glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
+		glBufferData(GL_ARRAY_BUFFER, cubeBuffer, GL_STATIC_DRAW);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+		
+		indicesVBO = glGenBuffers();
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indicesVBO);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, indicesBuffer, GL_STATIC_DRAW);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	}
 	
 	private long timePassed;
@@ -155,11 +242,11 @@ public class WorldRenderer {
 			
 			long triangles = 0;
 			for(ChunkRenderer chunkRenderer : chunkRenderers)
-				triangles += chunkRenderer.getLastTriangleRenderCount();
-	
-			System.out.printf("Average of %d chunks rendered, %d triangles, %.3f ms\n",
-					chunksRendered / frameCount, triangles, (double)renderTime / (1e6 * frameCount));
+				triangles += chunkRenderer.getLastCubeRenderCount();
 			
+			System.out.printf("Average of %d chunks, %d cubes updated in %.3f ms\n",
+					chunksRendered / frameCount, triangles, (double)renderTime / (1e6 * frameCount));
+
 			renderTime = 0;
 			
 			frameCount = chunksRendered = 0;
@@ -189,7 +276,7 @@ public class WorldRenderer {
 		normalMatrix.set(viewMatrix).inverse().transpose();
 		glUniformMatrix3(normalMatrixUniform, false, normalMatrix.toBuffer());
 		
-		final float mainK = 0.001f;
+		final float mainK = 0.00001f;
 		lightSystem.renderLights(mainDiffuseColor, mainK, mainAmbientColor, viewMatrix, bulletRenderer);
 		
 		// Setting up the 6 planes that define the edges of the frustum
@@ -221,8 +308,8 @@ public class WorldRenderer {
 		glDepthMask(false);
 		
 		glDisable(GL_DEPTH_TEST);
-		bulletRenderer.render(new Matrix4().clearToOrtho(-GLUtils.get().getWidth() / 2, GLUtils.get().getWidth() / 2, -GLUtils.get().getHeight() / 2, GLUtils.get().getHeight() / 2, -1, 1), new
-				MatrixStack(), null, aim);
+		bulletRenderer.render(new Matrix4().clearToOrtho(-GLUtils.getWidth() / 2, GLUtils.getWidth() / 2, -GLUtils.getHeight() / 2, GLUtils.getHeight() / 2, -1, 1), new
+	MatrixStack(), null, aim);
 		glEnable(GL_DEPTH_TEST);
 		
 		glDepthMask(true);
