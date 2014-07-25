@@ -1,7 +1,5 @@
 package com.ra4king.fps.world;
 
-import com.ra4king.fps.renderers.ChunkRenderer;
-
 /**
  * @author Roi Atalla
  */
@@ -16,7 +14,7 @@ public class Chunk {
 	private ChunkManager manager;
 	private int cubeCount;
 	
-	private ChunkRenderer renderer;
+	private boolean hasChanged = true;
 	
 	public Chunk(ChunkManager manager, ChunkInfo chunkInfo, boolean random) {
 		this.manager = manager;
@@ -29,16 +27,10 @@ public class Chunk {
 			initializeRandomly();
 		else
 			initializeAll();
-		
-		renderer = new ChunkRenderer(this);
 	}
 	
 	public ChunkManager getChunkManager() {
 		return manager;
-	}
-	
-	public ChunkRenderer getChunkRenderer() {
-		return renderer;
 	}
 	
 	private int posToArrayIndex(int x, int y, int z) {
@@ -126,6 +118,8 @@ public class Chunk {
 		}
 		else
 			blockInfo.type = block;
+		
+		hasChanged = true;
 	}
 	
 	public boolean remove(int x, int y, int z) {
@@ -138,9 +132,16 @@ public class Chunk {
 		
 		if(block != null) {
 			cubeCount--;
+			hasChanged = true;
 		}
 		
 		return block != null;
+	}
+	
+	public boolean hasChanged() {
+		boolean changed = hasChanged;
+		hasChanged = false;
+		return changed;
 	}
 	
 	public enum BlockType {

@@ -11,7 +11,7 @@ import com.ra4king.opengl.util.math.Vector3;
  * @author Roi Atalla
  */
 public class ChunkManager {
-	public static final int CHUNKS_SIDE = 2;
+	public static final int CHUNKS_SIDE = 10;
 
 	private HashSet<Chunk> chunks;
 	

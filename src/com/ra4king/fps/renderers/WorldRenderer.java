@@ -10,6 +10,7 @@ import static org.lwjgl.opengl.GL32.*;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.util.HashMap;
+import java.util.HashSet;
 
 import org.lwjgl.BufferUtils;
 import org.lwjgl.input.Keyboard;
@@ -38,6 +39,8 @@ public class WorldRenderer {
 	private ShaderProgram worldProgram;
 	
 	private FrustumCulling culling;
+	
+	private HashSet<ChunkRenderer> chunkRenderers;
 	private BulletRenderer bulletRenderer;
 	private LightSystem lightSystem;
 	
@@ -82,34 +85,28 @@ public class WorldRenderer {
 		if(GLUtils.get().GL_VERSION >= 32)
 			glEnable(GL_DEPTH_CLAMP);
 		
-		// private int mainLightPositionUniform, mainDiffuseColorUniform, mainAmbientColorUniform;
-		// private int numberOfLightsUniform;
-		// private int lightPositionsUniform, lightColorsUniform;
-		
-		// private FloatBuffer lightsColorBuffer;
-		
-		// if(GLUtils.get().GL_VERSION >= 33)
-		// worldProgram = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream(GLUtils.get().SHADERS_ROOT_PATH + "fps.vert")),
-		// Utils.readFully(getClass().getResourceAsStream(GLUtils.get().SHADERS_ROOT_PATH + "fps.frag")));
-		// else if(GLUtils.get().GL_VERSION >= 30)
-		// worldProgram = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream(GLUtils.get().SHADERS_ROOT_PATH + "fps3.0.vert")),
-		// Utils.readFully(getClass().getResourceAsStream(GLUtils.get().SHADERS_ROOT_PATH + "fps3.0.frag")));
-		// else {
-		// throw new RuntimeException("2.1 and below not supported.");
-		//
-		// // worldProgram = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream(SHADERS_ROOT_PATH + "fps2.1.vert")), Utils.readFully(getClass().getResourceAsStream(SHADERS_ROOT_PATH +
-		// // "fps2.1.frag")));
-		// }
-		
 		loadShaders();
 		
 		culling = new FrustumCulling();
 		
 		bulletRenderer = new BulletRenderer(world.getBulletManager());
+		
+		chunkRenderers = new HashSet<>();
+		for(Chunk chunk : world.getChunkManager().getChunks()) {
+			chunkRenderers.add(new ChunkRenderer(chunk));
+		}
 	}
 	
 	private void loadShaders() {
-		String shaderName = "fps" + GLUtils.get().GL_VERSION;
+		int version;
+		if(GLUtils.get().GL_VERSION >= 31)
+			version = 31;
+		else if(GLUtils.get().GL_VERSION == 30)
+			version = 30;
+		else
+			version = 21;
+	
+		String shaderName = "fps" + version;
 		
 		HashMap<Integer,String> attributes = new HashMap<Integer,String>();
 		attributes.put(0, "position");
@@ -157,9 +154,9 @@ public class WorldRenderer {
 				continue;
 			
 			long triangles = 0;
-			for(Chunk chunk : world.getChunkManager().getChunks())
-				triangles += chunk.getChunkRenderer().getLastTriangleRenderCount();
-			
+			for(ChunkRenderer chunkRenderer : chunkRenderers)
+				triangles += chunkRenderer.getLastTriangleRenderCount();
+	
 			System.out.printf("Average of %d chunks rendered, %d triangles, %.3f ms\n",
 					chunksRendered / frameCount, triangles, (double)renderTime / (1e6 * frameCount));
 			
@@ -201,14 +198,16 @@ public class WorldRenderer {
 		long before = System.nanoTime();
 		
 		float halfSpacing = Chunk.SPACING * 0.5f;
-
-		for(Chunk chunk : world.getChunkManager().getChunks()) {
+		
+		for(ChunkRenderer chunkRenderer : chunkRenderers) {
+			Chunk chunk = chunkRenderer.getChunk();
+			
 			if(culling.isRectPrismInsideFrustum(renderTemp.set(chunk.getChunkInfo().chunkCornerX, chunk.getChunkInfo().chunkCornerY, -chunk.getChunkInfo().chunkCornerZ)
 					.mult(Chunk.SPACING).sub(halfSpacing, halfSpacing, halfSpacing),
 					Chunk.CHUNK_CUBE_WIDTH * Chunk.SPACING,
 					Chunk.CHUNK_CUBE_HEIGHT * Chunk.SPACING,
 					-Chunk.CHUNK_CUBE_DEPTH * Chunk.SPACING)) {
-				chunk.getChunkRenderer().render(viewMatrix, normalMatrix);
+				chunkRenderer.render();
 				chunksRendered++;
 			}
 		}
@@ -243,6 +242,8 @@ public class WorldRenderer {
 		private int numLightsUniform;
 		private int lightsArrayUniform;
 		
+		private int lastBulletCount = -1;
+		
 		@Override
 		public void setupLights(ShaderProgram program) {
 			lightsBuffer = BufferUtils.createFloatBuffer(MAX_NUM_LIGHTS * 2 * 4);
@@ -264,6 +265,11 @@ public class WorldRenderer {
 			
 			int bulletCount = bulletRenderer.getBulletLightData(viewMatrix, lightsBuffer, MAX_NUM_LIGHTS - 1);
 			
+			if(lastBulletCount == 0 && bulletCount == 0)
+				return;
+			
+			lastBulletCount = bulletCount;
+			
 			lightsBuffer.put(0f).put(0f).put(0f); // camera position
 			lightsBuffer.put(5000f); // camera light range
 			lightsBuffer.put(diffuseColor.toBuffer());
@@ -280,6 +286,8 @@ public class WorldRenderer {
 	private static class UniformBufferLightSystem implements LightSystem {
 		private FloatBuffer bulletsBuffer;
 		private int lightsUniformBufferVBO;
+		
+		private int lastBulletCount = -1;
 		
 		@Override
 		public void setupLights(ShaderProgram program) {
@@ -304,16 +312,21 @@ public class WorldRenderer {
 		
 		@Override
 		public void renderLights(Vector3 diffuseColor, float mainK, Vector3 ambientColor, Matrix4 viewMatrix, BulletRenderer bulletRenderer) {
+			bulletsBuffer.clear();
+			
+			// Fill buffer with each bullet's position as each bullet is a light source
+			int bulletCount = bulletRenderer.getBulletLightData(viewMatrix, bulletsBuffer, MAX_NUM_LIGHTS - 1);
+			
+			if(lastBulletCount == 0 && bulletCount == 0)
+				return;
+			
+			lastBulletCount = bulletCount;
+			
 			glBindBuffer(GL_UNIFORM_BUFFER, lightsUniformBufferVBO);
 			
 			ByteBuffer mapBuffer = glMapBuffer(GL_UNIFORM_BUFFER, GL_WRITE_ONLY, null);
 			
 			FloatBuffer lightsBuffer = mapBuffer.asFloatBuffer();
-			
-			bulletsBuffer.clear();
-			
-			// Fill buffer with each bullet's position as each bullet is a light source
-			int bulletCount = bulletRenderer.getBulletLightData(viewMatrix, bulletsBuffer, MAX_NUM_LIGHTS - 1);
 			
 			bulletsBuffer.flip();
 			

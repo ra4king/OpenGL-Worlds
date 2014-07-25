@@ -29,7 +29,7 @@ public final class GLUtils {
 	public final String SHADERS_ROOT_PATH = "/res/shaders/";
 	
 	private GLUtils() {
-		GL_VERSION = GLContext.getCapabilities().OpenGL31 ? 31 : GLContext.getCapabilities().OpenGL30 ? 30 : GLContext.getCapabilities().OpenGL21 ? 21 : 0;
+		GL_VERSION = GLContext.getCapabilities().OpenGL33 ? 33 : GLContext.getCapabilities().OpenGL32 ? 32 : GLContext.getCapabilities().OpenGL30 ? 30 : GLContext.getCapabilities().OpenGL21 ? 21 : 0;
 		
 		IS_MAC = System.getProperty("os.name").toLowerCase().contains("mac");
 		

@@ -61,21 +61,39 @@ public class World implements CameraUpdate {
 			isPaused = !isPaused;
 	}
 	
+	private long cameraUpdateTime, chunkManagerUpdateTime, bulletManagerUpdateTime, frames;
+	
 	public void update(long deltaTime) {
-		camera.update(deltaTime);
-		
 		timePassed += deltaTime;
+		
+		long before = System.nanoTime();
+		camera.update(deltaTime);
+		cameraUpdateTime += System.nanoTime() - before;
+		
+		before = System.nanoTime();
+		chunkManager.update(deltaTime);
+		chunkManagerUpdateTime += System.nanoTime() - before;
+		
+		if(!isPaused) {
+			before = System.nanoTime();
+			bulletManager.update(deltaTime);
+			bulletManagerUpdateTime += System.nanoTime() - before;
+		}
+		
+		frames++;
 		
 		while(timePassed >= 1e9) {
 			timePassed -= 1e9;
 			
+			if(frames == 0)
+				continue;
+			
 			System.out.println("Bullets fired: " + bulletCount + "\tBlocks destroyed: " + bulletManager.getBlocksDestroyedCount());
+			System.out.printf("Camera update: %.3f ms, Chunk Manager update: %.3f ms, Bullet Manager update: %.3f ms\n",
+					cameraUpdateTime / (frames * 1e6), chunkManagerUpdateTime / (frames * 1e6), bulletManagerUpdateTime / (frames * 1e6));
+			
+			cameraUpdateTime = chunkManagerUpdateTime = bulletManagerUpdateTime = frames = 0;
 		}
-		
-		chunkManager.update(deltaTime);
-		
-		if(!isPaused)
-			bulletManager.update(deltaTime);
 	}
 	
 	private final Quaternion inverse = new Quaternion();

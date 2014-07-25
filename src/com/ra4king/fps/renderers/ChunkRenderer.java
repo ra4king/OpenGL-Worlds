@@ -16,8 +16,6 @@ import com.ra4king.fps.world.Chunk;
 import com.ra4king.fps.world.Chunk.BlockInfo;
 import com.ra4king.fps.world.Chunk.ChunkInfo;
 import com.ra4king.opengl.util.Utils;
-import com.ra4king.opengl.util.math.Matrix3;
-import com.ra4king.opengl.util.math.Matrix4;
 import com.ra4king.opengl.util.math.Vector3;
 
 public class ChunkRenderer {
@@ -138,45 +136,13 @@ public class ChunkRenderer {
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	}
 	
-	public int getLastTriangleRenderCount() {
-		return lastTriangleRenderCount;
+	public Chunk getChunk() {
+		return chunk;
 	}
 	
-	private boolean isSurrounded(Chunk.BlockInfo block) {
-		int x = block.x;
-		int y = block.y;
-		int z = block.z;
-		
-		ChunkInfo chunkInfo = chunk.getChunkInfo();
-		
-		for(int ix = -1; ix < 2; ix++) {
-			for(int iy = -1; iy < 2; iy++) {
-				for(int iz = -1; iz < 2; iz++) {
-					if(ix == 0 && iy == 0 && iz == 0)
-						continue;
-					
-					boolean blocked;
-					
-					if(!chunk.isValidPos(x + ix, y + iy, z + iz))
-						blocked = chunk.getChunkManager().getBlock(chunkInfo.chunkCornerX + x + ix, chunkInfo.chunkCornerY + y + iy, chunkInfo.chunkCornerZ + z + iz) != null;
-					else
-						blocked = chunk.get(x + ix, y + iy, z + iz) != null;
-					
-					if(!blocked)
-						return false;
-				}
-			}
-		}
-		
-		return true;
-	}
-	
-	private static Vector3 posTemp = new Vector3();
-	private static Vector3 cameraPosTemp = new Vector3();
-	private static Vector3 normalTemp = new Vector3();
 	private static Vector3 cubeTemp = new Vector3();
 	
-	public void render(Matrix4 viewMatrix, Matrix3 normalMatrix) {
+	private void updateVBO() {
 		final boolean USE_MAPPED_BUFFERS = true;
 		
 		int trianglesDrawn = 0;
@@ -213,8 +179,9 @@ public class ChunkRenderer {
 		short indexOffset = 0;
 		
 		for(BlockInfo block : chunk.getBlocks()) {
-			if(block == null || isSurrounded(block))
+			if(block == null || isSurrounded(block)) {
 				continue;
+			}
 			
 			for(int b = 0; b < 6 * 4; b++) {
 				cubeTemp.set(unitCube[b]).add(0.5f, 0.5f, -0.5f).mult(Chunk.CUBE_SIZE);
@@ -254,7 +221,50 @@ public class ChunkRenderer {
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 		
 		lastTriangleRenderCount = trianglesDrawn;
+	}
+	
+	public int getLastTriangleRenderCount() {
+		return lastTriangleRenderCount;
+	}
+	
+	private boolean isSurrounded(Chunk.BlockInfo block) {
+		int x = block.x;
+		int y = block.y;
+		int z = block.z;
 		
+		ChunkInfo chunkInfo = chunk.getChunkInfo();
+		
+		for(int ix = -1; ix < 2; ix++) {
+			for(int iy = -1; iy < 2; iy++) {
+				for(int iz = -1; iz < 2; iz++) {
+					if(ix == 0 && iy == 0 && iz == 0) {
+						continue;
+					}
+					
+					boolean blocked;
+					
+					if(!chunk.isValidPos(x + ix, y + iy, z + iz)) {
+						blocked = chunk.getChunkManager().getBlock(chunkInfo.chunkCornerX + x + ix, chunkInfo.chunkCornerY + y + iy, chunkInfo.chunkCornerZ + z + iz) != null;
+					}
+					else {
+						blocked = chunk.get(x + ix, y + iy, z + iz) != null;
+					}
+					
+					if(!blocked) {
+						return false;
+					}
+				}
+			}
+		}
+		
+		return true;
+	}
+	
+	public void render() {
+		if(chunk.hasChanged()) {
+			updateVBO();
+		}
+
 		if(lastTriangleRenderCount == 0) {
 			return;
 		}
