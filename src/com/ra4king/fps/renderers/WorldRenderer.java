@@ -85,10 +85,10 @@ public class WorldRenderer {
 		
 		if(GLUtils.GL_VERSION >= 32)
 			glEnable(GL_DEPTH_CLAMP);
-
-	loadShaders();
 		
-		culling = new FrustumCulling();
+		loadShaders();
+
+	culling = new FrustumCulling();
 		
 		bulletRenderer = new BulletRenderer(world.getBulletManager());
 		
@@ -138,7 +138,7 @@ public class WorldRenderer {
 		glBufferData(GL_DRAW_INDIRECT_BUFFER, COMMANDS_BUFFER_SIZE, GL_STREAM_DRAW);
 		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
 	}
-
+	
 	private void loadShaders() {
 		int version;
 		if(GLUtils.GL_VERSION >= 31)
@@ -280,13 +280,13 @@ public class WorldRenderer {
 			for(ChunkRenderer chunkRenderer : chunkRenderers) {
 				cubes += chunkRenderer.getLastCubeRenderCount();
 			}
-
+			
 			System.out.printf("Rendering %d chunks, %d cubes\n", chunksRendered, cubes);
 			
 			chunksRendered = 0;
 		}
 	}
-
+	
 	private final Vector3 mainDiffuseColor = new Vector3(0.5f, 0.5f, 0.5f);
 	private final Vector3 mainAmbientColor = new Vector3(0.1f, 0.1f, 0.1f);
 	
@@ -331,11 +331,11 @@ public class WorldRenderer {
 		culling.setupPlanes(cullingProjectionMatrix.set(camera.getProjectionMatrix()).mult(viewMatrix));
 		
 		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandsVBO);
-		ByteBuffer commandByteBuffer = glMapBufferRange(GL_DRAW_INDIRECT_BUFFER, 0, COMMANDS_BUFFER_SIZE,
-				GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_WRITE_BIT | GL_MAP_UNSYNCHRONIZED_BIT, null);
-		IntBuffer commandBuffer = commandByteBuffer.asIntBuffer();
-		
-		Stopwatch.stop();
+		ByteBuffer commandsMappedBuffer = glMapBufferRange(GL_DRAW_INDIRECT_BUFFER, 0, COMMANDS_BUFFER_SIZE,
+				GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_UNSYNCHRONIZED_BIT, null);
+		IntBuffer commandsBuffer = commandsMappedBuffer.asIntBuffer();
+
+	Stopwatch.stop();
 		
 		Stopwatch.start("ChunkRenderers");
 		
@@ -352,9 +352,9 @@ public class WorldRenderer {
 					-Chunk.CHUNK_CUBE_DEPTH * Chunk.SPACING)) {
 				chunkRenderer.render(command);
 				
-				commandBuffer.put(command.toBuffer());
-				
-				chunksRendered++;
+				commandsBuffer.put(command.toBuffer());
+
+		chunksRendered++;
 			}
 		}
 		
@@ -476,39 +476,43 @@ public class WorldRenderer {
 		
 		@Override
 		public void renderLights(Vector3 diffuseColor, float mainK, Vector3 ambientColor, Matrix4 viewMatrix, BulletRenderer bulletRenderer) {
-			bulletsBuffer.clear();
+			Stopwatch.start("LightSystem render UBO");
 			
-			// Fill buffer with each bullet's position as each bullet is a light source
-			int bulletCount = bulletRenderer.getBulletLightData(viewMatrix, bulletsBuffer, MAX_NUM_LIGHTS - 1);
-			
-			if(lastBulletCount == 0 && bulletCount == 0)
-				return;
-			
-			lastBulletCount = bulletCount;
-			
-			glBindBuffer(GL_UNIFORM_BUFFER, lightsUniformBufferVBO);
-			
-			ByteBuffer mapBuffer = glMapBufferRange(GL_UNIFORM_BUFFER, 0, 4 * (MAX_NUM_LIGHTS * 2 * 4 + 4), GL_MAP_WRITE_BIT, null);
-			
-			FloatBuffer lightsBuffer = mapBuffer.asFloatBuffer();
-			
-			bulletsBuffer.flip();
-			
-			lightsBuffer.put(ambientColor.toBuffer());
-			lightsBuffer.put(bulletCount + 1);
-			
-			lightsBuffer.put(bulletsBuffer);
-			
-			lightsBuffer.put(0).put(0).put(0); // camera position
-			lightsBuffer.put(5000);
-			lightsBuffer.put(diffuseColor.toBuffer());
-			lightsBuffer.put(mainK);
-			
-			lightsBuffer.flip();
-			
-			glUnmapBuffer(GL_UNIFORM_BUFFER);
-			
-			glBindBuffer(GL_UNIFORM_BUFFER, 0);
+			try {
+				bulletsBuffer.clear();
+				
+				// Fill buffer with each bullet's position as each bullet is a light source
+				int bulletCount = bulletRenderer.getBulletLightData(viewMatrix, bulletsBuffer, MAX_NUM_LIGHTS - 1);
+				
+				if(lastBulletCount == 0 && bulletCount == 0)
+					return;
+				
+				lastBulletCount = bulletCount;
+				
+				glBindBuffer(GL_UNIFORM_BUFFER, lightsUniformBufferVBO);
+				
+				ByteBuffer mapBuffer = glMapBufferRange(GL_UNIFORM_BUFFER, 0, 4 * (MAX_NUM_LIGHTS * 2 * 4 + 4),
+						GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_UNSYNCHRONIZED_BIT, null);
+				FloatBuffer lightsBuffer = mapBuffer.asFloatBuffer();
+				
+				bulletsBuffer.flip();
+				
+				lightsBuffer.put(ambientColor.toBuffer());
+				lightsBuffer.put(bulletCount + 1);
+				
+				lightsBuffer.put(bulletsBuffer);
+				
+				lightsBuffer.put(0).put(0).put(0); // camera position
+				lightsBuffer.put(5000);
+				lightsBuffer.put(diffuseColor.toBuffer());
+				lightsBuffer.put(mainK);
+				
+				glUnmapBuffer(GL_UNIFORM_BUFFER);
+				
+				glBindBuffer(GL_UNIFORM_BUFFER, 0);
+			} finally {
+				Stopwatch.stop();
+			}
 		}
 	}
 }

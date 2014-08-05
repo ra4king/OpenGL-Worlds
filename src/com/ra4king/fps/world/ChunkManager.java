@@ -15,15 +15,15 @@ public class ChunkManager {
 
 	public ChunkManager(boolean random) {
 		chunks = new Chunk[CHUNKS_SIDE * CHUNKS_SIDE * CHUNKS_SIDE];
-	
-		int totalCubes = 0;
+
+	int totalCubes = 0;
 		
 		long before = System.nanoTime();
 		
 		for(int x = 0; x < CHUNKS_SIDE; x++) {
 			for(int y = 0; y < CHUNKS_SIDE; y++) {
-		for(int z = 0; z < CHUNKS_SIDE; z++) {
-					chunks[z * CHUNKS_SIDE * CHUNKS_SIDE + y * CHUNKS_SIDE + x] = new Chunk(x * Chunk.CHUNK_CUBE_WIDTH, y * Chunk.CHUNK_CUBE_HEIGHT, z * Chunk.CHUNK_CUBE_DEPTH);
+				for(int z = 0; z < CHUNKS_SIDE; z++) {
+	chunks[z * CHUNKS_SIDE * CHUNKS_SIDE + y * CHUNKS_SIDE + x] = new Chunk(x * Chunk.CHUNK_CUBE_WIDTH, y * Chunk.CHUNK_CUBE_HEIGHT, z * Chunk.CHUNK_CUBE_DEPTH);
 				}
 			}
 		}
@@ -41,7 +41,7 @@ public class ChunkManager {
 	private int posToArrayIndex(int x, int y, int z) {
 		return z * CHUNKS_SIDE * CHUNKS_SIDE + y * CHUNKS_SIDE + x;
 	}
-
+	
 	private int cubePosToArrayIndex(int x, int y, int z) {
 		int ix = x / Chunk.CHUNK_CUBE_WIDTH;
 		int iy = y / Chunk.CHUNK_CUBE_HEIGHT;
@@ -96,7 +96,7 @@ public class ChunkManager {
 		
 		return lowestDistance <= d * d ? closestBlock : null;
 	}
-
+	
 	public Block getBlock(int x, int y, int z) {
 		int i = cubePosToArrayIndex(x, y, z);
 		if(i == -1)

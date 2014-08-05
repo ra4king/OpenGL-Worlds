@@ -37,7 +37,8 @@ public class ChunkRenderer {
 		
 		glBindBuffer(GL_ARRAY_BUFFER, dataVBO);
 		
-		ByteBuffer tempMappedBuffer = glMapBufferRange(GL_ARRAY_BUFFER, chunkNumOffset * CHUNK_DATA_SIZE, CHUNK_DATA_SIZE, GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_UNSYNCHRONIZED_BIT, null);
+		ByteBuffer tempMappedBuffer = glMapBufferRange(GL_ARRAY_BUFFER, chunkNumOffset * CHUNK_DATA_SIZE, CHUNK_DATA_SIZE,
+				GL_MAP_WRITE_BIT, null);
 		if(tempMappedBuffer == null) {
 			Utils.checkGLError("mapped buffer");
 			System.exit(0);
@@ -49,16 +50,12 @@ public class ChunkRenderer {
 		
 		Stopwatch.start("Buffer Fill");
 		
-		Stopwatch.start("IsSurrounded");
-		
 		for(Block block : chunk.getBlocks()) {
 			if(block.getType() == BlockType.AIR) {
 				continue;
 			}
 			
-			Stopwatch.resume();
 			boolean isSurrounded = block.isSurrounded();
-			Stopwatch.suspend();
 			
 			if(isSurrounded)
 				continue;
@@ -67,8 +64,6 @@ public class ChunkRenderer {
 			
 			cubesDrawn++;
 		}
-		
-		Stopwatch.end();
 		
 		Stopwatch.stop();
 		
