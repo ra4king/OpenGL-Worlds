@@ -1,66 +1,31 @@
 package com.ra4king.fps.renderers;
 
-import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.opengl.GL15.*;
-import static org.lwjgl.opengl.GL20.*;
 import static org.lwjgl.opengl.GL30.*;
 
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 
-import org.lwjgl.BufferUtils;
-
-import com.ra4king.fps.GLUtils;
+import com.ra4king.fps.renderers.WorldRenderer.DrawElementsIndirectCommand;
 import com.ra4king.fps.world.Chunk;
-import com.ra4king.fps.world.Chunk.BlockInfo;
+import com.ra4king.fps.world.Chunk.Block;
+import com.ra4king.fps.world.Chunk.BlockType;
+import com.ra4king.opengl.util.Stopwatch;
 import com.ra4king.opengl.util.Utils;
 
 public class ChunkRenderer {
 	private Chunk chunk;
-	private int chunkVAO;
 	private int dataVBO;
+	private int chunkNumOffset;
 	private int lastCubeRenderCount;
 	
-	private static final int CUBE_DATA_SIZE = Chunk.CHUNK_CUBE_WIDTH * Chunk.CHUNK_CUBE_HEIGHT * Chunk.CHUNK_CUBE_DEPTH *
-			4 * /* 4 floats per cube */
-			4 /* 4 bytes per float */;
+	private static final int TOTAL_CUBES = Chunk.CHUNK_CUBE_WIDTH * Chunk.CHUNK_CUBE_HEIGHT * Chunk.CHUNK_CUBE_DEPTH;
+	public static final int CHUNK_DATA_SIZE = TOTAL_CUBES * 4 * 4;
 	
-	private static final FloatBuffer tempCubeBuffer;
-	
-	static {
-		tempCubeBuffer = BufferUtils.createFloatBuffer(CUBE_DATA_SIZE / 4);
-	}
-	
-	public ChunkRenderer(Chunk chunk, int cubeVBO, int indicesVBO) {
+	public ChunkRenderer(Chunk chunk, int dataVBO, int chunkNumOffset) {
 		this.chunk = chunk;
-		
-		chunkVAO = GLUtils.glGenVertexArrays();
-		GLUtils.glBindVertexArray(chunkVAO);
-		
-		glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indicesVBO);
-		
-		glEnableVertexAttribArray(0);
-		glVertexAttribPointer(0, 3, GL_FLOAT, false, 2 * 3 * 4, 0);
-		glEnableVertexAttribArray(1);
-		glVertexAttribPointer(1, 3, GL_FLOAT, false, 2 * 3 * 4, 3 * 4);
-		
-		dataVBO = glGenBuffers();
-		glBindBuffer(GL_ARRAY_BUFFER, dataVBO);
-		glBufferData(GL_ARRAY_BUFFER, CUBE_DATA_SIZE, GL_STREAM_DRAW);
-		
-		glEnableVertexAttribArray(2);
-		glVertexAttribPointer(2, 3, GL_FLOAT, false, 4 * 4, 0);
-		GLUtils.glVertexAttribDivisor(2, 1);
-		
-		glEnableVertexAttribArray(3);
-		glVertexAttribPointer(3, 1, GL_FLOAT, false, 4 * 4, 3 * 4);
-		GLUtils.glVertexAttribDivisor(3, 1);
-		
-		GLUtils.glBindVertexArray(0);
-
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+		this.dataVBO = dataVBO;
+		this.chunkNumOffset = chunkNumOffset;
 	}
 	
 	public Chunk getChunk() {
@@ -68,87 +33,58 @@ public class ChunkRenderer {
 	}
 	
 	private void updateVBO() {
-		final boolean USE_MAPPED_BUFFERS = true;
+		Stopwatch.start("UpdateVBO");
 		
-		int cubesDrawn = 0;
-
 		glBindBuffer(GL_ARRAY_BUFFER, dataVBO);
 		
-		FloatBuffer cubeBuffer;
-		
-		if(USE_MAPPED_BUFFERS) {
-			ByteBuffer tempMappedBuffer = glMapBufferRange(GL_ARRAY_BUFFER, 0, CUBE_DATA_SIZE, GL_MAP_WRITE_BIT, null);
-			if(tempMappedBuffer == null) {
-				Utils.checkGLError("mapped buffer");
-				System.exit(0);
-			}
-			cubeBuffer = tempMappedBuffer.asFloatBuffer();
-		}
-		else {
-			cubeBuffer = tempCubeBuffer;
-			cubeBuffer.clear();
+		ByteBuffer tempMappedBuffer = glMapBufferRange(GL_ARRAY_BUFFER, chunkNumOffset * CHUNK_DATA_SIZE, CHUNK_DATA_SIZE, GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_UNSYNCHRONIZED_BIT, null);
+		if(tempMappedBuffer == null) {
+			Utils.checkGLError("mapped buffer");
+			System.exit(0);
 		}
 		
-		for(BlockInfo block : chunk.getBlocks()) {
-			if(block == null || isSurrounded(block)) {
+		FloatBuffer cubeBuffer = tempMappedBuffer.asFloatBuffer();
+		
+		int cubesDrawn = 0;
+		
+		Stopwatch.start("Buffer Fill");
+		
+		Stopwatch.start("IsSurrounded");
+		
+		for(Block block : chunk.getBlocks()) {
+			if(block.getType() == BlockType.AIR) {
 				continue;
 			}
 			
+			Stopwatch.resume();
+			boolean isSurrounded = block.isSurrounded();
+			Stopwatch.suspend();
+			
+			if(isSurrounded)
+				continue;
+
 			cubeBuffer.put(block.getWorldX()).put(block.getWorldY()).put(-block.getWorldZ()).put(Chunk.CUBE_SIZE);
 			
 			cubesDrawn++;
 		}
-
-		if(USE_MAPPED_BUFFERS) {
-			glUnmapBuffer(GL_ARRAY_BUFFER);
-		}
-		else {
-			cubeBuffer.flip();
-			
-			glBufferSubData(GL_ARRAY_BUFFER, 0, cubeBuffer);
-		}
 		
+		Stopwatch.end();
+		
+		Stopwatch.stop();
+		
+		glUnmapBuffer(GL_ARRAY_BUFFER);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 		
 		lastCubeRenderCount = cubesDrawn;
+		
+		Stopwatch.stop();
 	}
 	
 	public int getLastCubeRenderCount() {
 		return lastCubeRenderCount;
 	}
 	
-	private boolean isSurrounded(Chunk.BlockInfo block) {
-		int x = block.x;
-		int y = block.y;
-		int z = block.z;
-		
-		for(int ix = -1; ix < 2; ix++) {
-			for(int iy = -1; iy < 2; iy++) {
-				for(int iz = -1; iz < 2; iz++) {
-					if(ix == 0 && iy == 0 && iz == 0) {
-						continue;
-					}
-					
-					boolean blocked;
-					
-					if(chunk.isValidPos(x + ix, y + iy, z + iz)) {
-						blocked = chunk.get(x + ix, y + iy, z + iz) != null;
-					}
-					else {
-						blocked = false;// chunk.getChunkManager().getBlock(chunkInfo.chunkCornerX + x + ix, chunkInfo.chunkCornerY + y + iy, chunkInfo.chunkCornerZ + z + iz) != null;
-	}
-	
-					if(!blocked) {
-						return false;
-					}
-				}
-			}
-		}
-		
-		return true;
-	}
-	
-	public void render() {
+	public void render(DrawElementsIndirectCommand command) {
 		if(chunk.hasChanged()) {
 			updateVBO();
 		}
@@ -157,8 +93,7 @@ public class ChunkRenderer {
 			return;
 		}
 		
-		GLUtils.glBindVertexArray(chunkVAO);
-		GLUtils.glDrawElementsInstanced(GL_TRIANGLES, 6 * 6, GL_UNSIGNED_SHORT, 0, lastCubeRenderCount);
-		GLUtils.glBindVertexArray(0);
+		command.instanceCount = lastCubeRenderCount;
+		command.baseInstance = chunkNumOffset * TOTAL_CUBES;
 	}
 }

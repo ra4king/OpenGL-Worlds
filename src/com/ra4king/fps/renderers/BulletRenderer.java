@@ -3,8 +3,6 @@ package com.ra4king.fps.renderers;
 import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.opengl.GL15.*;
 import static org.lwjgl.opengl.GL20.*;
-import static org.lwjgl.opengl.GL31.*;
-import static org.lwjgl.opengl.GL33.*;
 
 import java.nio.FloatBuffer;
 import java.util.ArrayList;
@@ -51,7 +49,7 @@ public class BulletRenderer {
 		
 		bulletDataVBO = glGenBuffers();
 		glBindBuffer(GL_ARRAY_BUFFER, bulletDataVBO);
-		glBufferData(GL_ARRAY_BUFFER, bulletDataBuffer.capacity() * 4, GL_STREAM_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, bulletDataBuffer.capacity() * 4, GL_DYNAMIC_DRAW);
 		
 		float[] bulletMappings = {
 				-0.5f, 0.5f, 0.5f, 0.5f, 0.5f, -0.5f,
@@ -72,13 +70,15 @@ public class BulletRenderer {
 		glVertexAttribPointer(0, 2, GL_FLOAT, false, 0, 0);
 		
 		glBindBuffer(GL_ARRAY_BUFFER, bulletDataVBO);
+
 		glEnableVertexAttribArray(1);
-		glEnableVertexAttribArray(2);
 		glVertexAttribPointer(1, 4, GL_FLOAT, false, 8 * 4, 0);
-		glVertexAttribPointer(2, 4, GL_FLOAT, false, 8 * 4, 4 * 4);
-		glVertexAttribDivisor(1, 1);
-		glVertexAttribDivisor(2, 1);
+		GLUtils.glVertexAttribDivisor(1, 1);
 		
+		glEnableVertexAttribArray(2);
+		glVertexAttribPointer(2, 4, GL_FLOAT, false, 8 * 4, 4 * 4);
+		GLUtils.glVertexAttribDivisor(2, 1);
+
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 		
 		GLUtils.glBindVertexArray(0);
@@ -96,7 +96,7 @@ public class BulletRenderer {
 		
 		int count = Math.min(bullets.size(), maxBulletCount);
 		
-		for(int a = 0; a < count; a++) {
+		for(int a = bullets.size() - 1; a >= bullets.size() - count; a--) {
 			Bullet b = bullets.get(a);
 			
 			bulletData.put(cameraWorldPositions.get(b).toBuffer());
@@ -180,11 +180,7 @@ public class BulletRenderer {
 		GLUtils.glBindVertexArray(vao);
 		
 		glDepthMask(false);
-		glDrawArraysInstanced(GL_TRIANGLES, 0, 6, bulletDrawnCount);
+		GLUtils.glDrawArraysInstanced(GL_TRIANGLES, 0, 6, bulletDrawnCount);
 		glDepthMask(true);
-		
-		GLUtils.glBindVertexArray(0);
-		
-		bulletProgram.end();
 	}
 }

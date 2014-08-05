@@ -1,4 +1,4 @@
-#version 330
+#version 140
 
 in vec3 cameraSpacePosition;
 in vec3 norm;
@@ -27,7 +27,8 @@ out vec4 fragColor;
 vec3 calculateLight(vec3 color, float k, vec3 normal, vec3 lightDistance) {
 	vec3 lightDirection = normalize(lightDistance);
 	float cos = clamp(dot(normal, lightDirection), 0, 1);
-	float atten = 1.0 / (1.0 + k * dot(lightDistance, lightDistance));
+	float dot = dot(lightDistance, lightDistance);
+	float atten = 1.0 / (1.0 + k * dot);
 	
 	//vec3 viewDirection = normalize(-cameraSpacePosition);
 	//vec3 halfAngle = normalize(lightDirection + viewDirection);

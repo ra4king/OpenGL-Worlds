@@ -7,6 +7,7 @@ import com.ra4king.fps.Camera;
 import com.ra4king.fps.Camera.CameraUpdate;
 import com.ra4king.fps.GLUtils;
 import com.ra4king.fps.actors.Bullet;
+import com.ra4king.opengl.util.Stopwatch;
 import com.ra4king.opengl.util.Utils;
 import com.ra4king.opengl.util.math.Matrix4;
 import com.ra4king.opengl.util.math.Quaternion;
@@ -22,8 +23,6 @@ public class World implements CameraUpdate {
 	
 	private boolean isPaused;
 	private long mouseCooldown;
-	private long timePassed;
-	private int bulletCount;
 	
 	public World() {
 		camera = new Camera(60, 1, 5000);
@@ -49,7 +48,7 @@ public class World implements CameraUpdate {
 	
 	private void reset() {
 		camera.setPosition(new Vector3(-10, -10, 10));
-		camera.setOrientation(Utils.lookAt(camera.getPosition(), new Vector3(161, 161, -161), new Vector3(0, 1, 0)).toQuaternion().normalize());
+		camera.setOrientation(Utils.lookAt(camera.getPosition(), new Vector3(0, 0, 0), new Vector3(0, 1, 0)).toQuaternion().normalize());
 	}
 	
 	public void resized() {
@@ -61,38 +60,19 @@ public class World implements CameraUpdate {
 			isPaused = !isPaused;
 	}
 	
-	private long cameraUpdateTime, chunkManagerUpdateTime, bulletManagerUpdateTime, frames;
-	
 	public void update(long deltaTime) {
-		timePassed += deltaTime;
-		
-		long before = System.nanoTime();
+		Stopwatch.start("Camera Update");
 		camera.update(deltaTime);
-		cameraUpdateTime += System.nanoTime() - before;
+		Stopwatch.stop();
 		
-		before = System.nanoTime();
+		Stopwatch.start("ChunkManager Update");
 		chunkManager.update(deltaTime);
-		chunkManagerUpdateTime += System.nanoTime() - before;
+		Stopwatch.stop();
 		
 		if(!isPaused) {
-			before = System.nanoTime();
+			Stopwatch.start("BulletManager Update");
 			bulletManager.update(deltaTime);
-			bulletManagerUpdateTime += System.nanoTime() - before;
-		}
-		
-		frames++;
-		
-		while(timePassed >= 1e9) {
-			timePassed -= 1e9;
-			
-			if(frames == 0)
-				continue;
-			
-			System.out.println("Bullets fired: " + bulletCount + "\tBlocks destroyed: " + bulletManager.getBlocksDestroyedCount());
-			System.out.printf("Camera update: %.3f ms, Chunk Manager update: %.3f ms, Bullet Manager update: %.3f ms\n",
-					cameraUpdateTime / (frames * 1e6), chunkManagerUpdateTime / (frames * 1e6), bulletManagerUpdateTime / (frames * 1e6));
-			
-			cameraUpdateTime = chunkManagerUpdateTime = bulletManagerUpdateTime = frames = 0;
+			Stopwatch.stop();
 		}
 	}
 	
@@ -124,18 +104,13 @@ public class World implements CameraUpdate {
 				int dx = Mouse.getDX();
 				if(dx != 0)
 					orientation.set(Utils.angleAxisDeg(dx * rotSpeed, Vector3.UP).mult(orientation));
-				
-				// if(dx != 0 || dy != 0)
-				// viewChanged = true;
 			}
 			
 			if(Keyboard.isKeyDown(Keyboard.KEY_E)) {
 				orientation.set(Utils.angleAxisDeg(-4f * rotSpeed, Vector3.FORWARD).mult(orientation));
-				// viewChanged = true;
 			}
 			if(Keyboard.isKeyDown(Keyboard.KEY_Q)) {
 				orientation.set(Utils.angleAxisDeg(4f * rotSpeed, Vector3.FORWARD).mult(orientation));
-				// viewChanged = true;
 			}
 			
 			orientation.normalize();
@@ -163,14 +138,12 @@ public class World implements CameraUpdate {
 				position.add(inverse.mult(delta));
 		}
 		
-		if((Mouse.isButtonDown(0) || Keyboard.isKeyDown(Keyboard.KEY_C)) && (System.nanoTime() - mouseCooldown) > (long)7e7) {
+		if((Mouse.isButtonDown(0) || Keyboard.isKeyDown(Keyboard.KEY_C)) && (System.nanoTime() - mouseCooldown) > (long)5e7) {
 			int bulletSpeed = 160;
 			
-			bulletManager.addBullet(new Bullet(position.copy().add(inverse.mult(rightBullet)), inverse.mult(Vector3.FORWARD).mult(bulletSpeed), 3, 500));
-			bulletManager.addBullet(new Bullet(position.copy().add(inverse.mult(leftBullet)), inverse.mult(Vector3.FORWARD).mult(bulletSpeed), 3, 500));
+			bulletManager.addBullet(new Bullet(position.copy().add(inverse.mult(rightBullet)), inverse.mult(Vector3.FORWARD).mult(bulletSpeed), 3, 150));
+			bulletManager.addBullet(new Bullet(position.copy().add(inverse.mult(leftBullet)), inverse.mult(Vector3.FORWARD).mult(bulletSpeed), 3, 150));
 			mouseCooldown = System.nanoTime();
-			
-			bulletCount += 2;
 		}
 	}
 }

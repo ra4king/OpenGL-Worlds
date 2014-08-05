@@ -8,20 +8,49 @@ public class Chunk {
 	public static final float CUBE_SIZE = 2;
 	public static final float SPACING = CUBE_SIZE; // cannot be less than CUBE_SIZE
 	
+	private int cornerX, cornerY, cornerZ; // block indices
+
 	// z * width * height + y * width + x
-	private final BlockInfo[] blocks;
-	private final ChunkInfo chunkInfo;
+	private final Block[] blocks;
+	// private final ChunkInfo chunkInfo;
+	
 	private ChunkManager manager;
 	private int cubeCount;
 	
 	private boolean hasChanged = true;
 	
-	public Chunk(ChunkManager manager, ChunkInfo chunkInfo, boolean random) {
+	public Chunk(int cornerX, int cornerY, int cornerZ) {
+		this.cornerX = cornerX;
+		this.cornerY = cornerY;
+		this.cornerZ = cornerZ;
+
+		blocks = new Block[CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT * CHUNK_CUBE_DEPTH];
+		
+		for(int i = 0; i < blocks.length; i++) {
+			int rem = i % (CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT);
+			int x = rem % CHUNK_CUBE_WIDTH;
+			int y = rem / CHUNK_CUBE_WIDTH;
+			int z = i / (CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT);
+			
+			blocks[i] = new Block((short)x, (short)y, (short)z, BlockType.AIR);
+		}
+	}
+	
+	public void setupBlocks(ChunkManager manager, boolean random) {
 		this.manager = manager;
 		
-		this.chunkInfo = chunkInfo;
-		
-		blocks = new BlockInfo[CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT * CHUNK_CUBE_DEPTH];
+		for(Block b : blocks) {
+			int x = b.getWorldX();
+			int y = b.getWorldY();
+			int z = b.getWorldZ();
+			
+			b.up = manager.getBlock(x, y + 1, z);
+			b.down = manager.getBlock(x, y - 1, z);
+			b.left = manager.getBlock(x - 1, y, z);
+			b.right = manager.getBlock(x + 1, y, z);
+			b.front = manager.getBlock(x, y, z - 1);
+			b.back = manager.getBlock(x, y, z + 1);
+		}
 		
 		if(random)
 			initializeRandomly();
@@ -31,6 +60,26 @@ public class Chunk {
 	
 	public ChunkManager getChunkManager() {
 		return manager;
+	}
+	
+	public int getCornerX() {
+		return cornerX;
+	}
+	
+	public int getCornerY() {
+		return cornerY;
+	}
+	
+	public int getCornerZ() {
+		return cornerZ;
+	}
+	
+	public boolean cornerEquals(int cornerX, int cornerY, int cornerZ) {
+		return this.cornerX == cornerX && this.cornerY == cornerY && this.cornerZ == cornerZ;
+	}
+	
+	public boolean containsBlock(int x, int y, int z) {
+		return cornerEquals((x / CHUNK_CUBE_WIDTH) * CHUNK_CUBE_WIDTH, (y / CHUNK_CUBE_HEIGHT) * CHUNK_CUBE_HEIGHT, (z / CHUNK_CUBE_DEPTH) * CHUNK_CUBE_DEPTH);
 	}
 	
 	private int posToArrayIndex(int x, int y, int z) {
@@ -44,65 +93,35 @@ public class Chunk {
 			int ix;
 			do {
 				ix = (int)(Math.random() * blocks.length);
-				
-				if(blocks[ix] != null) {
-					ix = -1;
-					continue;
-				}
-				
-				int rem = ix % (CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT);
-				int x = rem % CHUNK_CUBE_WIDTH;
-				int y = rem / CHUNK_CUBE_WIDTH;
-				int z = ix / (CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT);
-				
-				blocks[ix] = new BlockInfo(chunkInfo, x, y, z, BlockType.DIRT);
-			} while(ix == -1);
+			} while(blocks[ix].type != BlockType.AIR);
+			
+			blocks[ix].type = BlockType.SOLID;
 		}
 	}
 	
 	public void initializeAll() {
 		cubeCount = blocks.length;
 		
-		for(int a = 0; a < cubeCount; a++) {
-			int ix;
-			do {
-				ix = a;
-				
-				if(blocks[ix] != null) {
-					ix = -1;
-					continue;
-				}
-				
-				int rem = ix % (CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT);
-				int x = rem % CHUNK_CUBE_WIDTH;
-				int y = rem / CHUNK_CUBE_WIDTH;
-				int z = ix / (CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT);
-				
-				blocks[ix] = new BlockInfo(chunkInfo, x, y, z, BlockType.DIRT);
-			} while(ix == -1);
-		}
+		for(Block block : blocks)
+			block.type = BlockType.SOLID;
 	}
-	
+
 	public int getCubeCount() {
 		return cubeCount;
-	}
-	
-	public ChunkInfo getChunkInfo() {
-		return chunkInfo;
 	}
 	
 	public boolean isValidPos(int x, int y, int z) {
 		return !(x < 0 || x >= CHUNK_CUBE_WIDTH || y < 0 || y >= CHUNK_CUBE_HEIGHT || z < 0 || z >= CHUNK_CUBE_DEPTH);
 	}
 	
-	public BlockInfo get(int x, int y, int z) {
+	public Block get(int x, int y, int z) {
 		if(!isValidPos(x, y, z))
 			return null;
 		
 		return blocks[posToArrayIndex(x, y, z)];
 	}
 	
-	public BlockInfo[] getBlocks() {
+	public Block[] getBlocks() {
 		return blocks;
 	}
 	
@@ -111,33 +130,19 @@ public class Chunk {
 			throw new IllegalArgumentException("Invalid block position.");
 		
 		int i = posToArrayIndex(x, y, z);
-		BlockInfo blockInfo = blocks[i];
-		if(blockInfo == null) {
-			blocks[i] = new BlockInfo(chunkInfo, x, y, z, block);
+		
+		if(blocks[i].type == block)
+			return;
+		
+		if(blocks[i].type == BlockType.AIR)
 			cubeCount++;
-		}
-		else
-			blockInfo.type = block;
 		
-		hasChanged = true;
+		blocks[i].setType(block);
 	}
 	
-	public boolean remove(int x, int y, int z) {
-		if(!isValidPos(x, y, z))
-			throw new IllegalArgumentException("Invalid block position.");
-		
-		int i = posToArrayIndex(x, y, z);
-		BlockInfo block = blocks[i];
-		blocks[i] = null;
-		
-		if(block != null) {
-			cubeCount--;
-			hasChanged = true;
-		}
-		
-		return block != null;
-	}
-	
+	/**
+	 * @return Returns and reset the hasChanged the property, which is true if a block was set or removed.
+	 */
 	public boolean hasChanged() {
 		boolean changed = hasChanged;
 		hasChanged = false;
@@ -145,7 +150,7 @@ public class Chunk {
 	}
 	
 	public enum BlockType {
-		DIRT(1);
+		AIR(0), SOLID(1);
 		
 		public final int order;
 		
@@ -154,81 +159,94 @@ public class Chunk {
 		}
 	}
 	
-	public static class BlockInfo {
-		public final ChunkInfo chunkInfo;
-		public final int x, y, z;
-		public BlockType type;
+	public class Block {
+		private short x, y, z;
+		private BlockType type;
 		
-		public BlockInfo(ChunkInfo chunkInfo, int x, int y, int z, BlockType type) {
-			this.chunkInfo = chunkInfo;
+		private Block up;
+		private Block down;
+		private Block left;
+		private Block right;
+		private Block front;
+		private Block back;
+		
+		public Block(short x, short y, short z, BlockType type) {
 			this.x = x;
 			this.y = y;
 			this.z = z;
 			this.type = type;
 		}
 		
-		public BlockInfo(BlockInfo b) {
-			this.chunkInfo = new ChunkInfo(b.chunkInfo);
-			this.x = b.x;
-			this.y = b.y;
-			this.z = b.z;
-			this.type = b.type;
+		public short getX() {
+			return x;
 		}
-		
-		@Override
-		public boolean equals(Object o) {
-			if(o instanceof BlockInfo) {
-				BlockInfo blockInfo = (BlockInfo)o;
-				return chunkInfo.equals(blockInfo.chunkInfo) && x == blockInfo.x && y == blockInfo.y && z == blockInfo.z;
-			}
-			
-			return false;
-		}
-		
+
 		public int getWorldX() {
-			return chunkInfo.chunkCornerX + x;
+			return cornerX + x;
+		}
+
+		public short getY() {
+			return y;
 		}
 		
 		public int getWorldY() {
-			return chunkInfo.chunkCornerY + y;
+			return cornerY + y;
+		}
+		
+		public short getZ() {
+			return z;
 		}
 		
 		public int getWorldZ() {
-			return chunkInfo.chunkCornerZ + z;
-		}
-	}
-	
-	public static class ChunkInfo {
-		public final int chunkCornerX, chunkCornerY, chunkCornerZ;
-		
-		public ChunkInfo(int chunkCornerX, int chunkCornerY, int chunkCornerZ) {
-			this.chunkCornerX = chunkCornerX;
-			this.chunkCornerY = chunkCornerY;
-			this.chunkCornerZ = chunkCornerZ;
+			return cornerZ + z;
 		}
 		
-		public ChunkInfo(ChunkInfo c) {
-			this.chunkCornerX = c.chunkCornerX;
-			this.chunkCornerY = c.chunkCornerY;
-			this.chunkCornerZ = c.chunkCornerZ;
+		public BlockType getType() {
+			return type;
 		}
 		
-		public boolean cornerEquals(int x, int y, int z) {
-			return chunkCornerX == x && chunkCornerY == y && chunkCornerZ == z;
-		}
-		
-		public boolean containsBlock(int x, int y, int z) {
-			return cornerEquals((x / CHUNK_CUBE_WIDTH) * CHUNK_CUBE_WIDTH, (y / CHUNK_CUBE_HEIGHT) * CHUNK_CUBE_HEIGHT, (z / CHUNK_CUBE_DEPTH) * CHUNK_CUBE_DEPTH);
+		public void setType(BlockType type) {
+			this.type = type;
+			
+			hasChanged = true;
 		}
 		
 		@Override
 		public boolean equals(Object o) {
-			if(o instanceof ChunkInfo) {
-				ChunkInfo chunkInfo = (ChunkInfo)o;
-				return cornerEquals(chunkInfo.chunkCornerX, chunkInfo.chunkCornerY, chunkInfo.chunkCornerZ);
-			}
-			
-			return false;
+			return o != null && o instanceof Block && ((Block)o).type == this.type;
+		}
+		
+		public boolean isSurrounded() {
+			return up != null && up.type != BlockType.AIR &&
+					down != null && down.type != BlockType.AIR &&
+					left != null && left.type != BlockType.AIR &&
+					right != null && right.type != BlockType.AIR &&
+					front != null && front.type != BlockType.AIR &&
+					back != null && back.type != BlockType.AIR;
+		}
+		
+		public Block getUp() {
+			return up;
+		}
+		
+		public Block getDown() {
+			return down;
+		}
+		
+		public Block getLeft() {
+			return left;
+		}
+		
+		public Block getRight() {
+			return right;
+		}
+		
+		public Block getFront() {
+			return front;
+		}
+		
+		public Block getBack() {
+			return back;
 		}
 	}
 }

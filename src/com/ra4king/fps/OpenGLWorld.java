@@ -9,6 +9,7 @@ import org.lwjgl.opengl.PixelFormat;
 import com.ra4king.fps.renderers.WorldRenderer;
 import com.ra4king.fps.world.World;
 import com.ra4king.opengl.util.GLProgram;
+import com.ra4king.opengl.util.Stopwatch;
 
 /**
  * @author Roi Atalla
@@ -66,40 +67,23 @@ public class OpenGLWorld extends GLProgram {
 		world.keyPressed(key, c);
 	}
 	
-	private long timePassed;
-	private long worldUpdateTime, worldRenderUpdateTime, frames;
-	
 	@Override
 	public void update(long deltaTime) {
-		timePassed += deltaTime;
-		
-		long before = System.nanoTime();
+		Stopwatch.start("World Update");
 		world.update(deltaTime);
-		worldUpdateTime += System.nanoTime() - before;
+		Stopwatch.stop();
 		
-		before = System.nanoTime();
+		Stopwatch.start("WorldRenderer Update");
 		worldRenderer.update(deltaTime);
-		worldRenderUpdateTime += System.nanoTime() - before;
-		
-		frames++;
-		
-		while(timePassed >= 1e9) {
-			timePassed -= 1e9;
-			
-			if(frames == 0)
-				continue;
-			
-			System.out.printf("World update: %.3f ms\t", worldUpdateTime / (frames * 1e6));
-			System.out.printf("World Renderer update: %.3f ms\n", worldRenderUpdateTime / (frames * 1e6));
-			
-			worldUpdateTime = worldRenderUpdateTime = frames = 0;
-		}
+		Stopwatch.stop();
 	}
 	
 	@Override
 	public void render() {
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		
+		Stopwatch.start("World Render");
 		worldRenderer.render();
+		Stopwatch.stop();
 	}
 }
