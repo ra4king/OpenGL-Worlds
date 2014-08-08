@@ -1,5 +1,10 @@
 package com.ra4king.fps.world;
 
+import net.indiespot.struct.cp.Struct;
+import net.indiespot.struct.cp.StructField;
+import net.indiespot.struct.cp.StructType;
+import net.indiespot.struct.cp.TakeStruct;
+
 /**
  * @author Roi Atalla
  */
@@ -24,7 +29,9 @@ public class Chunk {
 		this.cornerY = cornerY;
 		this.cornerZ = cornerZ;
 		
-		blocks = new Block[CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT * CHUNK_CUBE_DEPTH];
+		blocks = Struct.malloc(Block.class, CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT * CHUNK_CUBE_DEPTH);
+		for(Block b : blocks)
+			b.type = 0;
 	}
 	
 	public void setupBlocks(ChunkManager manager, boolean random) {
@@ -71,14 +78,14 @@ public class Chunk {
 			int i;
 			do {
 				i = (int)(Math.random() * blocks.length);
-			} while(blocks[i] != null && blocks[i].type != BlockType.AIR);
-
+			} while(blocks[i].type != 0);// != null && blocks[i].type != BlockType.AIR.ordinal());
+			
 			int rem = i % (CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT);
 			int x = rem % CHUNK_CUBE_WIDTH;
 			int y = rem / CHUNK_CUBE_WIDTH;
 			int z = i / (CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT);
 			
-			blocks[i] = new Block((short)x, (short)y, (short)z, BlockType.SOLID);
+			blocks[i].init(x, y, z, BlockType.SOLID);
 		}
 	}
 	
@@ -91,7 +98,7 @@ public class Chunk {
 			int y = rem / CHUNK_CUBE_WIDTH;
 			int z = i / (CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT);
 			
-			blocks[i] = new Block((short)x, (short)y, (short)z, BlockType.SOLID);
+			blocks[i].init(x, y, z, BlockType.SOLID);
 		}
 	}
 	
@@ -103,6 +110,7 @@ public class Chunk {
 		return !(x < 0 || x >= CHUNK_CUBE_WIDTH || y < 0 || y >= CHUNK_CUBE_HEIGHT || z < 0 || z >= CHUNK_CUBE_DEPTH);
 	}
 	
+	@TakeStruct
 	public Block get(int x, int y, int z) {
 		if(!isValidPos(x, y, z))
 			return null;
@@ -120,10 +128,10 @@ public class Chunk {
 		
 		int i = posToArrayIndex(x, y, z);
 		
-		if(blocks[i].type == block)
+		if(blocks[i].type == block.ordinal())
 			return;
 		
-		if(blocks[i].type == BlockType.AIR)
+		if(blocks[i].type == BlockType.AIR.ordinal())
 			cubeCount++;
 		
 		blocks[i].setType(block);
@@ -139,77 +147,63 @@ public class Chunk {
 	}
 	
 	public enum BlockType {
-		AIR(0), SOLID(1);
-		
-		public final int order;
-		
-		private BlockType(int order) {
-			this.order = order;
-		}
+		AIR, SOLID;
+
+		public static BlockType[] values = values();
 	}
-	
+
+	@StructType(sizeof = 16)
 	public class Block {
-		private short x, y, z;
-		private BlockType type;
+		@StructField(offset = 0)
+		private int x;
+		@StructField(offset = 4)
+		private int y;
+		@StructField(offset = 8)
+		private int z;
+		@StructField(offset = 12)
+		private int type;
 		
-		private Block up;
-		private Block down;
-		private Block left;
-		private Block right;
-		private Block front;
-		private Block back;
+		public Block() {}
 		
-		public Block(short x, short y, short z, BlockType type) {
-			this.x = x;
-			this.y = y;
-			this.z = z;
-			this.type = type;
+		// public Block(int x, int y, int z, BlockType type) {
+		// init(x, y, z, type);
+		// }
+		
+		public void init(int x, int y, int z, BlockType type) {
+			this.x = cornerX + x;
+			this.y = cornerY + y;
+			this.z = cornerZ + z;
+			this.type = type.ordinal();
 		}
-		
-		public short getX() {
+
+		public int getX() {
 			return x;
 		}
 		
-		public int getWorldX() {
-			return cornerX + x;
-		}
-		
-		public short getY() {
+		public int getY() {
 			return y;
 		}
 		
-		public int getWorldY() {
-			return cornerY + y;
-		}
-		
-		public short getZ() {
+		public int getZ() {
 			return z;
 		}
 		
-		public int getWorldZ() {
-			return cornerZ + z;
-		}
-		
 		public BlockType getType() {
-			return type;
+			return BlockType.values[type];
 		}
-		
-		public void setType(BlockType type) {
-			this.type = type;
+
+	public void setType(BlockType type) {
+			this.type = type.ordinal();
 			
 			hasChanged = true;
 		}
 		
 		@Override
 		public boolean equals(Object o) {
-			return o != null && o instanceof Block && ((Block)o).type == this.type;
+			throw new IllegalStateException("WTF?");
 		}
 		
 		public boolean isSurrounded() {
-			int x = getWorldX();
-			int y = getWorldY();
-			int z = getWorldZ();
-			
 			Block up = manager.getBlock(x, y + 1, z);
 			Block down = manager.getBlock(x, y - 1, z);
 			Block left = manager.getBlock(x - 1, y, z);
@@ -217,36 +211,14 @@ public class Chunk {
 			Block front = manager.getBlock(x, y, z - 1);
 			Block back = manager.getBlock(x, y, z + 1);
 			
-			return up != null && up.type != BlockType.AIR &&
-					down != null && down.type != BlockType.AIR &&
-					left != null && left.type != BlockType.AIR &&
-					right != null && right.type != BlockType.AIR &&
-					front != null && front.type != BlockType.AIR &&
-					back != null && back.type != BlockType.AIR;
-		}
-		
-		public Block getUp() {
-			return up;
-		}
-		
-		public Block getDown() {
-			return down;
-		}
-		
-		public Block getLeft() {
-			return left;
-		}
-		
-		public Block getRight() {
-			return right;
-		}
-		
-		public Block getFront() {
-			return front;
-		}
-		
-		public Block getBack() {
-			return back;
+			int air = BlockType.AIR.ordinal();
+			
+			return up != null && up.type != air &&
+					down != null && down.type != air &&
+					left != null && left.type != air &&
+					right != null && right.type != air &&
+					front != null && front.type != air &&
+					back != null && back.type != air;
 		}
 	}
 }

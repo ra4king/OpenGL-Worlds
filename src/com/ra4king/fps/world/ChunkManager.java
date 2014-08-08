@@ -4,6 +4,8 @@ import com.ra4king.fps.world.Chunk.Block;
 import com.ra4king.fps.world.Chunk.BlockType;
 import com.ra4king.opengl.util.math.Vector3;
 
+import net.indiespot.struct.cp.TakeStruct;
+
 /**
  * @author Roi Atalla
  */
@@ -15,9 +17,9 @@ public class ChunkManager {
 
 	public ChunkManager(boolean random) {
 		chunks = new Chunk[CHUNKS_SIDE_X * CHUNKS_SIDE_Y * CHUNKS_SIDE_Z];
-	
-		int totalCubes = 0;
 
+	int totalCubes = 0;
+		
 		long t0 = System.nanoTime();
 		for(int x = 0; x < CHUNKS_SIDE_X; x++) {
 			for(int y = 0; y < CHUNKS_SIDE_Y; y++) {
@@ -28,7 +30,7 @@ public class ChunkManager {
 		}
 		long time = System.nanoTime() - t0;
 		System.out.printf("Chunks created in %.3f ms\n", time / 1e6);
-
+		
 		t0 = System.nanoTime();
 		for(Chunk chunk : chunks) {
 			chunk.setupBlocks(this, random);
@@ -61,6 +63,7 @@ public class ChunkManager {
 	
 	private final Vector3 temp = new Vector3();
 	
+	@TakeStruct
 	public Block getBlock(Vector3 v, float radius) {
 		int px = Math.round(v.x() / Chunk.SPACING);
 		int py = Math.round(v.y() / Chunk.SPACING);
@@ -84,7 +87,7 @@ public class ChunkManager {
 					
 					float len = temp.set(px + a, py + b, -(pz + c)).mult(Chunk.SPACING).add(Chunk.CUBE_SIZE / 2, Chunk.CUBE_SIZE / 2, -Chunk.CUBE_SIZE / 2).sub(v).lengthSquared();
 
-					if(len < lowestDistance) {
+	if(len < lowestDistance) {
 						lowestDistance = len;
 						closestBlock = block;
 					}
@@ -97,6 +100,7 @@ public class ChunkManager {
 		return lowestDistance <= d * d ? closestBlock : null;
 	}
 	
+	@TakeStruct
 	public Block getBlock(int x, int y, int z) {
 		int i = cubePosToArrayIndex(x, y, z);
 		if(i == -1)

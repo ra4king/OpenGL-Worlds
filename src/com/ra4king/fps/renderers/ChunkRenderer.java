@@ -54,8 +54,8 @@ public class ChunkRenderer {
 
 		for(Block block : chunk.getBlocks()) {
 			if(block == null || block.getType() == BlockType.AIR) {
-		continue;
-			}
+				continue;
+	}
 			
 			Stopwatch.resume();
 			try {
@@ -64,9 +64,9 @@ public class ChunkRenderer {
 			} finally {
 				Stopwatch.suspend();
 			}
-
-			cubeBuffer.put(block.getWorldX()).put(block.getWorldY()).put(-block.getWorldZ()).put(Chunk.CUBE_SIZE);
 			
+			cubeBuffer.put(block.getX()).put(block.getY()).put(-block.getZ()).put(Chunk.CUBE_SIZE);
+
 			cubesDrawn++;
 		}
 		
