@@ -31,6 +31,7 @@ public class OpenGLWorld extends GLProgram {
 	@Override
 	public void init() {
 		setPrintDebug(true);
+		setFPS(0);
 		
 		GLUtils.init();
 		
@@ -38,8 +39,6 @@ public class OpenGLWorld extends GLProgram {
 			System.out.println("Your OpenGL version is too old.");
 			System.exit(1);
 		}
-		
-		setFPS(0);
 		
 		// Mouse.setGrabbed(true);
 		

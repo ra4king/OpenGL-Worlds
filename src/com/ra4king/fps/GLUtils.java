@@ -25,7 +25,7 @@ public final class GLUtils {
 	
 	private static int queryObject;
 	
-	public static final String SHADERS_ROOT_PATH = "/res/shaders/";
+	public static final String RESOURCES_ROOT_PATH = "/res/";
 	
 	static {
 		GL_VERSION = GLContext.getCapabilities().OpenGL33 ? 33 : GLContext.getCapabilities().OpenGL32 ? 32 : GLContext.getCapabilities().OpenGL30 ? 30 : GLContext.getCapabilities().OpenGL21 ? 21 : 0;

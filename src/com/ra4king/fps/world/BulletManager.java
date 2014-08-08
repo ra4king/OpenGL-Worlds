@@ -35,9 +35,9 @@ public class BulletManager {
 		return blocksDestroyed;
 	}
 	
+	private ArrayList<Bullet> temp = new ArrayList<>();
+
 	public void update(long deltaTime) {
-		ArrayList<Bullet> temp = new ArrayList<>();
-		
 		for(Bullet bullet : bullets) {
 			bullet.update(deltaTime);
 			
@@ -58,8 +58,8 @@ public class BulletManager {
 						for(int a = -1; a < 2; a++) {
 							for(int b = -1; b < 2; b++) {
 								for(int c = -1; c < 2; c++) {
-									if(a != 0 && ((a == b && b == c) || (a == -b && b == -c)))
-										temp.add(new Bullet(pos, new Vector3(a, b, c).normalize().mult(100), 1, 500, (long)2.5e8, false, new Vector3(1, 1, 1)));
+									if(a != 0 && b != 0 && c != 0)
+									temp.add(new Bullet(pos, new Vector3(a, b, c).normalize().mult(100), 1, 500, (long)2.5e8, false, new Vector3(1, 1, 1)));
 								}
 							}
 						}
@@ -72,6 +72,9 @@ public class BulletManager {
 		}
 		
 		bullets.clear();
+		
+		ArrayList<Bullet> old = bullets;
 		bullets = temp;
+		temp = old;
 	}
 }

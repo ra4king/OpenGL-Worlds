@@ -2,13 +2,14 @@
 
 in vec3 position;
 in vec3 normal;
-//in vec2 tex;
+in vec2 tex;
 
 in vec3 cubePos; // XYZ: index
 in float cubeSize;
 
 out vec3 cameraSpacePosition;
 out vec3 norm;
+out vec2 texCoord;
 
 uniform mat4 projectionMatrix, viewMatrix;
 uniform mat3 normalMatrix;
@@ -24,4 +25,6 @@ void main() {
 	gl_Position = projectionMatrix * cameraPos;
 	
 	norm = normalMatrix * normal;
+	
+	texCoord = tex;
 }

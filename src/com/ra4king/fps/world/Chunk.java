@@ -4,7 +4,7 @@ package com.ra4king.fps.world;
  * @author Roi Atalla
  */
 public class Chunk {
-	public static final int CHUNK_CUBE_WIDTH = 64, CHUNK_CUBE_HEIGHT = 64, CHUNK_CUBE_DEPTH = 64;
+	public static final int CHUNK_CUBE_WIDTH = 32, CHUNK_CUBE_HEIGHT = 32, CHUNK_CUBE_DEPTH = 32;
 	public static final float CUBE_SIZE = 2;
 	public static final float SPACING = CUBE_SIZE; // cannot be less than CUBE_SIZE
 	
@@ -23,34 +23,12 @@ public class Chunk {
 		this.cornerX = cornerX;
 		this.cornerY = cornerY;
 		this.cornerZ = cornerZ;
-
-		blocks = new Block[CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT * CHUNK_CUBE_DEPTH];
 		
-		for(int i = 0; i < blocks.length; i++) {
-			int rem = i % (CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT);
-			int x = rem % CHUNK_CUBE_WIDTH;
-			int y = rem / CHUNK_CUBE_WIDTH;
-			int z = i / (CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT);
-			
-			blocks[i] = new Block((short)x, (short)y, (short)z, BlockType.AIR);
-		}
+		blocks = new Block[CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT * CHUNK_CUBE_DEPTH];
 	}
 	
 	public void setupBlocks(ChunkManager manager, boolean random) {
 		this.manager = manager;
-		
-		for(Block b : blocks) {
-			int x = b.getWorldX();
-			int y = b.getWorldY();
-			int z = b.getWorldZ();
-			
-			b.up = manager.getBlock(x, y + 1, z);
-			b.down = manager.getBlock(x, y - 1, z);
-			b.left = manager.getBlock(x - 1, y, z);
-			b.right = manager.getBlock(x + 1, y, z);
-			b.front = manager.getBlock(x, y, z - 1);
-			b.back = manager.getBlock(x, y, z + 1);
-		}
 		
 		if(random)
 			initializeRandomly();
@@ -90,22 +68,33 @@ public class Chunk {
 		cubeCount = (int)(Math.random() * blocks.length / 10);
 		
 		for(int a = 0; a < cubeCount; a++) {
-			int ix;
+			int i;
 			do {
-				ix = (int)(Math.random() * blocks.length);
-			} while(blocks[ix].type != BlockType.AIR);
+				i = (int)(Math.random() * blocks.length);
+			} while(blocks[i] != null && blocks[i].type != BlockType.AIR);
+
+			int rem = i % (CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT);
+			int x = rem % CHUNK_CUBE_WIDTH;
+			int y = rem / CHUNK_CUBE_WIDTH;
+			int z = i / (CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT);
 			
-			blocks[ix].type = BlockType.SOLID;
+			blocks[i] = new Block((short)x, (short)y, (short)z, BlockType.SOLID);
 		}
 	}
 	
 	public void initializeAll() {
 		cubeCount = blocks.length;
 		
-		for(Block block : blocks)
-			block.type = BlockType.SOLID;
+		for(int i = 0; i < cubeCount; i++) {
+			int rem = i % (CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT);
+			int x = rem % CHUNK_CUBE_WIDTH;
+			int y = rem / CHUNK_CUBE_WIDTH;
+			int z = i / (CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT);
+			
+			blocks[i] = new Block((short)x, (short)y, (short)z, BlockType.SOLID);
+		}
 	}
-
+	
 	public int getCubeCount() {
 		return cubeCount;
 	}
@@ -180,11 +169,11 @@ public class Chunk {
 		public short getX() {
 			return x;
 		}
-
+		
 		public int getWorldX() {
 			return cornerX + x;
 		}
-
+		
 		public short getY() {
 			return y;
 		}
@@ -217,6 +206,17 @@ public class Chunk {
 		}
 		
 		public boolean isSurrounded() {
+			int x = getWorldX();
+			int y = getWorldY();
+			int z = getWorldZ();
+			
+			Block up = manager.getBlock(x, y + 1, z);
+			Block down = manager.getBlock(x, y - 1, z);
+			Block left = manager.getBlock(x - 1, y, z);
+			Block right = manager.getBlock(x + 1, y, z);
+			Block front = manager.getBlock(x, y, z - 1);
+			Block back = manager.getBlock(x, y, z + 1);
+			
 			return up != null && up.type != BlockType.AIR &&
 					down != null && down.type != BlockType.AIR &&
 					left != null && left.type != BlockType.AIR &&

@@ -2,11 +2,12 @@
 
 in vec3 cameraSpacePosition;
 in vec3 norm;
-//in vec2 texCoord;
+in vec2 texCoord;
 
-#define MAX_LIGHTS 100
+#define MAX_LIGHTS 50
 
 uniform float cubeTextureK;
+uniform sampler2D cubeTexture;
 
 struct PointLight {
 	vec3 position;
@@ -45,7 +46,7 @@ vec3 calculateLight(vec3 color, float k, vec3 normal, vec3 lightDistance) {
 void main() {
 	vec3 normal = normalize(norm);
 	
-	fragColor = vec4(ambientLight, 1);
+	vec4 totalLight = vec4(ambientLight, 1);
 	
 	for(int a = 0; a < numberOfLights; a++) {
 		PointLight light = lights[a];
@@ -53,8 +54,10 @@ void main() {
 		vec3 lightDistance = light.position - cameraSpacePosition;
 		
 		if(dot(lightDistance, lightDistance) <= light.range * light.range)
-			fragColor.rgb += calculateLight(light.color, light.k, normal, lightDistance);
+			totalLight.rgb += calculateLight(light.color, light.k, normal, lightDistance);
 	}
+	
+	fragColor = texture(cubeTexture, texCoord) * totalLight;
 	
 	vec4 gamma = vec4(1.0 / 2.2);
 	gamma.w = 1;

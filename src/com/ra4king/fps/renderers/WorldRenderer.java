@@ -1,6 +1,9 @@
 package com.ra4king.fps.renderers;
 
 import static org.lwjgl.opengl.GL11.*;
+import static org.lwjgl.opengl.GL11.glGetInteger;
+import static org.lwjgl.opengl.GL12.*;
+import static org.lwjgl.opengl.GL13.*;
 import static org.lwjgl.opengl.GL15.*;
 import static org.lwjgl.opengl.GL20.*;
 import static org.lwjgl.opengl.GL20.glUniform3;
@@ -13,6 +16,7 @@ import static org.lwjgl.opengl.GL32.*;
 import static org.lwjgl.opengl.GL40.*;
 import static org.lwjgl.opengl.GL43.*;
 
+import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
@@ -20,6 +24,8 @@ import java.nio.ShortBuffer;
 import java.util.HashMap;
 
 import org.lwjgl.BufferUtils;
+import org.lwjgl.opengl.EXTTextureFilterAnisotropic;
+import org.lwjgl.opengl.GL11;
 
 import com.ra4king.fps.Camera;
 import com.ra4king.fps.GLUtils;
@@ -27,12 +33,15 @@ import com.ra4king.fps.GLUtils.FrustumCulling;
 import com.ra4king.fps.actors.Bullet;
 import com.ra4king.fps.world.Chunk;
 import com.ra4king.fps.world.World;
+import com.ra4king.opengl.util.PNGDecoder;
+import com.ra4king.opengl.util.PNGDecoder.Format;
 import com.ra4king.opengl.util.ShaderProgram;
 import com.ra4king.opengl.util.Stopwatch;
 import com.ra4king.opengl.util.Utils;
 import com.ra4king.opengl.util.math.Matrix3;
 import com.ra4king.opengl.util.math.Matrix4;
 import com.ra4king.opengl.util.math.MatrixStack;
+import com.ra4king.opengl.util.math.Vector2;
 import com.ra4king.opengl.util.math.Vector3;
 
 /**
@@ -51,7 +60,8 @@ public class WorldRenderer {
 	
 	private int chunkVAO, cubeVBO, indicesVBO, dataVBO, commandsVBO;
 	private ChunkRenderer[] chunkRenderers;
-	
+	private int cubeTexture;
+
 	private BulletRenderer bulletRenderer;
 	private LightSystem lightSystem;
 	
@@ -61,9 +71,9 @@ public class WorldRenderer {
 	
 	static {
 		if(GLUtils.GL_VERSION >= 31)
-			MAX_NUM_LIGHTS = 100;
+			MAX_NUM_LIGHTS = 50;
 		else
-			MAX_NUM_LIGHTS = 30;
+			MAX_NUM_LIGHTS = 20;
 	}
 	
 	public WorldRenderer(World world) {
@@ -87,8 +97,8 @@ public class WorldRenderer {
 			glEnable(GL_DEPTH_CLAMP);
 		
 		loadShaders();
-
-	culling = new FrustumCulling();
+		
+		culling = new FrustumCulling();
 		
 		bulletRenderer = new BulletRenderer(world.getBulletManager());
 		
@@ -103,22 +113,25 @@ public class WorldRenderer {
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indicesVBO);
 		
 		glEnableVertexAttribArray(0);
-		glVertexAttribPointer(0, 3, GL_FLOAT, false, 2 * 3 * 4, 0);
-		
+		glVertexAttribPointer(0, 3, GL_FLOAT, false, (2 * 3 + 2) * 4, 0);
+
 		glEnableVertexAttribArray(1);
-		glVertexAttribPointer(1, 3, GL_FLOAT, false, 2 * 3 * 4, 3 * 4);
+		glVertexAttribPointer(1, 3, GL_FLOAT, false, (2 * 3 + 2) * 4, 3 * 4);
+
+		glEnableVertexAttribArray(2);
+		glVertexAttribPointer(2, 2, GL_FLOAT, false, (2 * 3 + 2) * 4, 2 * 3 * 4);
 		
 		dataVBO = glGenBuffers();
 		glBindBuffer(GL_ARRAY_BUFFER, dataVBO);
 		glBufferData(GL_ARRAY_BUFFER, DATA_VBO_SIZE, GL_STREAM_DRAW);
 		
-		glEnableVertexAttribArray(2);
-		glVertexAttribPointer(2, 3, GL_FLOAT, false, 4 * 4, 0);
-		GLUtils.glVertexAttribDivisor(2, 1);
-		
 		glEnableVertexAttribArray(3);
-		glVertexAttribPointer(3, 1, GL_FLOAT, false, 4 * 4, 3 * 4);
+		glVertexAttribPointer(3, 3, GL_FLOAT, false, 4 * 4, 0);
 		GLUtils.glVertexAttribDivisor(3, 1);
+		
+		glEnableVertexAttribArray(4);
+		glVertexAttribPointer(4, 1, GL_FLOAT, false, 4 * 4, 3 * 4);
+		GLUtils.glVertexAttribDivisor(4, 1);
 		
 		GLUtils.glBindVertexArray(0);
 		
@@ -153,11 +166,12 @@ public class WorldRenderer {
 		HashMap<Integer,String> attributes = new HashMap<>();
 		attributes.put(0, "position");
 		attributes.put(1, "normal");
-		attributes.put(2, "cubePos");
-		attributes.put(3, "cubeSize");
+		attributes.put(2, "tex");
+		attributes.put(3, "cubePos");
+		attributes.put(4, "cubeSize");
 		
-		worldProgram = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream(GLUtils.SHADERS_ROOT_PATH + shaderName + ".vert")),
-				Utils.readFully(getClass().getResourceAsStream(GLUtils.SHADERS_ROOT_PATH + shaderName + ".frag")),
+		worldProgram = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "shaders/" + shaderName + ".vert")),
+				Utils.readFully(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "shaders/" + shaderName + ".frag")),
 				attributes);
 		
 		if(GLUtils.GL_VERSION >= 31)
@@ -170,6 +184,43 @@ public class WorldRenderer {
 		projectionMatrixUniform = worldProgram.getUniformLocation("projectionMatrix");
 		viewMatrixUniform = worldProgram.getUniformLocation("viewMatrix");
 		normalMatrixUniform = worldProgram.getUniformLocation("normalMatrix");
+		
+		cubeTexture = loadCubeTexture("crate.png");
+		
+		worldProgram.begin();
+		glUniform1i(worldProgram.getUniformLocation("cubeTexture"), 0);
+		worldProgram.end();
+		
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL11.GL_TEXTURE_2D, cubeTexture);
+	}
+	
+	private int loadCubeTexture(String texName) {
+		try(InputStream in = getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "textures/" + texName)) {
+			PNGDecoder decoder = new PNGDecoder(in);
+			
+			int width = decoder.getWidth();
+			int height = decoder.getHeight();
+			
+			ByteBuffer data = BufferUtils.createByteBuffer(width * height * 4);
+			decoder.decode(data, width * 4, Format.RGBA);
+			data.flip();
+			
+			int tex = glGenTextures();
+			glBindTexture(GL11.GL_TEXTURE_2D, tex);
+			glTexParameteri(GL11.GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+			glTexParameteri(GL11.GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+			glTexParameteri(GL11.GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+			glTexParameteri(GL11.GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+			glTexParameteri(GL11.GL_TEXTURE_2D, EXTTextureFilterAnisotropic.GL_TEXTURE_MAX_ANISOTROPY_EXT, glGetInteger(EXTTextureFilterAnisotropic.GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT));
+			glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+			glGenerateMipmap(GL11.GL_TEXTURE_2D);
+			glBindTexture(GL11.GL_TEXTURE_2D, 0);
+			
+			return tex;
+		} catch(Exception exc) {
+			throw new RuntimeException("Failed to load " + texName, exc);
+		}
 	}
 	
 	private void loadCube() {
@@ -184,66 +235,57 @@ public class WorldRenderer {
 				new Vector3(-1, 0, 0)
 		};
 		
-		final Vector3 unitCube[] = {
-				// front face triangle 1
-				new Vector3(-0.5f, 0.5f, 0.5f),
-				new Vector3(0.5f, 0.5f, 0.5f),
-				new Vector3(0.5f, -0.5f, 0.5f),
-				// front face triangle 2
-				// new Vector3(0.5f, -0.5f, 0.5f),
-				new Vector3(-0.5f, -0.5f, 0.5f),
-				// new Vector3(-0.5f, 0.5f, 0.5f),
-				
-				// back face triangle 1
-				new Vector3(0.5f, 0.5f, -0.5f),
-				new Vector3(-0.5f, 0.5f, -0.5f),
-				new Vector3(-0.5f, -0.5f, -0.5f),
-				// back face triangle 2
-				// new Vector3(-0.5f, -0.5f, -0.5f),
-				new Vector3(0.5f, -0.5f, -0.5f),
-				// new Vector3(0.5f, 0.5f, -0.5f),
-				
-				// top face triangle 1
-				new Vector3(-0.5f, 0.5f, -0.5f),
-				new Vector3(0.5f, 0.5f, -0.5f),
-				new Vector3(0.5f, 0.5f, 0.5f),
-				// top face triangle 2
-				// new Vector3(0.5f, 0.5f, 0.5f),
-				new Vector3(-0.5f, 0.5f, 0.5f),
-				// new Vector3(-0.5f, 0.5f, -0.5f),
-				
-				// bottom face triangle 1
-				new Vector3(-0.5f, -0.5f, 0.5f),
-				new Vector3(0.5f, -0.5f, 0.5f),
-				new Vector3(0.5f, -0.5f, -0.5f),
-				// bottom face triangle 2
-				// new Vector3(0.5f, -0.5f, -0.5f),
-				new Vector3(-0.5f, -0.5f, -0.5f),
-				// new Vector3(-0.5f, -0.5f, 0.5f),
-				
-				// right face triangle 1
-				new Vector3(0.5f, 0.5f, 0.5f),
-				new Vector3(0.5f, 0.5f, -0.5f),
-				new Vector3(0.5f, -0.5f, -0.5f),
-				// right face triangle 2
-				// new Vector3(0.5f, -0.5f, -0.5f),
-				new Vector3(0.5f, -0.5f, 0.5f),
-				// new Vector3(0.5f, 0.5f, 0.5f),
-				
-				// left face triangle 1
-				new Vector3(-0.5f, 0.5f, -0.5f),
-				new Vector3(-0.5f, 0.5f, 0.5f),
-				new Vector3(-0.5f, -0.5f, 0.5f),
-				// left face triangle 2
-				// new Vector3(-0.5f, -0.5f, 0.5f),
-				new Vector3(-0.5f, -0.5f, -0.5f),
-				// new Vector3(-0.5f, 0.5f, -0.5f)
+		final Vector2 texCoords[] = {
+				new Vector2(0, 1),
+				new Vector2(1, 1),
+				new Vector2(1, 0),
+				new Vector2(0, 0)
 		};
 		
-		FloatBuffer cubeBuffer = BufferUtils.createFloatBuffer(unitCube.length * 2 * 3);
+		final Vector3 unitCube[] = {
+				// front
+				new Vector3(-0.5f, 0.5f, 0.5f),
+				new Vector3(0.5f, 0.5f, 0.5f),
+				new Vector3(0.5f, -0.5f, 0.5f),
+				new Vector3(-0.5f, -0.5f, 0.5f),
+				
+				// back
+				new Vector3(0.5f, 0.5f, -0.5f),
+				new Vector3(-0.5f, 0.5f, -0.5f),
+				new Vector3(-0.5f, -0.5f, -0.5f),
+				new Vector3(0.5f, -0.5f, -0.5f),
+				
+				// top
+				new Vector3(-0.5f, 0.5f, -0.5f),
+				new Vector3(0.5f, 0.5f, -0.5f),
+				new Vector3(0.5f, 0.5f, 0.5f),
+				new Vector3(-0.5f, 0.5f, 0.5f),
+				
+				// bottom
+				new Vector3(-0.5f, -0.5f, 0.5f),
+				new Vector3(0.5f, -0.5f, 0.5f),
+				new Vector3(0.5f, -0.5f, -0.5f),
+				new Vector3(-0.5f, -0.5f, -0.5f),
+				
+				// right
+				new Vector3(0.5f, 0.5f, 0.5f),
+				new Vector3(0.5f, 0.5f, -0.5f),
+				new Vector3(0.5f, -0.5f, -0.5f),
+				new Vector3(0.5f, -0.5f, 0.5f),
+				
+				// left
+				new Vector3(-0.5f, 0.5f, -0.5f),
+				new Vector3(-0.5f, 0.5f, 0.5f),
+				new Vector3(-0.5f, -0.5f, 0.5f),
+				new Vector3(-0.5f, -0.5f, -0.5f)
+		};
+	
+		// 2 vec3s and 1 vec2
+		FloatBuffer cubeBuffer = BufferUtils.createFloatBuffer(unitCube.length * (2 * 3 + 2));
 		for(int a = 0; a < unitCube.length; a++) {
 			cubeBuffer.put(unitCube[a].toBuffer());
 			cubeBuffer.put(normals[a / 4].toBuffer());
+			cubeBuffer.put(texCoords[a % 4].toBuffer());
 		}
 		cubeBuffer.flip();
 		
@@ -334,8 +376,8 @@ public class WorldRenderer {
 		ByteBuffer commandsMappedBuffer = glMapBufferRange(GL_DRAW_INDIRECT_BUFFER, 0, COMMANDS_BUFFER_SIZE,
 				GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_UNSYNCHRONIZED_BIT, null);
 		IntBuffer commandsBuffer = commandsMappedBuffer.asIntBuffer();
-
-	Stopwatch.stop();
+		
+		Stopwatch.stop();
 		
 		Stopwatch.start("ChunkRenderers");
 		
@@ -353,8 +395,8 @@ public class WorldRenderer {
 				chunkRenderer.render(command);
 				
 				commandsBuffer.put(command.toBuffer());
-
-		chunksRendered++;
+				
+				chunksRendered++;
 			}
 		}
 		
@@ -448,6 +490,9 @@ public class WorldRenderer {
 	}
 	
 	private static class UniformBufferLightSystem implements LightSystem {
+		private static final int LIGHTS_UNIFORM_BUFFER_SIZE = 4 * (MAX_NUM_LIGHTS * 2 * 4 + 4);
+		
+		private FloatBuffer lightsBuffer;
 		private FloatBuffer bulletsBuffer;
 		private int lightsUniformBufferVBO;
 		
@@ -455,6 +500,7 @@ public class WorldRenderer {
 		
 		@Override
 		public void setupLights(ShaderProgram program) {
+			lightsBuffer = BufferUtils.createFloatBuffer(LIGHTS_UNIFORM_BUFFER_SIZE / 4);
 			bulletsBuffer = BufferUtils.createFloatBuffer(MAX_NUM_LIGHTS * 2 * 4);
 			
 			final int BUFFER_BLOCK_BINDING = 1;
@@ -469,7 +515,7 @@ public class WorldRenderer {
 			
 			lightsUniformBufferVBO = glGenBuffers();
 			glBindBuffer(GL_UNIFORM_BUFFER, lightsUniformBufferVBO);
-			glBufferData(GL_UNIFORM_BUFFER, 4 * (MAX_NUM_LIGHTS * 2 * 4 + 4), GL_STREAM_DRAW);
+			glBufferData(GL_UNIFORM_BUFFER, LIGHTS_UNIFORM_BUFFER_SIZE, GL_STREAM_DRAW);
 			glBindBufferBase(GL_UNIFORM_BUFFER, BUFFER_BLOCK_BINDING, lightsUniformBufferVBO);
 			glBindBuffer(GL_UNIFORM_BUFFER, 0);
 		}
@@ -491,15 +537,16 @@ public class WorldRenderer {
 				
 				glBindBuffer(GL_UNIFORM_BUFFER, lightsUniformBufferVBO);
 				
-				ByteBuffer mapBuffer = glMapBufferRange(GL_UNIFORM_BUFFER, 0, 4 * (MAX_NUM_LIGHTS * 2 * 4 + 4),
-						GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_UNSYNCHRONIZED_BIT, null);
-				FloatBuffer lightsBuffer = mapBuffer.asFloatBuffer();
-				
-				bulletsBuffer.flip();
-				
-				lightsBuffer.put(ambientColor.toBuffer());
+				// mapping the buffer crashes the Nvidia OpenGL driver for me
+				// ByteBuffer mapBuffer = glMapBufferRange(GL_UNIFORM_BUFFER, 0, LIGHTS_UNIFORM_BUFFER_SIZE,
+				// GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_UNSYNCHRONIZED_BIT, null);
+				// FloatBuffer lightsBuffer = mapBuffer.asFloatBuffer();
+				lightsBuffer.clear();
+
+		lightsBuffer.put(ambientColor.toBuffer());
 				lightsBuffer.put(bulletCount + 1);
 				
+				bulletsBuffer.flip();
 				lightsBuffer.put(bulletsBuffer);
 				
 				lightsBuffer.put(0).put(0).put(0); // camera position
@@ -507,7 +554,10 @@ public class WorldRenderer {
 				lightsBuffer.put(diffuseColor.toBuffer());
 				lightsBuffer.put(mainK);
 				
-				glUnmapBuffer(GL_UNIFORM_BUFFER);
+				lightsBuffer.flip();
+				glBufferData(GL_UNIFORM_BUFFER, LIGHTS_UNIFORM_BUFFER_SIZE, GL_STREAM_DRAW);
+				glBufferSubData(GL_UNIFORM_BUFFER, 0, lightsBuffer);
+				// glUnmapBuffer(GL_UNIFORM_BUFFER);
 				
 				glBindBuffer(GL_UNIFORM_BUFFER, 0);
 			} finally {

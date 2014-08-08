@@ -41,8 +41,8 @@ public class BulletRenderer {
 		
 		bulletDataBuffer = BufferUtils.createFloatBuffer(500 * 2 * 4);
 		
-		bulletProgram = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream(GLUtils.SHADERS_ROOT_PATH + "bullet.vert")),
-				Utils.readFully(getClass().getResourceAsStream(GLUtils.SHADERS_ROOT_PATH + "bullet.frag")));
+		bulletProgram = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "shaders/bullet.vert")),
+				Utils.readFully(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "shaders/bullet.frag")));
 		
 		projectionMatrixUniform = bulletProgram.getUniformLocation("projectionMatrix");
 		modelViewMatrixUniform = bulletProgram.getUniformLocation("modelViewMatrix");

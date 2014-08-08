@@ -8,38 +8,38 @@ import com.ra4king.opengl.util.math.Vector3;
  * @author Roi Atalla
  */
 public class ChunkManager {
-	public static final int CHUNKS_SIDE = 3;
+	public static final int CHUNKS_SIDE_X = 10, CHUNKS_SIDE_Y = 6, CHUNKS_SIDE_Z = 10;
 	
 	// z * CHUNKS_SIDE * CHUNKS_SIDE + y * CHUNKS_SIDE + x
 	private Chunk[] chunks;
 
 	public ChunkManager(boolean random) {
-		chunks = new Chunk[CHUNKS_SIDE * CHUNKS_SIDE * CHUNKS_SIDE];
+		chunks = new Chunk[CHUNKS_SIDE_X * CHUNKS_SIDE_Y * CHUNKS_SIDE_Z];
+	
+		int totalCubes = 0;
 
-	int totalCubes = 0;
-		
-		long before = System.nanoTime();
-		
-		for(int x = 0; x < CHUNKS_SIDE; x++) {
-			for(int y = 0; y < CHUNKS_SIDE; y++) {
-				for(int z = 0; z < CHUNKS_SIDE; z++) {
-	chunks[z * CHUNKS_SIDE * CHUNKS_SIDE + y * CHUNKS_SIDE + x] = new Chunk(x * Chunk.CHUNK_CUBE_WIDTH, y * Chunk.CHUNK_CUBE_HEIGHT, z * Chunk.CHUNK_CUBE_DEPTH);
+		long t0 = System.nanoTime();
+		for(int x = 0; x < CHUNKS_SIDE_X; x++) {
+			for(int y = 0; y < CHUNKS_SIDE_Y; y++) {
+				for(int z = 0; z < CHUNKS_SIDE_Z; z++) {
+					chunks[posToArrayIndex(x, y, z)] = new Chunk(x * Chunk.CHUNK_CUBE_WIDTH, y * Chunk.CHUNK_CUBE_HEIGHT, z * Chunk.CHUNK_CUBE_DEPTH);
 				}
 			}
 		}
-		
+		long time = System.nanoTime() - t0;
+		System.out.printf("Chunks created in %.3f ms\n", time / 1e6);
+
+		t0 = System.nanoTime();
 		for(Chunk chunk : chunks) {
 			chunk.setupBlocks(this, random);
 			totalCubes += chunk.getCubeCount();
 		}
-		
-		long after = System.nanoTime();
-		
-		System.out.printf("Total cubes %d generated in %.3f ms\n", totalCubes, (after - before) / 1e6);
+		time = System.nanoTime() - t0;
+		System.out.printf("Setting up %d blocks took %.3f ms\n", totalCubes, time / 1e6);
 	}
 	
 	private int posToArrayIndex(int x, int y, int z) {
-		return z * CHUNKS_SIDE * CHUNKS_SIDE + y * CHUNKS_SIDE + x;
+		return z * CHUNKS_SIDE_X * CHUNKS_SIDE_Y + y * CHUNKS_SIDE_X + x;
 	}
 	
 	private int cubePosToArrayIndex(int x, int y, int z) {
@@ -47,9 +47,9 @@ public class ChunkManager {
 		int iy = y / Chunk.CHUNK_CUBE_HEIGHT;
 		int iz = z / Chunk.CHUNK_CUBE_DEPTH;
 		
-		if(ix < 0 || ix >= CHUNKS_SIDE ||
-				iy < 0 || iy >= CHUNKS_SIDE ||
-				iz < 0 || iz >= CHUNKS_SIDE)
+		if(ix < 0 || ix >= CHUNKS_SIDE_X ||
+				iy < 0 || iy >= CHUNKS_SIDE_Y ||
+				iz < 0 || iz >= CHUNKS_SIDE_Z)
 			return -1;
 		
 		return posToArrayIndex(ix, iy, iz);
@@ -66,9 +66,9 @@ public class ChunkManager {
 		int py = Math.round(v.y() / Chunk.SPACING);
 		int pz = Math.round(-v.z() / Chunk.SPACING);
 		
-		if(px < -1 || px > CHUNKS_SIDE * Chunk.CHUNK_CUBE_WIDTH ||
-				py < -1 || py > CHUNKS_SIDE * Chunk.CHUNK_CUBE_HEIGHT ||
-				pz < -1 || pz > CHUNKS_SIDE * Chunk.CHUNK_CUBE_DEPTH)
+		if(px < -1 || px > CHUNKS_SIDE_X * Chunk.CHUNK_CUBE_WIDTH ||
+				py < -1 || py > CHUNKS_SIDE_Y * Chunk.CHUNK_CUBE_HEIGHT ||
+				pz < -1 || pz > CHUNKS_SIDE_Z * Chunk.CHUNK_CUBE_DEPTH)
 			return null;
 		
 		float lowestDistance = Float.MAX_VALUE;
@@ -82,8 +82,8 @@ public class ChunkManager {
 					if(block == null || block.getType() == BlockType.AIR)
 						continue;
 					
-					float len = temp.set(px + a, py + b, -(pz + c)).mult(Chunk.SPACING).sub(v).lengthSquared();
-					
+					float len = temp.set(px + a, py + b, -(pz + c)).mult(Chunk.SPACING).add(Chunk.CUBE_SIZE / 2, Chunk.CUBE_SIZE / 2, -Chunk.CUBE_SIZE / 2).sub(v).lengthSquared();
+
 					if(len < lowestDistance) {
 						lowestDistance = len;
 						closestBlock = block;
