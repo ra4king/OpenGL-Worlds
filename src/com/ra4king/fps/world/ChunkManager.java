@@ -4,6 +4,7 @@ import com.ra4king.fps.world.Chunk.Block;
 import com.ra4king.fps.world.Chunk.BlockType;
 import com.ra4king.opengl.util.math.Vector3;
 
+import net.indiespot.struct.cp.Struct;
 import net.indiespot.struct.cp.TakeStruct;
 
 /**
@@ -17,10 +18,10 @@ public class ChunkManager {
 
 	public ChunkManager(boolean random) {
 		chunks = new Chunk[CHUNKS_SIDE_X * CHUNKS_SIDE_Y * CHUNKS_SIDE_Z];
-
-	int totalCubes = 0;
 		
-		long t0 = System.nanoTime();
+		int totalCubes = 0;
+
+	long t0 = System.nanoTime();
 		for(int x = 0; x < CHUNKS_SIDE_X; x++) {
 			for(int y = 0; y < CHUNKS_SIDE_Y; y++) {
 				for(int z = 0; z < CHUNKS_SIDE_Z; z++) {
@@ -72,10 +73,10 @@ public class ChunkManager {
 		if(px < -1 || px > CHUNKS_SIDE_X * Chunk.CHUNK_CUBE_WIDTH ||
 				py < -1 || py > CHUNKS_SIDE_Y * Chunk.CHUNK_CUBE_HEIGHT ||
 				pz < -1 || pz > CHUNKS_SIDE_Z * Chunk.CHUNK_CUBE_DEPTH)
-			return null;
-		
-		float lowestDistance = Float.MAX_VALUE;
-		Block closestBlock = null;
+			return Struct.typedNull(Block.class);
+
+	float lowestDistance = Float.MAX_VALUE;
+		Block closestBlock = Struct.typedNull(Block.class);
 		
 		for(int a = -1; a < 2; a++) {
 			for(int b = -1; b < 2; b++) {
@@ -86,8 +87,8 @@ public class ChunkManager {
 						continue;
 					
 					float len = temp.set(px + a, py + b, -(pz + c)).mult(Chunk.SPACING).add(Chunk.CUBE_SIZE / 2, Chunk.CUBE_SIZE / 2, -Chunk.CUBE_SIZE / 2).sub(v).lengthSquared();
-
-	if(len < lowestDistance) {
+					
+					if(len < lowestDistance) {
 						lowestDistance = len;
 						closestBlock = block;
 					}
@@ -97,14 +98,14 @@ public class ChunkManager {
 		
 		final float d = Chunk.CUBE_SIZE * 0.5f + radius;
 		
-		return lowestDistance <= d * d ? closestBlock : null;
+		return lowestDistance <= d * d ? closestBlock : Struct.typedNull(Block.class);
 	}
 	
 	@TakeStruct
 	public Block getBlock(int x, int y, int z) {
 		int i = cubePosToArrayIndex(x, y, z);
 		if(i == -1)
-			return null;
+			return Struct.typedNull(Block.class);
 		
 		Chunk chunk = chunks[i];
 		return chunk.get(x % Chunk.CHUNK_CUBE_WIDTH, y % Chunk.CHUNK_CUBE_HEIGHT, z % Chunk.CHUNK_CUBE_DEPTH);

@@ -113,8 +113,8 @@ public class Chunk {
 	@TakeStruct
 	public Block get(int x, int y, int z) {
 		if(!isValidPos(x, y, z))
-			return null;
-		
+			return Struct.typedNull(Block.class);
+
 		return blocks[posToArrayIndex(x, y, z)];
 	}
 	
@@ -148,10 +148,10 @@ public class Chunk {
 	
 	public enum BlockType {
 		AIR, SOLID;
-
+		
 		public static BlockType[] values = values();
 	}
-
+	
 	@StructType(sizeof = 16)
 	public class Block {
 		@StructField(offset = 0)
@@ -175,7 +175,7 @@ public class Chunk {
 			this.z = cornerZ + z;
 			this.type = type.ordinal();
 		}
-
+		
 		public int getX() {
 			return x;
 		}
@@ -191,8 +191,8 @@ public class Chunk {
 		public BlockType getType() {
 			return BlockType.values[type];
 		}
-
-	public void setType(BlockType type) {
+		
+		public void setType(BlockType type) {
 			this.type = type.ordinal();
 			
 			hasChanged = true;

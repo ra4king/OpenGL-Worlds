@@ -59,8 +59,8 @@ public class BulletManager {
 							for(int b = -1; b < 2; b++) {
 								for(int c = -1; c < 2; c++) {
 									if(a != 0 && b != 0 && c != 0)
-									temp.add(new Bullet(pos, new Vector3(a, b, c).normalize().mult(100), 1, 500, (long)2.5e8, false, new Vector3(1, 1, 1)));
-								}
+										temp.add(new Bullet(pos, new Vector3(a, b, c).normalize().mult(100), 1, 500, (long)2.5e8, false, new Vector3(1, 1, 1)));
+							}
 							}
 						}
 					}

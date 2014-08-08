@@ -78,7 +78,7 @@ public class BulletRenderer {
 		glEnableVertexAttribArray(2);
 		glVertexAttribPointer(2, 4, GL_FLOAT, false, 8 * 4, 4 * 4);
 		GLUtils.glVertexAttribDivisor(2, 1);
-
+		
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 		
 		GLUtils.glBindVertexArray(0);

@@ -55,8 +55,8 @@ public class ChunkRenderer {
 		for(Block block : chunk.getBlocks()) {
 			if(block == null || block.getType() == BlockType.AIR) {
 				continue;
-	}
-			
+			}
+	
 			Stopwatch.resume();
 			try {
 				if(block.isSurrounded())
@@ -66,7 +66,7 @@ public class ChunkRenderer {
 			}
 			
 			cubeBuffer.put(block.getX()).put(block.getY()).put(-block.getZ()).put(Chunk.CUBE_SIZE);
-
+			
 			cubesDrawn++;
 		}
 		

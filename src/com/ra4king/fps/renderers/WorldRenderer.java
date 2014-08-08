@@ -61,7 +61,7 @@ public class WorldRenderer {
 	private int chunkVAO, cubeVBO, indicesVBO, dataVBO, commandsVBO;
 	private ChunkRenderer[] chunkRenderers;
 	private int cubeTexture;
-
+	
 	private BulletRenderer bulletRenderer;
 	private LightSystem lightSystem;
 	
@@ -115,9 +115,9 @@ public class WorldRenderer {
 		glEnableVertexAttribArray(0);
 		glVertexAttribPointer(0, 3, GL_FLOAT, false, (2 * 3 + 2) * 4, 0);
 
-		glEnableVertexAttribArray(1);
+	glEnableVertexAttribArray(1);
 		glVertexAttribPointer(1, 3, GL_FLOAT, false, (2 * 3 + 2) * 4, 3 * 4);
-
+		
 		glEnableVertexAttribArray(2);
 		glVertexAttribPointer(2, 2, GL_FLOAT, false, (2 * 3 + 2) * 4, 2 * 3 * 4);
 		
@@ -279,7 +279,7 @@ public class WorldRenderer {
 				new Vector3(-0.5f, -0.5f, 0.5f),
 				new Vector3(-0.5f, -0.5f, -0.5f)
 		};
-	
+		
 		// 2 vec3s and 1 vec2
 		FloatBuffer cubeBuffer = BufferUtils.createFloatBuffer(unitCube.length * (2 * 3 + 2));
 		for(int a = 0; a < unitCube.length; a++) {
@@ -542,8 +542,8 @@ public class WorldRenderer {
 				// GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_UNSYNCHRONIZED_BIT, null);
 				// FloatBuffer lightsBuffer = mapBuffer.asFloatBuffer();
 				lightsBuffer.clear();
-
-		lightsBuffer.put(ambientColor.toBuffer());
+				
+				lightsBuffer.put(ambientColor.toBuffer());
 				lightsBuffer.put(bulletCount + 1);
 				
 				bulletsBuffer.flip();
