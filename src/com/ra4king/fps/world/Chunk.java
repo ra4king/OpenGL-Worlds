@@ -85,7 +85,7 @@ public class Chunk {
 			int y = rem / CHUNK_CUBE_WIDTH;
 			int z = i / (CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT);
 			
-			blocks[i].init(x, y, z, BlockType.SOLID);
+			blocks[i].init(this, x, y, z, Lalalala.SOLID);
 		}
 	}
 	
@@ -98,7 +98,7 @@ public class Chunk {
 			int y = rem / CHUNK_CUBE_WIDTH;
 			int z = i / (CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT);
 			
-			blocks[i].init(x, y, z, BlockType.SOLID);
+			blocks[i].init(this, x, y, z, Lalalala.SOLID);
 		}
 	}
 	
@@ -122,7 +122,7 @@ public class Chunk {
 		return blocks;
 	}
 	
-	public void set(BlockType block, int x, int y, int z) {
+	public void set(Lalalala block, int x, int y, int z) {
 		if(!isValidPos(x, y, z))
 			throw new IllegalArgumentException("Invalid block position.");
 		
@@ -131,12 +131,14 @@ public class Chunk {
 		if(blocks[i].type == block.ordinal())
 			return;
 		
-		if(blocks[i].type == BlockType.AIR.ordinal())
-			cubeCount++;
+		if(blocks[i].type == Lalalala.AIR.ordinal())
+	cubeCount++;
 		
-		blocks[i].setType(block);
+		blocks[i].type = block.ordinal();
+		
+		hasChanged = true;
 	}
-	
+
 	/**
 	 * @return Returns and reset the hasChanged the property, which is true if a block was set or removed.
 	 */
@@ -146,14 +148,14 @@ public class Chunk {
 		return changed;
 	}
 	
-	public enum BlockType {
+	public enum Lalalala {
 		AIR, SOLID;
 		
-		public static BlockType[] values = values();
+		public static Lalalala[] values = values();
 	}
-	
+
 	@StructType(sizeof = 16)
-	public class Block {
+	public static class Block {
 		@StructField(offset = 0)
 		private int x;
 		@StructField(offset = 4)
@@ -163,16 +165,14 @@ public class Chunk {
 		@StructField(offset = 12)
 		private int type;
 		
-		public Block() {}
-		
 		// public Block(int x, int y, int z, BlockType type) {
 		// init(x, y, z, type);
 		// }
 		
-		public void init(int x, int y, int z, BlockType type) {
-			this.x = cornerX + x;
-			this.y = cornerY + y;
-			this.z = cornerZ + z;
+		public void init(Chunk chunk, int x, int y, int z, Lalalala type) {
+			this.x = chunk.cornerX + x;
+			this.y = chunk.cornerY + y;
+			this.z = chunk.cornerZ + z;
 			this.type = type.ordinal();
 		}
 		
@@ -188,30 +188,24 @@ public class Chunk {
 			return z;
 		}
 		
-		public BlockType getType() {
-			return BlockType.values[type];
+		public Lalalala getType() {
+			return Lalalala.values[type];
 		}
-		
-		public void setType(BlockType type) {
-			this.type = type.ordinal();
-			
-			hasChanged = true;
-		}
-		
+
 		@Override
 		public boolean equals(Object o) {
 			throw new IllegalStateException("WTF?");
 		}
 		
-		public boolean isSurrounded() {
-			Block up = manager.getBlock(x, y + 1, z);
-			Block down = manager.getBlock(x, y - 1, z);
-			Block left = manager.getBlock(x - 1, y, z);
-			Block right = manager.getBlock(x + 1, y, z);
-			Block front = manager.getBlock(x, y, z - 1);
-			Block back = manager.getBlock(x, y, z + 1);
+		public boolean isSurrounded(Chunk chunk) {
+			Block up = chunk.getChunkManager().getBlock(x, y + 1, z);
+			Block down = chunk.getChunkManager().getBlock(x, y - 1, z);
+			Block left = chunk.getChunkManager().getBlock(x - 1, y, z);
+			Block right = chunk.getChunkManager().getBlock(x + 1, y, z);
+			Block front = chunk.getChunkManager().getBlock(x, y, z - 1);
+			Block back = chunk.getChunkManager().getBlock(x, y, z + 1);
 			
-			int air = BlockType.AIR.ordinal();
+			int air = Lalalala.AIR.ordinal();
 			
 			return up != null && up.type != air &&
 					down != null && down.type != air &&

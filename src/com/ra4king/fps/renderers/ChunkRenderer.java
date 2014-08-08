@@ -9,7 +9,7 @@ import java.nio.FloatBuffer;
 import com.ra4king.fps.renderers.WorldRenderer.DrawElementsIndirectCommand;
 import com.ra4king.fps.world.Chunk;
 import com.ra4king.fps.world.Chunk.Block;
-import com.ra4king.fps.world.Chunk.BlockType;
+import com.ra4king.fps.world.Chunk.Lalalala;
 import com.ra4king.opengl.util.Stopwatch;
 import com.ra4king.opengl.util.Utils;
 
@@ -53,13 +53,13 @@ public class ChunkRenderer {
 		Stopwatch.start("isSurrounded");
 
 		for(Block block : chunk.getBlocks()) {
-			if(block == null || block.getType() == BlockType.AIR) {
+			if(block == null || block.getType() == Lalalala.AIR) {
 				continue;
 			}
 	
 			Stopwatch.resume();
 			try {
-				if(block.isSurrounded())
+				if(block.isSurrounded(chunk))
 					continue;
 			} finally {
 				Stopwatch.suspend();

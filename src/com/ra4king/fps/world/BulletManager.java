@@ -4,7 +4,7 @@ import java.util.ArrayList;
 
 import com.ra4king.fps.actors.Bullet;
 import com.ra4king.fps.world.Chunk.Block;
-import com.ra4king.fps.world.Chunk.BlockType;
+import com.ra4king.fps.world.Chunk.Lalalala;
 import com.ra4king.opengl.util.math.Vector3;
 
 /**
@@ -48,8 +48,8 @@ public class BulletManager {
 					Vector3 pos = bullet.getPosition();
 					
 					Block block;
-					if((block = chunkManager.getBlock(pos, 0.5f * bullet.getSize())) != null && block.getType() != BlockType.AIR) {
-						block.setType(BlockType.AIR);
+					if((block = chunkManager.getBlock(pos, 0.5f * bullet.getSize())) != null && block.getType() != Lalalala.AIR) {
+						chunkManager.setBlock(Lalalala.AIR, block.getX(), block.getY(), block.getZ());
 						
 						blocksDestroyed++;
 						
