@@ -11,15 +11,11 @@ import com.ra4king.fps.world.World;
 import com.ra4king.opengl.util.GLProgram;
 import com.ra4king.opengl.util.Stopwatch;
 
-import net.indiespot.struct.transform.StructEnv;
-
 /**
  * @author Roi Atalla
  */
 public class OpenGLWorld extends GLProgram {
 	public static void main(String[] args) throws Exception {
-		StructEnv.PRINT_LOG = true;
-		
 		new OpenGLWorld().run(true, new PixelFormat(16, 0, 8, 0, 4));
 	}
 	
@@ -48,6 +44,8 @@ public class OpenGLWorld extends GLProgram {
 		
 		world = new World();
 		worldRenderer = new WorldRenderer(world);
+		
+		world.getChunkManager().setupBlocks(true);
 	}
 	
 	@Override

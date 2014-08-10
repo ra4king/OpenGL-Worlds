@@ -28,7 +28,7 @@ public class World implements CameraUpdate {
 		camera = new Camera(60, 1, 5000);
 		camera.setCameraUpdate(this);
 		
-		chunkManager = new ChunkManager(false);
+		chunkManager = new ChunkManager();
 		bulletManager = new BulletManager(chunkManager);
 		
 		reset();
@@ -138,7 +138,7 @@ public class World implements CameraUpdate {
 				position.add(inverse.mult(delta));
 		}
 		
-		if((Mouse.isButtonDown(0) || Keyboard.isKeyDown(Keyboard.KEY_C)) && (System.nanoTime() - mouseCooldown) > (long)5e7) {
+		if((Mouse.isButtonDown(0) || Keyboard.isKeyDown(Keyboard.KEY_C)) && (System.nanoTime() - mouseCooldown) > (long)1e7) {
 			int bulletSpeed = 160;
 			
 			bulletManager.addBullet(new Bullet(position.copy().add(inverse.mult(rightBullet)), inverse.mult(Vector3.FORWARD).mult(bulletSpeed), 3, 150));

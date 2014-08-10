@@ -14,6 +14,7 @@ import static org.lwjgl.opengl.GL30.*;
 import static org.lwjgl.opengl.GL31.*;
 import static org.lwjgl.opengl.GL32.*;
 import static org.lwjgl.opengl.GL40.*;
+import static org.lwjgl.opengl.GL42.*;
 import static org.lwjgl.opengl.GL43.*;
 
 import java.io.InputStream;
@@ -58,9 +59,8 @@ public class WorldRenderer {
 	
 	private final int COMMANDS_BUFFER_SIZE;
 	
-	private int chunkVAO, cubeVBO, indicesVBO, dataVBO, commandsVBO;
+	private int chunkVAO, cubeVBO, indicesVBO, commandsVBO;
 	private ChunkRenderer[] chunkRenderers;
-	private int cubeTexture;
 	
 	private BulletRenderer bulletRenderer;
 	private LightSystem lightSystem;
@@ -68,6 +68,12 @@ public class WorldRenderer {
 	private int projectionMatrixUniform;
 	private int viewMatrixUniform;
 	private int normalMatrixUniform;
+	
+	private int atomicCounterVBO;
+	private int printCount;
+	
+	private final int TRANSFORM_FEEDBACK_BUFFER_SIZE = 3 * 4 * 36 * Chunk.TOTAL_CUBES;
+	private int transformFeedbackVBO;
 	
 	static {
 		if(GLUtils.GL_VERSION >= 31)
@@ -114,23 +120,23 @@ public class WorldRenderer {
 		
 		glEnableVertexAttribArray(0);
 		glVertexAttribPointer(0, 3, GL_FLOAT, false, (2 * 3 + 2) * 4, 0);
-
-	glEnableVertexAttribArray(1);
-		glVertexAttribPointer(1, 3, GL_FLOAT, false, (2 * 3 + 2) * 4, 3 * 4);
+		
+		glEnableVertexAttribArray(1);
+	glVertexAttribPointer(1, 3, GL_FLOAT, false, (2 * 3 + 2) * 4, 3 * 4);
 		
 		glEnableVertexAttribArray(2);
 		glVertexAttribPointer(2, 2, GL_FLOAT, false, (2 * 3 + 2) * 4, 2 * 3 * 4);
 		
-		dataVBO = glGenBuffers();
+		int dataVBO = glGenBuffers();
 		glBindBuffer(GL_ARRAY_BUFFER, dataVBO);
 		glBufferData(GL_ARRAY_BUFFER, DATA_VBO_SIZE, GL_STREAM_DRAW);
 		
 		glEnableVertexAttribArray(3);
-		glVertexAttribPointer(3, 3, GL_FLOAT, false, 4 * 4, 0);
+		glVertexAttribPointer(3, 3, GL_UNSIGNED_INT, false, 4 * 4, 0);
 		GLUtils.glVertexAttribDivisor(3, 1);
 		
 		glEnableVertexAttribArray(4);
-		glVertexAttribPointer(4, 1, GL_FLOAT, false, 4 * 4, 3 * 4);
+		glVertexAttribIPointer(4, 1, GL_UNSIGNED_INT, 4 * 4, 3 * 4);
 		GLUtils.glVertexAttribDivisor(4, 1);
 		
 		GLUtils.glBindVertexArray(0);
@@ -150,6 +156,22 @@ public class WorldRenderer {
 		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandsVBO);
 		glBufferData(GL_DRAW_INDIRECT_BUFFER, COMMANDS_BUFFER_SIZE, GL_STREAM_DRAW);
 		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
+		
+		atomicCounterVBO = glGenBuffers();
+		glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, atomicCounterVBO);
+		glBufferData(GL_ATOMIC_COUNTER_BUFFER, 4, GL_STREAM_READ);
+		glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, 0);
+		
+		glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, 0, atomicCounterVBO);
+	}
+	
+	private final ByteBuffer emptyBuffer = BufferUtils.createByteBuffer(4);
+	
+	private void resetAtomicBuffer() {
+		emptyBuffer.clear();
+		glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, atomicCounterVBO);
+		glBufferSubData(GL_ATOMIC_COUNTER_BUFFER, 0, emptyBuffer);
+		glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, 0);
 	}
 	
 	private void loadShaders() {
@@ -168,7 +190,24 @@ public class WorldRenderer {
 		attributes.put(1, "normal");
 		attributes.put(2, "tex");
 		attributes.put(3, "cubePos");
-		attributes.put(4, "cubeSize");
+		attributes.put(4, "cubeType");
+
+		// worldProgram = new ShaderProgram(
+		// Utils.readFully(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "shaders/fps_transform_feedback.vert")),
+		// attributes,
+		// new String[] {
+		// "originalCubePos",
+		// "originalCubeType",
+		// "worldPosition",
+		// "glPosition"
+		// }, true);
+		//
+		// transformFeedbackVBO = glGenBuffers();
+		// glBindBuffer(GL_TRANSFORM_FEEDBACK_BUFFER, transformFeedbackVBO);
+		// glBufferData(GL_TRANSFORM_FEEDBACK_BUFFER, TRANSFORM_FEEDBACK_BUFFER_SIZE, GL_STREAM_READ);
+		// glBindBuffer(GL_TRANSFORM_FEEDBACK_BUFFER, 0);
+		//
+		// glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, transformFeedbackVBO);
 		
 		worldProgram = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "shaders/" + shaderName + ".vert")),
 				Utils.readFully(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "shaders/" + shaderName + ".frag")),
@@ -185,13 +224,16 @@ public class WorldRenderer {
 		viewMatrixUniform = worldProgram.getUniformLocation("viewMatrix");
 		normalMatrixUniform = worldProgram.getUniformLocation("normalMatrix");
 		
-		cubeTexture = loadCubeTexture("crate.png");
+		int cubeTexture = loadCubeTexture("crate.png");
+
+		final int TEXTURE_BINDING = 0;
 		
 		worldProgram.begin();
-		glUniform1i(worldProgram.getUniformLocation("cubeTexture"), 0);
+		glUniform1f(worldProgram.getUniformLocation("cubeSize"), Chunk.CUBE_SIZE);
+		glUniform1i(worldProgram.getUniformLocation("cubeTexture"), TEXTURE_BINDING);
 		worldProgram.end();
 		
-		glActiveTexture(GL_TEXTURE0);
+		glActiveTexture(GL_TEXTURE0 + TEXTURE_BINDING);
 		glBindTexture(GL11.GL_TEXTURE_2D, cubeTexture);
 	}
 	
@@ -307,7 +349,7 @@ public class WorldRenderer {
 	}
 	
 	private long timePassed;
-	private int chunksRendered;
+	private int lastChunksRendered;
 	
 	public void update(long deltaTime) {
 		timePassed += deltaTime;
@@ -323,9 +365,7 @@ public class WorldRenderer {
 				cubes += chunkRenderer.getLastCubeRenderCount();
 			}
 			
-			System.out.printf("Rendering %d chunks, %d cubes\n", chunksRendered, cubes);
-			
-			chunksRendered = 0;
+			System.out.printf("Rendering %d chunks, %d cubes\n", lastChunksRendered, cubes);
 		}
 	}
 	
@@ -372,6 +412,8 @@ public class WorldRenderer {
 		// Setting up the 6 planes that define the edges of the frustum
 		culling.setupPlanes(cullingProjectionMatrix.set(camera.getProjectionMatrix()).mult(viewMatrix));
 		
+		resetAtomicBuffer();
+		
 		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandsVBO);
 		ByteBuffer commandsMappedBuffer = glMapBufferRange(GL_DRAW_INDIRECT_BUFFER, 0, COMMANDS_BUFFER_SIZE,
 				GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_UNSYNCHRONIZED_BIT, null);
@@ -381,7 +423,7 @@ public class WorldRenderer {
 		
 		Stopwatch.start("ChunkRenderers");
 		
-		chunksRendered = 0;
+		int chunksRendered = 0;
 		float halfSpacing = Chunk.SPACING * 0.5f;
 		
 		for(ChunkRenderer chunkRenderer : chunkRenderers) {
@@ -400,12 +442,67 @@ public class WorldRenderer {
 			}
 		}
 		
+		lastChunksRendered += chunksRendered;
+		
 		glUnmapBuffer(GL_DRAW_INDIRECT_BUFFER);
 		
+		// glBeginTransformFeedback(GL_TRIANGLES);
+		
 		GLUtils.glBindVertexArray(chunkVAO);
-		glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_SHORT, 0, chunkRenderers.length, 0);
+		glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_SHORT, 0, chunksRendered, 0);
+		
+		// glEndTransformFeedback();
 		
 		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
+		
+		// glFinish();
+		//
+		// if(printCount++ < 5) {
+		// GLSync sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+		// switch(glClientWaitSync(sync, 0, 1_000_000_000)) {
+		// case GL_ALREADY_SIGNALED:
+		// System.out.println("already??");
+		// break;
+		// case GL_TIMEOUT_EXPIRED:
+		// System.out.println("wat");
+		// break;
+		// case GL_CONDITION_SATISFIED:
+		// System.out.println("cool");
+		// break;
+		// case GL_WAIT_FAILED:
+		// System.out.println("damn");
+		// Utils.checkGLError("glClientWaitSync");
+		// break;
+		// }
+		//
+		// glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, atomicCounterVBO);
+		// ByteBuffer atomicBuffer = glMapBuffer(GL_ATOMIC_COUNTER_BUFFER, GL_READ_ONLY, 4, null);
+		// int vertexShaderCount = atomicBuffer.getInt();
+		// System.out.printf("Vertex shader called %d times.\n", vertexShaderCount);
+		// glUnmapBuffer(GL_ATOMIC_COUNTER_BUFFER);
+		// glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, 0);
+		//
+		// glBindBuffer(GL_TRANSFORM_FEEDBACK_BUFFER, transformFeedbackVBO);
+		// ByteBuffer transformFeedbackBuffer = glMapBuffer(GL_TRANSFORM_FEEDBACK_BUFFER, GL_READ_ONLY, TRANSFORM_FEEDBACK_BUFFER_SIZE, null);
+		//
+		// try(PrintWriter out = new PrintWriter(new File("transform_feedback_output.txt"))) {
+		// out.println("Transform Feedback data:");
+		// for(int a = 0; a < vertexShaderCount; a++) {
+		// out.printf("CubePos(%.3f,%.3f,%.3f), CubeType(%.3f), WorldPos(%.3f,%.3f,%.3f,%.3f), glPos(%.3f,%.3f,%.3f,%.3f)\n",
+		// // transformFeedbackBuffer.getFloat(), transformFeedbackBuffer.getFloat(), transformFeedbackBuffer.getFloat(), transformFeedbackBuffer.getFloat(),
+		// transformFeedbackBuffer.getFloat(), transformFeedbackBuffer.getFloat(), transformFeedbackBuffer.getFloat(),
+		// transformFeedbackBuffer.getFloat(),
+		// transformFeedbackBuffer.getFloat(), transformFeedbackBuffer.getFloat(), transformFeedbackBuffer.getFloat(), transformFeedbackBuffer.getFloat(),
+		// transformFeedbackBuffer.getFloat(), transformFeedbackBuffer.getFloat(), transformFeedbackBuffer.getFloat(), transformFeedbackBuffer.getFloat());
+		// }
+		// glUnmapBuffer(GL_TRANSFORM_FEEDBACK_BUFFER);
+		// glBindBuffer(GL_TRANSFORM_FEEDBACK_BUFFER, 0);
+		// } catch(Exception exc) {
+		// exc.printStackTrace();
+		// }
+		//
+		// System.exit(0);
+		// }
 		
 		Stopwatch.stop();
 		
@@ -516,10 +613,11 @@ public class WorldRenderer {
 			lightsUniformBufferVBO = glGenBuffers();
 			glBindBuffer(GL_UNIFORM_BUFFER, lightsUniformBufferVBO);
 			glBufferData(GL_UNIFORM_BUFFER, LIGHTS_UNIFORM_BUFFER_SIZE, GL_STREAM_DRAW);
-			glBindBufferBase(GL_UNIFORM_BUFFER, BUFFER_BLOCK_BINDING, lightsUniformBufferVBO);
 			glBindBuffer(GL_UNIFORM_BUFFER, 0);
+			
+			glBindBufferBase(GL_UNIFORM_BUFFER, BUFFER_BLOCK_BINDING, lightsUniformBufferVBO);
 		}
-		
+
 		@Override
 		public void renderLights(Vector3 diffuseColor, float mainK, Vector3 ambientColor, Matrix4 viewMatrix, BulletRenderer bulletRenderer) {
 			Stopwatch.start("LightSystem render UBO");
@@ -537,11 +635,16 @@ public class WorldRenderer {
 				
 				glBindBuffer(GL_UNIFORM_BUFFER, lightsUniformBufferVBO);
 				
-				// mapping the buffer crashes the Nvidia OpenGL driver for me
-				// ByteBuffer mapBuffer = glMapBufferRange(GL_UNIFORM_BUFFER, 0, LIGHTS_UNIFORM_BUFFER_SIZE,
-				// GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_UNSYNCHRONIZED_BIT, null);
-				// FloatBuffer lightsBuffer = mapBuffer.asFloatBuffer();
-				lightsBuffer.clear();
+				ByteBuffer mapBuffer = glMapBufferRange(GL_UNIFORM_BUFFER, 0, LIGHTS_UNIFORM_BUFFER_SIZE,
+						GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_UNSYNCHRONIZED_BIT, null);
+
+				if(mapBuffer == null) {
+					Utils.checkGLError("lights map buffer");
+					System.exit(0);
+				}
+				
+				FloatBuffer lightsBuffer = mapBuffer.asFloatBuffer();
+				// lightsBuffer.clear();
 				
 				lightsBuffer.put(ambientColor.toBuffer());
 				lightsBuffer.put(bulletCount + 1);
@@ -554,10 +657,10 @@ public class WorldRenderer {
 				lightsBuffer.put(diffuseColor.toBuffer());
 				lightsBuffer.put(mainK);
 				
-				lightsBuffer.flip();
-				glBufferData(GL_UNIFORM_BUFFER, LIGHTS_UNIFORM_BUFFER_SIZE, GL_STREAM_DRAW);
-				glBufferSubData(GL_UNIFORM_BUFFER, 0, lightsBuffer);
-				// glUnmapBuffer(GL_UNIFORM_BUFFER);
+				// lightsBuffer.flip();
+				// glBufferData(GL_UNIFORM_BUFFER, LIGHTS_UNIFORM_BUFFER_SIZE, GL_STREAM_DRAW);
+				// glBufferSubData(GL_UNIFORM_BUFFER, 0, lightsBuffer);
+				glUnmapBuffer(GL_UNIFORM_BUFFER);
 				
 				glBindBuffer(GL_UNIFORM_BUFFER, 0);
 			} finally {

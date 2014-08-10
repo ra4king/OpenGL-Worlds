@@ -1,7 +1,7 @@
 package com.ra4king.fps.world;
 
 import com.ra4king.fps.world.Chunk.Block;
-import com.ra4king.fps.world.Chunk.Lalalala;
+import com.ra4king.fps.world.Chunk.BlockType;
 import com.ra4king.opengl.util.math.Vector3;
 
 import net.indiespot.struct.cp.Struct;
@@ -11,15 +11,13 @@ import net.indiespot.struct.cp.TakeStruct;
  * @author Roi Atalla
  */
 public class ChunkManager {
-	public static final int CHUNKS_SIDE_X = 10, CHUNKS_SIDE_Y = 6, CHUNKS_SIDE_Z = 10;
+	public static final int CHUNKS_SIDE_X = 5, CHUNKS_SIDE_Y = 5, CHUNKS_SIDE_Z = 5;
 	
 	// z * CHUNKS_SIDE * CHUNKS_SIDE + y * CHUNKS_SIDE + x
 	private Chunk[] chunks;
 	
-	public ChunkManager(boolean random) {
+	public ChunkManager() {
 		chunks = new Chunk[CHUNKS_SIDE_X * CHUNKS_SIDE_Y * CHUNKS_SIDE_Z];
-		
-		int totalCubes = 0;
 		
 		long t0 = System.nanoTime();
 		for(int x = 0; x < CHUNKS_SIDE_X; x++) {
@@ -31,13 +29,17 @@ public class ChunkManager {
 		}
 		long time = System.nanoTime() - t0;
 		System.out.printf("Chunks created in %.3f ms\n", time / 1e6);
+	}
+	
+	public void setupBlocks(boolean random) {
+		int totalCubes = 0;
 		
-		t0 = System.nanoTime();
+		long t0 = System.nanoTime();
 		for(Chunk chunk : chunks) {
 			chunk.setupBlocks(this, random);
 			totalCubes += chunk.getCubeCount();
 		}
-		time = System.nanoTime() - t0;
+		long time = System.nanoTime() - t0;
 		System.out.printf("Setting up %d blocks took %.3f ms\n", totalCubes, time / 1e6);
 	}
 	
@@ -85,7 +87,7 @@ public class ChunkManager {
 				for(int c = -1; c < 2; c++) {
 					Block block = getBlock(px + a, py + b, pz + c);
 					
-					if(block == null || block.getType() == Lalalala.AIR)
+					if(block == null || block.getType() == BlockType.AIR)
 						continue;
 					
 					float len = temp.set(px + a, py + b, -(pz + c)).mult(Chunk.SPACING).add(halfSpacing, halfSpacing, -halfSpacing).sub(v).lengthSquared();
@@ -113,7 +115,7 @@ public class ChunkManager {
 		return chunk.get(x % Chunk.CHUNK_CUBE_WIDTH, y % Chunk.CHUNK_CUBE_HEIGHT, z % Chunk.CHUNK_CUBE_DEPTH);
 	}
 	
-	public void setBlock(Lalalala type, int x, int y, int z) {
+	public void setBlock(BlockType type, int x, int y, int z) {
 		int i = cubePosToArrayIndex(x, y, z);
 		if(i == -1)
 			throw new IllegalArgumentException("Invalid cube position (" + x + "," + y + "," + z + ").");

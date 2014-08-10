@@ -1,4 +1,4 @@
-#version 140
+#version 420
 
 in vec3 cameraSpacePosition;
 in vec3 norm;

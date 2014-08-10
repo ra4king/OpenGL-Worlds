@@ -10,28 +10,28 @@ import net.indiespot.struct.cp.TakeStruct;
  */
 public class Chunk {
 	public static final int CHUNK_CUBE_WIDTH = 32, CHUNK_CUBE_HEIGHT = 32, CHUNK_CUBE_DEPTH = 32;
+	public static final int TOTAL_CUBES = Chunk.CHUNK_CUBE_WIDTH * Chunk.CHUNK_CUBE_HEIGHT * Chunk.CHUNK_CUBE_DEPTH;
+
 	public static final float CUBE_SIZE = 2;
 	public static final float SPACING = CUBE_SIZE; // cannot be less than CUBE_SIZE
 	
-	private int cornerX, cornerY, cornerZ; // block indices
-
-	// z * width * height + y * width + x
-	private final Block[] blocks;
-	// private final ChunkInfo chunkInfo;
+	private ChunkModifiedCallback callback;
 	
-	private ChunkManager manager;
+	private int cornerX, cornerY, cornerZ; // block indices
+			
+	// z * width * height + y * width + x
+	private final Block[] blocks; // structured array
+
 	private int cubeCount;
 	
-	private boolean hasChanged = true;
-	
+	private ChunkManager manager;
+
 	public Chunk(int cornerX, int cornerY, int cornerZ) {
 		this.cornerX = cornerX;
 		this.cornerY = cornerY;
 		this.cornerZ = cornerZ;
 		
-		blocks = Struct.malloc(Block.class, CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT * CHUNK_CUBE_DEPTH);
-		for(Block b : blocks)
-			b.type = 0;
+		blocks = Struct.emptyArray(Block.class, CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT * CHUNK_CUBE_DEPTH);
 	}
 	
 	public void setupBlocks(ChunkManager manager, boolean random) {
@@ -41,6 +41,10 @@ public class Chunk {
 			initializeRandomly();
 		else
 			initializeAll();
+	}
+	
+	public void setCallback(ChunkModifiedCallback callback) {
+		this.callback = callback;
 	}
 	
 	public ChunkManager getChunkManager() {
@@ -67,7 +71,7 @@ public class Chunk {
 		return cornerEquals((x / CHUNK_CUBE_WIDTH) * CHUNK_CUBE_WIDTH, (y / CHUNK_CUBE_HEIGHT) * CHUNK_CUBE_HEIGHT, (z / CHUNK_CUBE_DEPTH) * CHUNK_CUBE_DEPTH);
 	}
 	
-	private int posToArrayIndex(int x, int y, int z) {
+	public int posToArrayIndex(int x, int y, int z) {
 		return z * CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT + y * CHUNK_CUBE_WIDTH + x;
 	}
 	
@@ -78,14 +82,14 @@ public class Chunk {
 			int i;
 			do {
 				i = (int)(Math.random() * blocks.length);
-			} while(blocks[i].type != 0);// != null && blocks[i].type != BlockType.AIR.ordinal());
-			
+			} while(blocks[i] != null && blocks[i].type != 0);// != null && blocks[i].type != BlockType.AIR.ordinal());
+
 			int rem = i % (CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT);
 			int x = rem % CHUNK_CUBE_WIDTH;
 			int y = rem / CHUNK_CUBE_WIDTH;
 			int z = i / (CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT);
 			
-			blocks[i].init(this, x, y, z, Lalalala.SOLID);
+			blocks[i] = callback.chunkAdd(x, y, z, BlockType.SOLID);
 		}
 	}
 	
@@ -98,7 +102,7 @@ public class Chunk {
 			int y = rem / CHUNK_CUBE_WIDTH;
 			int z = i / (CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT);
 			
-			blocks[i].init(this, x, y, z, Lalalala.SOLID);
+			blocks[i] = callback.chunkAdd(x, y, z, BlockType.SOLID);
 		}
 	}
 	
@@ -114,7 +118,7 @@ public class Chunk {
 	public Block get(int x, int y, int z) {
 		if(!isValidPos(x, y, z))
 			return Struct.typedNull(Block.class);
-
+		
 		return blocks[posToArrayIndex(x, y, z)];
 	}
 	
@@ -122,38 +126,44 @@ public class Chunk {
 		return blocks;
 	}
 	
-	public void set(Lalalala block, int x, int y, int z) {
+	public void set(BlockType block, int x, int y, int z) {
 		if(!isValidPos(x, y, z))
 			throw new IllegalArgumentException("Invalid block position.");
 		
 		int i = posToArrayIndex(x, y, z);
 		
-		if(blocks[i].type == block.ordinal())
-			return;
+		if(blocks[i] == null) {
+			callback.chunkAdd(x, y, z, block);
+		}
 		
-		if(blocks[i].type == Lalalala.AIR.ordinal())
-	cubeCount++;
+		if(blocks[i].type == block.ordinal()) {
+			return;
+		}
+		
+		if(blocks[i].type == BlockType.AIR.ordinal()) {
+			cubeCount++;
+		}
+		else if(block == BlockType.AIR) {
+			cubeCount--;
+		}
 		
 		blocks[i].type = block.ordinal();
 		
-		hasChanged = true;
-	}
-
-	/**
-	 * @return Returns and reset the hasChanged the property, which is true if a block was set or removed.
-	 */
-	public boolean hasChanged() {
-		boolean changed = hasChanged;
-		hasChanged = false;
-		return changed;
+		callback.chunkModified();
 	}
 	
-	public enum Lalalala {
+	public static interface ChunkModifiedCallback {
+		Block chunkAdd(int x, int y, int z, BlockType block);
+		
+		void chunkModified();
+	}
+	
+	public static enum BlockType {
 		AIR, SOLID;
 		
-		public static Lalalala[] values = values();
+		public static BlockType[] values = values();
 	}
-
+	
 	@StructType(sizeof = 16)
 	public static class Block {
 		@StructField(offset = 0)
@@ -169,13 +179,16 @@ public class Chunk {
 		// init(x, y, z, type);
 		// }
 		
-		public void init(Chunk chunk, int x, int y, int z, Lalalala type) {
+		@TakeStruct
+		public Block init(Chunk chunk, int x, int y, int z, BlockType type) {
 			this.x = chunk.cornerX + x;
 			this.y = chunk.cornerY + y;
 			this.z = chunk.cornerZ + z;
 			this.type = type.ordinal();
+			
+			return this;
 		}
-		
+
 		public int getX() {
 			return x;
 		}
@@ -188,13 +201,16 @@ public class Chunk {
 			return z;
 		}
 		
-		public Lalalala getType() {
-			return Lalalala.values[type];
+		public BlockType getType() {
+			return BlockType.values[type];
 		}
 
-		@Override
-		public boolean equals(Object o) {
-			throw new IllegalStateException("WTF?");
+		public void setType(BlockType type) {
+			this.type = type.ordinal();
+		}
+		
+		public boolean equals(Block b) {
+			return this.x == b.x && this.y == b.y && this.z == b.z;
 		}
 		
 		public boolean isSurrounded(Chunk chunk) {
@@ -205,7 +221,7 @@ public class Chunk {
 			Block front = chunk.getChunkManager().getBlock(x, y, z - 1);
 			Block back = chunk.getChunkManager().getBlock(x, y, z + 1);
 			
-			int air = Lalalala.AIR.ordinal();
+			int air = BlockType.AIR.ordinal();
 			
 			return up != null && up.type != air &&
 					down != null && down.type != air &&
