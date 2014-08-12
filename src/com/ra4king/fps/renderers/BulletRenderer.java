@@ -8,7 +8,6 @@ import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 
@@ -36,20 +35,17 @@ public class BulletRenderer {
 	private FloatBuffer bulletDataBuffer;
 	private int vao, bulletDataVBO;
 	
+	private final int BULLET_SIZE = 2 * 4 * 4;
+	private int BULLET_BUFFER_SIZE = 1000 * BULLET_SIZE;
+
 	public BulletRenderer(BulletManager bulletManager) {
 		this.bulletManager = bulletManager;
-		
-		bulletDataBuffer = BufferUtils.createFloatBuffer(500 * 2 * 4);
 		
 		bulletProgram = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "shaders/bullet.vert")),
 				Utils.readFully(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "shaders/bullet.frag")));
 		
 		projectionMatrixUniform = bulletProgram.getUniformLocation("projectionMatrix");
 		modelViewMatrixUniform = bulletProgram.getUniformLocation("modelViewMatrix");
-		
-		bulletDataVBO = glGenBuffers();
-		glBindBuffer(GL_ARRAY_BUFFER, bulletDataVBO);
-		glBufferData(GL_ARRAY_BUFFER, bulletDataBuffer.capacity() * 4, GL_DYNAMIC_DRAW);
 		
 		float[] bulletMappings = {
 				-0.5f, 0.5f, 0.5f, 0.5f, 0.5f, -0.5f,
@@ -59,24 +55,28 @@ public class BulletRenderer {
 		FloatBuffer bulletMappingsBuffer = BufferUtils.createFloatBuffer(bulletMappings.length);
 		bulletMappingsBuffer.put(bulletMappings).flip();
 		
-		int bulletMappingsVBO = glGenBuffers();
-		glBindBuffer(GL_ARRAY_BUFFER, bulletMappingsVBO);
-		glBufferData(GL_ARRAY_BUFFER, bulletMappingsBuffer, GL_STATIC_DRAW);
-		
 		vao = GLUtils.glGenVertexArrays();
 		GLUtils.glBindVertexArray(vao);
+
+	int bulletMappingsVBO = glGenBuffers();
+		glBindBuffer(GL_ARRAY_BUFFER, bulletMappingsVBO);
+		glBufferData(GL_ARRAY_BUFFER, bulletMappingsBuffer, GL_STATIC_DRAW);
 		
 		glEnableVertexAttribArray(0);
 		glVertexAttribPointer(0, 2, GL_FLOAT, false, 0, 0);
 		
+		bulletDataBuffer = BufferUtils.createFloatBuffer(BULLET_BUFFER_SIZE / 4);
+		
+		bulletDataVBO = glGenBuffers();
 		glBindBuffer(GL_ARRAY_BUFFER, bulletDataVBO);
-
+		glBufferData(GL_ARRAY_BUFFER, BULLET_BUFFER_SIZE, GL_STREAM_DRAW);
+		
 		glEnableVertexAttribArray(1);
-		glVertexAttribPointer(1, 4, GL_FLOAT, false, 8 * 4, 0);
+		glVertexAttribPointer(1, 4, GL_FLOAT, false, 2 * 4 * 4, 0);
 		GLUtils.glVertexAttribDivisor(1, 1);
 		
 		glEnableVertexAttribArray(2);
-		glVertexAttribPointer(2, 4, GL_FLOAT, false, 8 * 4, 4 * 4);
+		glVertexAttribPointer(2, 4, GL_FLOAT, false, 2 * 4 * 4, 4 * 4);
 		GLUtils.glVertexAttribDivisor(2, 1);
 		
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -94,15 +94,21 @@ public class BulletRenderer {
 		
 		ArrayList<Bullet> bullets = bulletManager.getBullets();
 		
-		int count = Math.min(bullets.size(), maxBulletCount);
-		
-		for(int a = bullets.size() - 1; a >= bullets.size() - count; a--) {
+		int count = 0;
+
+		for(int a = bullets.size() - 1; a >= 0 && count < maxBulletCount; a--) {
 			Bullet b = bullets.get(a);
+			Vector3 v = cameraWorldPositions.get(b);
 			
-			bulletData.put(cameraWorldPositions.get(b).toBuffer());
+			if(v.z() >= 0)
+				continue;
+
+			bulletData.put(v.toBuffer());
 			bulletData.put(b.getRange());
 			bulletData.put(b.getColor().toBuffer());
 			bulletData.put((b.isSolid() ? bulletK : nonSolidBulletK) / b.getAlpha());
+			
+			count++;
 		}
 		
 		return count;
@@ -117,12 +123,9 @@ public class BulletRenderer {
 			for(Bullet b : bullets)
 				bulletPositions.put(b, viewMatrix.mult(b.getPosition()));
 		
-		Collections.sort(bullets, new Comparator<Bullet>() {
-			@Override
-			public int compare(Bullet o1, Bullet o2) {
-				return (int)Math.signum(bulletPositions.get(o1).z() - bulletPositions.get(o2).z());
-			}
-		});
+		Collections.sort(bullets, (Bullet o1, Bullet o2) ->
+				(int)Math.signum(bulletPositions.get(o1).z() - bulletPositions.get(o2).z())
+				);
 	}
 	
 	public void render(Matrix4 projectionMatrix, MatrixStack modelViewMatrix, FrustumCulling culling) {
@@ -133,7 +136,7 @@ public class BulletRenderer {
 	
 	public void render(Matrix4 projectionMatrix, MatrixStack modelViewMatrix, FrustumCulling culling, Bullet ... bullets) {
 		List<Bullet> bulletList = Arrays.asList(bullets);
-		sort(modelViewMatrix.getTop(), bulletList, new HashMap<Bullet,Vector3>());
+		sort(modelViewMatrix.getTop(), bulletList, new HashMap<>());
 		
 		render(projectionMatrix, modelViewMatrix, bulletList, culling);
 	}
@@ -147,12 +150,15 @@ public class BulletRenderer {
 		glUniformMatrix4(projectionMatrixUniform, false, projectionMatrix.toBuffer());
 		glUniformMatrix4(modelViewMatrixUniform, false, modelViewMatrix.getTop().toBuffer());
 		
-		boolean bulletCountChanged = bullets.size() * 2 * 4 > bulletDataBuffer.capacity();
+		boolean bulletCountChanged = bullets.size() * (BULLET_SIZE >> 2) > bulletDataBuffer.capacity();
 		
-		if(bulletCountChanged)
-			bulletDataBuffer = BufferUtils.createFloatBuffer(bullets.size() * 2 * 4);
-		else
+		if(bulletCountChanged) {
+			BULLET_BUFFER_SIZE *= 2;
+			bulletDataBuffer = BufferUtils.createFloatBuffer(BULLET_BUFFER_SIZE >> 2);
+		}
+		else {
 			bulletDataBuffer.clear();
+		}
 		
 		int bulletDrawnCount = 0;
 		
@@ -170,10 +176,13 @@ public class BulletRenderer {
 		
 		glBindBuffer(GL_ARRAY_BUFFER, bulletDataVBO);
 		
-		if(bulletCountChanged)
+		if(bulletCountChanged) {
 			glBufferData(GL_ARRAY_BUFFER, bulletDataBuffer, GL_STREAM_DRAW);
-		else
+		}
+		else {
+			glBufferData(GL_ARRAY_BUFFER, BULLET_BUFFER_SIZE, GL_STREAM_DRAW);
 			glBufferSubData(GL_ARRAY_BUFFER, 0, bulletDataBuffer);
+		}
 		
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 		

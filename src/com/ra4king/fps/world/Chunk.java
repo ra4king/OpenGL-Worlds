@@ -21,11 +21,11 @@ public class Chunk {
 			
 	// z * width * height + y * width + x
 	private final Block[] blocks; // structured array
-
+	
 	private int cubeCount;
 	
 	private ChunkManager manager;
-
+	
 	public Chunk(int cornerX, int cornerY, int cornerZ) {
 		this.cornerX = cornerX;
 		this.cornerY = cornerY;
@@ -84,7 +84,7 @@ public class Chunk {
 				i = (int)(Math.random() * blocks.length);
 			} while(blocks[i] != null && blocks[i].type != 0);// != null && blocks[i].type != BlockType.AIR.ordinal());
 
-			int rem = i % (CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT);
+		int rem = i % (CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT);
 			int x = rem % CHUNK_CUBE_WIDTH;
 			int y = rem / CHUNK_CUBE_WIDTH;
 			int z = i / (CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT);
@@ -188,7 +188,7 @@ public class Chunk {
 			
 			return this;
 		}
-
+		
 		public int getX() {
 			return x;
 		}
@@ -204,7 +204,7 @@ public class Chunk {
 		public BlockType getType() {
 			return BlockType.values[type];
 		}
-
+		
 		public void setType(BlockType type) {
 			this.type = type.ordinal();
 		}

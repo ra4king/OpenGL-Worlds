@@ -4,7 +4,7 @@ in vec3 cameraSpacePosition;
 in vec3 norm;
 in vec2 texCoord;
 
-#define MAX_LIGHTS 50
+#define MAX_LIGHTS 100
 
 uniform float cubeTextureK;
 uniform sampler2D cubeTexture;

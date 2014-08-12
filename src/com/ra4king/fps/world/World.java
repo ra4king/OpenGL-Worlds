@@ -77,8 +77,8 @@ public class World implements CameraUpdate {
 	}
 	
 	private final Quaternion inverse = new Quaternion();
-	private final Vector3 rightBullet = new Vector3(2, -1, -3);
-	private final Vector3 leftBullet = new Vector3(-2, -1, -3);
+	private final Vector3 rightBullet = new Vector3(2, 0, -3);
+	private final Vector3 leftBullet = new Vector3(-2, 0, -3);
 	
 	private final Vector3 delta = new Vector3();
 	private float deltaTimeBuffer;
@@ -138,7 +138,7 @@ public class World implements CameraUpdate {
 				position.add(inverse.mult(delta));
 		}
 		
-		if((Mouse.isButtonDown(0) || Keyboard.isKeyDown(Keyboard.KEY_C)) && (System.nanoTime() - mouseCooldown) > (long)1e7) {
+		if((Mouse.isButtonDown(0) || Keyboard.isKeyDown(Keyboard.KEY_C)) && (System.nanoTime() - mouseCooldown) > (long)1e6) {
 			int bulletSpeed = 160;
 			
 			bulletManager.addBullet(new Bullet(position.copy().add(inverse.mult(rightBullet)), inverse.mult(Vector3.FORWARD).mult(bulletSpeed), 3, 150));

@@ -11,8 +11,6 @@ out vec3 cameraSpacePosition;
 out vec3 norm;
 out vec2 texCoord;
 
-flat out int status;
-
 uniform mat4 projectionMatrix, viewMatrix;
 uniform mat3 normalMatrix;
 

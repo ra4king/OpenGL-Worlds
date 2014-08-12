@@ -14,7 +14,6 @@ import static org.lwjgl.opengl.GL30.*;
 import static org.lwjgl.opengl.GL31.*;
 import static org.lwjgl.opengl.GL32.*;
 import static org.lwjgl.opengl.GL40.*;
-import static org.lwjgl.opengl.GL42.*;
 import static org.lwjgl.opengl.GL43.*;
 
 import java.io.InputStream;
@@ -27,6 +26,7 @@ import java.util.HashMap;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.EXTTextureFilterAnisotropic;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.OpenGLException;
 
 import com.ra4king.fps.Camera;
 import com.ra4king.fps.GLUtils;
@@ -69,17 +69,16 @@ public class WorldRenderer {
 	private int viewMatrixUniform;
 	private int normalMatrixUniform;
 	
-	private int atomicCounterVBO;
-	private int printCount;
+	// private int atomicCounterVBO;
 	
-	private final int TRANSFORM_FEEDBACK_BUFFER_SIZE = 3 * 4 * 36 * Chunk.TOTAL_CUBES;
-	private int transformFeedbackVBO;
+	// private final int TRANSFORM_FEEDBACK_BUFFER_SIZE = 3 * 4 * 36 * Chunk.TOTAL_CUBES;
+	// private int transformFeedbackVBO;
 	
 	static {
 		if(GLUtils.GL_VERSION >= 31)
-			MAX_NUM_LIGHTS = 50;
+			MAX_NUM_LIGHTS = 100;
 		else
-			MAX_NUM_LIGHTS = 20;
+			MAX_NUM_LIGHTS = 50;
 	}
 	
 	public WorldRenderer(World world) {
@@ -91,6 +90,7 @@ public class WorldRenderer {
 		glDepthRange(0, 1);
 		
 		glDepthMask(true);
+		glDepthFunc(GL_LESS);
 		
 		glEnable(GL_CULL_FACE);
 		glCullFace(GL_BACK);
@@ -122,7 +122,7 @@ public class WorldRenderer {
 		glVertexAttribPointer(0, 3, GL_FLOAT, false, (2 * 3 + 2) * 4, 0);
 		
 		glEnableVertexAttribArray(1);
-	glVertexAttribPointer(1, 3, GL_FLOAT, false, (2 * 3 + 2) * 4, 3 * 4);
+		glVertexAttribPointer(1, 3, GL_FLOAT, false, (2 * 3 + 2) * 4, 3 * 4);
 		
 		glEnableVertexAttribArray(2);
 		glVertexAttribPointer(2, 2, GL_FLOAT, false, (2 * 3 + 2) * 4, 2 * 3 * 4);
@@ -157,23 +157,23 @@ public class WorldRenderer {
 		glBufferData(GL_DRAW_INDIRECT_BUFFER, COMMANDS_BUFFER_SIZE, GL_STREAM_DRAW);
 		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
 		
-		atomicCounterVBO = glGenBuffers();
-		glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, atomicCounterVBO);
-		glBufferData(GL_ATOMIC_COUNTER_BUFFER, 4, GL_STREAM_READ);
-		glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, 0);
-		
-		glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, 0, atomicCounterVBO);
+		// atomicCounterVBO = glGenBuffers();
+		// glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, atomicCounterVBO);
+		// glBufferData(GL_ATOMIC_COUNTER_BUFFER, 8, GL_STREAM_READ);
+		// glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, 0);
+		//
+		// glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, 0, atomicCounterVBO);
 	}
 	
-	private final ByteBuffer emptyBuffer = BufferUtils.createByteBuffer(4);
-	
-	private void resetAtomicBuffer() {
-		emptyBuffer.clear();
-		glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, atomicCounterVBO);
-		glBufferSubData(GL_ATOMIC_COUNTER_BUFFER, 0, emptyBuffer);
-		glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, 0);
-	}
-	
+	// private final ByteBuffer emptyBuffer = BufferUtils.createByteBuffer(4);
+	//
+	// private void resetAtomicBuffer() {
+	// emptyBuffer.clear();
+	// glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, atomicCounterVBO);
+	// glBufferSubData(GL_ATOMIC_COUNTER_BUFFER, 0, emptyBuffer);
+	// glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, 0);
+	// }
+
 	private void loadShaders() {
 		int version;
 		if(GLUtils.GL_VERSION >= 31)
@@ -191,7 +191,7 @@ public class WorldRenderer {
 		attributes.put(2, "tex");
 		attributes.put(3, "cubePos");
 		attributes.put(4, "cubeType");
-
+		
 		// worldProgram = new ShaderProgram(
 		// Utils.readFully(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "shaders/fps_transform_feedback.vert")),
 		// attributes,
@@ -225,7 +225,7 @@ public class WorldRenderer {
 		normalMatrixUniform = worldProgram.getUniformLocation("normalMatrix");
 		
 		int cubeTexture = loadCubeTexture("crate.png");
-
+		
 		final int TEXTURE_BINDING = 0;
 		
 		worldProgram.begin();
@@ -366,6 +366,14 @@ public class WorldRenderer {
 			}
 			
 			System.out.printf("Rendering %d chunks, %d cubes\n", lastChunksRendered, cubes);
+			
+			// glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, atomicCounterVBO);
+			// ByteBuffer atomicBuffer = glMapBuffer(GL_ATOMIC_COUNTER_BUFFER, GL_READ_ONLY, 8, null);
+			// int vertexShaderCount = atomicBuffer.getInt();
+			// int fragmentShaderCount = atomicBuffer.getInt();
+			// System.out.printf("Vertex Shader: %d, Fragment Shader: %d.\n", vertexShaderCount, fragmentShaderCount);
+			// glUnmapBuffer(GL_ATOMIC_COUNTER_BUFFER);
+			// glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, 0);
 		}
 	}
 	
@@ -412,11 +420,16 @@ public class WorldRenderer {
 		// Setting up the 6 planes that define the edges of the frustum
 		culling.setupPlanes(cullingProjectionMatrix.set(camera.getProjectionMatrix()).mult(viewMatrix));
 		
-		resetAtomicBuffer();
-		
+		// resetAtomicBuffer();
+
 		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandsVBO);
 		ByteBuffer commandsMappedBuffer = glMapBufferRange(GL_DRAW_INDIRECT_BUFFER, 0, COMMANDS_BUFFER_SIZE,
 				GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_UNSYNCHRONIZED_BIT, null);
+		if(commandsMappedBuffer == null) {
+			Utils.checkGLError("commands mapped buffer");
+			throw new OpenGLException("commandsMappedBuffer == null ... no GL Error?");
+		}
+		
 		IntBuffer commandsBuffer = commandsMappedBuffer.asIntBuffer();
 		
 		Stopwatch.stop();
@@ -434,17 +447,17 @@ public class WorldRenderer {
 					Chunk.CHUNK_CUBE_WIDTH * Chunk.SPACING,
 					Chunk.CHUNK_CUBE_HEIGHT * Chunk.SPACING,
 					-Chunk.CHUNK_CUBE_DEPTH * Chunk.SPACING)) {
-				chunkRenderer.render(command);
-				
-				commandsBuffer.put(command.toBuffer());
-				
-				chunksRendered++;
+				if(chunkRenderer.render(command)) {
+					commandsBuffer.put(command.toBuffer());
+					
+					chunksRendered++;
+				}
 			}
 		}
 		
-		lastChunksRendered += chunksRendered;
-		
-		glUnmapBuffer(GL_DRAW_INDIRECT_BUFFER);
+		lastChunksRendered = chunksRendered;
+
+	glUnmapBuffer(GL_DRAW_INDIRECT_BUFFER);
 		
 		// glBeginTransformFeedback(GL_TRIANGLES);
 		
@@ -589,7 +602,7 @@ public class WorldRenderer {
 	private static class UniformBufferLightSystem implements LightSystem {
 		private static final int LIGHTS_UNIFORM_BUFFER_SIZE = 4 * (MAX_NUM_LIGHTS * 2 * 4 + 4);
 		
-		private FloatBuffer lightsBuffer;
+		// private FloatBuffer lightsBuffer;
 		private FloatBuffer bulletsBuffer;
 		private int lightsUniformBufferVBO;
 		
@@ -597,7 +610,7 @@ public class WorldRenderer {
 		
 		@Override
 		public void setupLights(ShaderProgram program) {
-			lightsBuffer = BufferUtils.createFloatBuffer(LIGHTS_UNIFORM_BUFFER_SIZE / 4);
+			// lightsBuffer = BufferUtils.createFloatBuffer(LIGHTS_UNIFORM_BUFFER_SIZE / 4);
 			bulletsBuffer = BufferUtils.createFloatBuffer(MAX_NUM_LIGHTS * 2 * 4);
 			
 			final int BUFFER_BLOCK_BINDING = 1;
@@ -605,9 +618,9 @@ public class WorldRenderer {
 			int lightsBlockIndex = program.getUniformBlockIndex("Lights");
 			
 			if(lightsBlockIndex == -1) {
-				throw new IllegalArgumentException("Uniform Block 'Lights not found.");
+				throw new IllegalArgumentException("Uniform Block 'Lights' not found.");
 			}
-			
+	
 			glUniformBlockBinding(program.getProgram(), lightsBlockIndex, BUFFER_BLOCK_BINDING);
 			
 			lightsUniformBufferVBO = glGenBuffers();
@@ -617,7 +630,7 @@ public class WorldRenderer {
 			
 			glBindBufferBase(GL_UNIFORM_BUFFER, BUFFER_BLOCK_BINDING, lightsUniformBufferVBO);
 		}
-
+		
 		@Override
 		public void renderLights(Vector3 diffuseColor, float mainK, Vector3 ambientColor, Matrix4 viewMatrix, BulletRenderer bulletRenderer) {
 			Stopwatch.start("LightSystem render UBO");
@@ -635,15 +648,15 @@ public class WorldRenderer {
 				
 				glBindBuffer(GL_UNIFORM_BUFFER, lightsUniformBufferVBO);
 				
-				ByteBuffer mapBuffer = glMapBufferRange(GL_UNIFORM_BUFFER, 0, LIGHTS_UNIFORM_BUFFER_SIZE,
+				ByteBuffer lightsMappedBuffer = glMapBufferRange(GL_UNIFORM_BUFFER, 0, LIGHTS_UNIFORM_BUFFER_SIZE,
 						GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_UNSYNCHRONIZED_BIT, null);
-
-				if(mapBuffer == null) {
-					Utils.checkGLError("lights map buffer");
-					System.exit(0);
-				}
 				
-				FloatBuffer lightsBuffer = mapBuffer.asFloatBuffer();
+				if(lightsMappedBuffer == null) {
+					Utils.checkGLError("lights map buffer");
+					throw new OpenGLException("lightsMappedBuffer == null ... no GL error?!");
+				}
+	
+				FloatBuffer lightsBuffer = lightsMappedBuffer.asFloatBuffer();
 				// lightsBuffer.clear();
 				
 				lightsBuffer.put(ambientColor.toBuffer());

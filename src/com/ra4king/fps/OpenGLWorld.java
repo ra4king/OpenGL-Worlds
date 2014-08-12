@@ -16,6 +16,8 @@ import com.ra4king.opengl.util.Stopwatch;
  */
 public class OpenGLWorld extends GLProgram {
 	public static void main(String[] args) throws Exception {
+		// System.setProperty("org.lwjgl.util.Debug", "true");
+
 		new OpenGLWorld().run(true, new PixelFormat(16, 0, 8, 0, 4));
 	}
 	
@@ -45,7 +47,7 @@ public class OpenGLWorld extends GLProgram {
 		world = new World();
 		worldRenderer = new WorldRenderer(world);
 		
-		world.getChunkManager().setupBlocks(true);
+		world.getChunkManager().setupBlocks(false);
 	}
 	
 	@Override

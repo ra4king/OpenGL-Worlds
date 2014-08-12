@@ -50,8 +50,8 @@ public class BulletManager {
 					Block block;
 					if((block = chunkManager.getBlock(pos, 0.5f * bullet.getSize())) != null && block.getType() != BlockType.AIR) {
 						chunkManager.setBlock(BlockType.AIR, block.getX(), block.getY(), block.getZ());
-					
-						blocksDestroyed++;
+
+					blocksDestroyed++;
 						
 						isAlive = false;
 						
@@ -61,7 +61,7 @@ public class BulletManager {
 									if(a != 0 && b != 0 && c != 0)
 										temp.add(new Bullet(pos, new Vector3(a, b, c).normalize().mult(100), 1, 500, (long)2.5e8, false, new Vector3(1, 1, 1)));
 								}
-					}
+							}
 						}
 					}
 				}
