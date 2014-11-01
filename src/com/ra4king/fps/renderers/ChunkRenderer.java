@@ -37,13 +37,13 @@ public class ChunkRenderer implements ChunkModifiedCallback {
 		this.dataVBO = dataVBO;
 		this.chunkNumOffset = chunkNumOffset;
 		
-		chunk.setCallback(this);
-		
 		buffer = BufferUtils.createByteBuffer(CHUNK_DATA_SIZE);
 		compact = Struct.map(Block.class, buffer);
 		
 		for(Block b : compact)
 			b.setType(BlockType.AIR);
+		
+		chunk.setCallback(this);
 	}
 	
 	public Chunk getChunk() {
@@ -112,8 +112,8 @@ public class ChunkRenderer implements ChunkModifiedCallback {
 			return;
 		
 		Stopwatch.start("UpdateVBO");
-
-	final int DATA_SIZE = blockCount * Struct.sizeof(Block.class);
+		
+		final int DATA_SIZE = blockCount * Struct.sizeof(Block.class);
 		
 		glBindBuffer(GL_ARRAY_BUFFER, dataVBO);
 		ByteBuffer mappedBuffer = glMapBufferRange(GL_ARRAY_BUFFER, chunkNumOffset * CHUNK_DATA_SIZE, DATA_SIZE,

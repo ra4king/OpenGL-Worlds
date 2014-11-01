@@ -37,7 +37,7 @@ public class BulletRenderer {
 	
 	private final int BULLET_SIZE = 2 * 4 * 4;
 	private int BULLET_BUFFER_SIZE = 1000 * BULLET_SIZE;
-
+	
 	public BulletRenderer(BulletManager bulletManager) {
 		this.bulletManager = bulletManager;
 		
@@ -57,8 +57,8 @@ public class BulletRenderer {
 		
 		vao = GLUtils.glGenVertexArrays();
 		GLUtils.glBindVertexArray(vao);
-
-	int bulletMappingsVBO = glGenBuffers();
+		
+		int bulletMappingsVBO = glGenBuffers();
 		glBindBuffer(GL_ARRAY_BUFFER, bulletMappingsVBO);
 		glBufferData(GL_ARRAY_BUFFER, bulletMappingsBuffer, GL_STATIC_DRAW);
 		
@@ -95,14 +95,14 @@ public class BulletRenderer {
 		ArrayList<Bullet> bullets = bulletManager.getBullets();
 		
 		int count = 0;
-
+		
 		for(int a = bullets.size() - 1; a >= 0 && count < maxBulletCount; a--) {
 			Bullet b = bullets.get(a);
 			Vector3 v = cameraWorldPositions.get(b);
 			
 			if(v.z() >= 0)
 				continue;
-
+			
 			bulletData.put(v.toBuffer());
 			bulletData.put(b.getRange());
 			bulletData.put(b.getColor().toBuffer());
@@ -153,7 +153,10 @@ public class BulletRenderer {
 		boolean bulletCountChanged = bullets.size() * (BULLET_SIZE >> 2) > bulletDataBuffer.capacity();
 		
 		if(bulletCountChanged) {
-			BULLET_BUFFER_SIZE *= 2;
+			while(bullets.size() * (BULLET_SIZE >> 2) > BULLET_BUFFER_SIZE >> 2) {
+				BULLET_BUFFER_SIZE *= 2;
+			}
+			
 			bulletDataBuffer = BufferUtils.createFloatBuffer(BULLET_BUFFER_SIZE >> 2);
 		}
 		else {

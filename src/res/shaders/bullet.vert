@@ -18,5 +18,6 @@ void main() {
 	
 	bulletColor = bullet.color;
 	
-	gl_Position = projectionMatrix * (modelViewMatrix * vec4(bullet.position.xyz, 1) + vec4(bullet.position.w * vertex, 0, 0));
+	vec2 size = bullet.position.w * vertex;
+	gl_Position = projectionMatrix * (modelViewMatrix * vec4(bullet.position.xyz, 1) + vec4(size, 0, 0));
 }

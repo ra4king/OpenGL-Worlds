@@ -11,7 +11,7 @@ import net.indiespot.struct.cp.TakeStruct;
 public class Chunk {
 	public static final int CHUNK_CUBE_WIDTH = 32, CHUNK_CUBE_HEIGHT = 32, CHUNK_CUBE_DEPTH = 32;
 	public static final int TOTAL_CUBES = Chunk.CHUNK_CUBE_WIDTH * Chunk.CHUNK_CUBE_HEIGHT * Chunk.CHUNK_CUBE_DEPTH;
-
+	
 	public static final float CUBE_SIZE = 2;
 	public static final float SPACING = CUBE_SIZE; // cannot be less than CUBE_SIZE
 	
@@ -26,7 +26,9 @@ public class Chunk {
 	
 	private ChunkManager manager;
 	
-	public Chunk(int cornerX, int cornerY, int cornerZ) {
+	public Chunk(ChunkManager manager, int cornerX, int cornerY, int cornerZ) {
+		this.manager = manager;
+		
 		this.cornerX = cornerX;
 		this.cornerY = cornerY;
 		this.cornerZ = cornerZ;
@@ -34,17 +36,22 @@ public class Chunk {
 		blocks = Struct.emptyArray(Block.class, CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT * CHUNK_CUBE_DEPTH);
 	}
 	
-	public void setupBlocks(ChunkManager manager, boolean random) {
-		this.manager = manager;
+	private void setupBlocks() {
+		cubeCount = blocks.length;
 		
-		if(random)
-			initializeRandomly();
-		else
-			initializeAll();
+		for(int i = 0; i < cubeCount; i++) {
+			int rem = i % (CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT);
+			int x = rem % CHUNK_CUBE_WIDTH;
+			int y = rem / CHUNK_CUBE_WIDTH;
+			int z = i / (CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT);
+			
+			blocks[i] = callback.chunkAdd(x, y, z, BlockType.AIR);
+		}
 	}
 	
 	public void setCallback(ChunkModifiedCallback callback) {
 		this.callback = callback;
+		setupBlocks();
 	}
 	
 	public ChunkManager getChunkManager() {
@@ -75,37 +82,6 @@ public class Chunk {
 		return z * CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT + y * CHUNK_CUBE_WIDTH + x;
 	}
 	
-	public void initializeRandomly() {
-		cubeCount = (int)(Math.random() * blocks.length / 10);
-		
-		for(int a = 0; a < cubeCount; a++) {
-			int i;
-			do {
-				i = (int)(Math.random() * blocks.length);
-			} while(blocks[i] != null && blocks[i].type != 0);// != null && blocks[i].type != BlockType.AIR.ordinal());
-
-		int rem = i % (CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT);
-			int x = rem % CHUNK_CUBE_WIDTH;
-			int y = rem / CHUNK_CUBE_WIDTH;
-			int z = i / (CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT);
-			
-			blocks[i] = callback.chunkAdd(x, y, z, BlockType.SOLID);
-		}
-	}
-	
-	public void initializeAll() {
-		cubeCount = blocks.length;
-		
-		for(int i = 0; i < cubeCount; i++) {
-			int rem = i % (CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT);
-			int x = rem % CHUNK_CUBE_WIDTH;
-			int y = rem / CHUNK_CUBE_WIDTH;
-			int z = i / (CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT);
-			
-			blocks[i] = callback.chunkAdd(x, y, z, BlockType.SOLID);
-		}
-	}
-	
 	public int getCubeCount() {
 		return cubeCount;
 	}
@@ -132,24 +108,35 @@ public class Chunk {
 		
 		int i = posToArrayIndex(x, y, z);
 		
-		if(blocks[i] == null) {
-			callback.chunkAdd(x, y, z, block);
-		}
-		
 		if(blocks[i].type == block.ordinal()) {
 			return;
 		}
 		
-		if(blocks[i].type == BlockType.AIR.ordinal()) {
-			cubeCount++;
+		if(blocks[i] == Struct.typedNull(Block.class)) {
+			blocks[i] = callback.chunkAdd(x, y, z, block);
 		}
-		else if(block == BlockType.AIR) {
+		
+		if(block != BlockType.AIR) {
+			if(blocks[i].type == BlockType.AIR.ordinal())
+				cubeCount++;
+		}
+		else if(block.ordinal() != blocks[i].type) {
 			cubeCount--;
 		}
 		
 		blocks[i].type = block.ordinal();
 		
 		callback.chunkModified();
+	}
+	
+	public void clearAll() {
+		for(int x = 0; x < CHUNK_CUBE_WIDTH; x++) {
+			for(int y = 0; y < CHUNK_CUBE_HEIGHT; y++) {
+				for(int z = 0; z < CHUNK_CUBE_DEPTH; z++) {
+					set(BlockType.AIR, x, y, z);
+				}
+			}
+		}
 	}
 	
 	public static interface ChunkModifiedCallback {
@@ -174,10 +161,6 @@ public class Chunk {
 		private int z;
 		@StructField(offset = 12)
 		private int type;
-		
-		// public Block(int x, int y, int z, BlockType type) {
-		// init(x, y, z, type);
-		// }
 		
 		@TakeStruct
 		public Block init(Chunk chunk, int x, int y, int z, BlockType type) {

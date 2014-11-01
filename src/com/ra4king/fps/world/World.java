@@ -1,5 +1,7 @@
 package com.ra4king.fps.world;
 
+import java.util.Random;
+
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
 
@@ -7,6 +9,7 @@ import com.ra4king.fps.Camera;
 import com.ra4king.fps.Camera.CameraUpdate;
 import com.ra4king.fps.GLUtils;
 import com.ra4king.fps.actors.Bullet;
+import com.ra4king.fps.world.Chunk.BlockType;
 import com.ra4king.opengl.util.Stopwatch;
 import com.ra4king.opengl.util.Utils;
 import com.ra4king.opengl.util.math.Matrix4;
@@ -22,7 +25,6 @@ public class World implements CameraUpdate {
 	private BulletManager bulletManager;
 	
 	private boolean isPaused;
-	private long mouseCooldown;
 	
 	public World() {
 		camera = new Camera(60, 1, 5000);
@@ -32,6 +34,17 @@ public class World implements CameraUpdate {
 		bulletManager = new BulletManager(chunkManager);
 		
 		reset();
+	}
+	
+	public void clearAll() {
+		chunkManager.clearAll();
+	}
+	
+	public void generateRandomBlocks() {
+		NoiseGenerator generator = new NoiseGenerator(ChunkManager.CHUNKS_SIDE_X * Chunk.CHUNK_CUBE_WIDTH,
+				ChunkManager.CHUNKS_SIDE_Y * Chunk.CHUNK_CUBE_HEIGHT,
+				ChunkManager.CHUNKS_SIDE_Z * Chunk.CHUNK_CUBE_DEPTH);
+		generator.generateBlocks();
 	}
 	
 	public Camera getCamera() {
@@ -77,11 +90,14 @@ public class World implements CameraUpdate {
 	}
 	
 	private final Quaternion inverse = new Quaternion();
-	private final Vector3 rightBullet = new Vector3(2, 0, -3);
-	private final Vector3 leftBullet = new Vector3(-2, 0, -3);
+	private final Vector3 rightBullet = new Vector3(2f, -1, 0);
+	private final Vector3 leftBullet = new Vector3(-2f, -1, 0);
+	private final Vector3 blastBullet = new Vector3(0, 0, -20);
 	
 	private final Vector3 delta = new Vector3();
 	private float deltaTimeBuffer;
+	
+	private long bulletCooldown, blastCoolDown;
 	
 	@Override
 	public void updateCamera(long deltaTime, Camera camera, Matrix4 projectionMatrix, Vector3 position, Quaternion orientation) {
@@ -138,12 +154,97 @@ public class World implements CameraUpdate {
 				position.add(inverse.mult(delta));
 		}
 		
-		if((Mouse.isButtonDown(0) || Keyboard.isKeyDown(Keyboard.KEY_C)) && (System.nanoTime() - mouseCooldown) > (long)1e6) {
+		long diff;
+		if((Mouse.isButtonDown(0) || Keyboard.isKeyDown(Keyboard.KEY_C)) && (diff = System.nanoTime() - bulletCooldown) > (long)5e7) {
 			int bulletSpeed = 160;
 			
 			bulletManager.addBullet(new Bullet(position.copy().add(inverse.mult(rightBullet)), inverse.mult(Vector3.FORWARD).mult(bulletSpeed), 3, 150));
 			bulletManager.addBullet(new Bullet(position.copy().add(inverse.mult(leftBullet)), inverse.mult(Vector3.FORWARD).mult(bulletSpeed), 3, 150));
-			mouseCooldown = System.nanoTime();
+			bulletCooldown += diff;
+		}
+		
+		if((Mouse.isButtonDown(1) || Keyboard.isKeyDown(Keyboard.KEY_V)) && (diff = System.nanoTime() - blastCoolDown) > (long)3e8) {
+			int blastSpeed = 100;
+			
+			bulletManager.addBullet(new Bullet(position.copy().add(inverse.mult(blastBullet)), inverse.mult(Vector3.FORWARD).mult(blastSpeed), 20, 1000));
+			
+			blastCoolDown += diff;
+		}
+	}
+	
+	private class NoiseGenerator {
+		private int width, height, depth;
+		private double[][][] noise;
+		
+		public NoiseGenerator(int width, int height, int depth) {
+			this.width = width;
+			this.height = height;
+			this.depth = depth;
+			noise = new double[width][height][depth];
+			
+			generateNoise();
+		}
+		
+		public void generateBlocks() {
+			for(int x = 0; x < width; x++) {
+				for(int y = 0; y < height; y++) {
+					for(int z = 0; z < depth; z++) {
+						float value = (float)turbulence(x, y, z, 64);
+						
+						if(value >= 0.55f)
+							chunkManager.setBlock(BlockType.SOLID, x, y, z);
+					}
+				}
+			}
+		}
+		
+		private void generateNoise() {
+			Random random = new Random();
+			
+			for(int x = 0; x < width; x++) {
+				for(int y = 0; y < height; y++) {
+					for(int z = 0; z < depth; z++) {
+						noise[x][y][z] = random.nextDouble();
+					}
+				}
+			}
+		}
+		
+		private double smoothNoise(double x, double y, double z) {
+			double fractX = x - (int)x;
+			double fractY = y - (int)y;
+			double fractZ = z - (int)z;
+			
+			int x1 = ((int)x + width) % width;
+			int y1 = ((int)y + height) % height;
+			int z1 = ((int)z + depth) % depth;
+			
+			int x2 = (x1 + width - 1) % width;
+			int y2 = (y1 + height - 1) % height;
+			int z2 = (z1 + depth - 1) % depth;
+			
+			double value = 0;
+			value += fractX * fractY * fractZ * noise[x1][y1][z1];
+			value += fractX * (1 - fractY) * fractZ * noise[x1][y2][z1];
+			value += fractX * fractY * (1 - fractZ) * noise[x1][y1][z2];
+			value += (1 - fractX) * fractY * fractZ * noise[x2][y1][z1];
+			value += (1 - fractX) * (1 - fractY) * fractZ * noise[x2][y2][z1];
+			value += (1 - fractX) * fractY * (1 - fractZ) * noise[x2][y1][z2];
+			value += fractX * (1 - fractY) * (1 - fractZ) * noise[x1][y2][z2];
+			value += (1 - fractX) * (1 - fractY) * (1 - fractZ) * noise[x2][y2][z2];
+			
+			return value;
+		}
+		
+		private double turbulence(double x, double y, double z, double size) {
+			double value = 0.0, initialSize = size;
+			
+			while(size >= 1) {
+				value += smoothNoise(x / size, y / size, z / size) * size;
+				size /= 2.0;
+			}
+			
+			return 0.5 * value / initialSize;
 		}
 	}
 }

@@ -15,7 +15,7 @@ public class Bullet {
 	private boolean isSolid;
 	
 	private final long life;
-	private long alive;
+	private long age;
 	
 	public Bullet(Vector3 position, Vector3 velocity, float size, float range) {
 		this(position, velocity, size, range, (long)5e9);
@@ -45,7 +45,7 @@ public class Bullet {
 	}
 	
 	public boolean isAlive() {
-		return alive < life;
+		return age < life;
 	}
 	
 	public boolean isSolid() {
@@ -53,7 +53,19 @@ public class Bullet {
 	}
 	
 	public float getAlpha() {
-		return (float)(life - alive) / life;
+		return (float)(life - age) / life;
+	}
+	
+	public long getLife() {
+		return life;
+	}
+	
+	public long getAge() {
+		return age;
+	}
+	
+	public void increaseAge(long deltaTime) {
+		age += deltaTime;
 	}
 	
 	public Vector3 getPosition() {
@@ -79,7 +91,7 @@ public class Bullet {
 	private final Vector3 temp = new Vector3();
 	
 	public void update(long deltaTime) {
-		alive += deltaTime;
+		age += deltaTime;
 		
 		position.add(temp.set(velocity).mult(deltaTime / (float)1e9));
 	}

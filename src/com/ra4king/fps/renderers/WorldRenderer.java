@@ -6,8 +6,6 @@ import static org.lwjgl.opengl.GL12.*;
 import static org.lwjgl.opengl.GL13.*;
 import static org.lwjgl.opengl.GL15.*;
 import static org.lwjgl.opengl.GL20.*;
-import static org.lwjgl.opengl.GL20.glUniform3;
-import static org.lwjgl.opengl.GL20.glUniform4;
 import static org.lwjgl.opengl.GL20.glUniformMatrix3;
 import static org.lwjgl.opengl.GL20.glUniformMatrix4;
 import static org.lwjgl.opengl.GL30.*;
@@ -16,16 +14,16 @@ import static org.lwjgl.opengl.GL32.*;
 import static org.lwjgl.opengl.GL40.*;
 import static org.lwjgl.opengl.GL43.*;
 
+import java.io.FileWriter;
 import java.io.InputStream;
+import java.io.PrintWriter;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
-import java.util.HashMap;
 
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.EXTTextureFilterAnisotropic;
-import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.OpenGLException;
 
 import com.ra4king.fps.Camera;
@@ -50,10 +48,17 @@ import com.ra4king.opengl.util.math.Vector3;
  */
 public class WorldRenderer {
 	private static final int MAX_NUM_LIGHTS;
-
+	
 	private World world;
 	
-	private ShaderProgram worldProgram;
+	private ShaderProgram blocksProgram;
+	private int projectionMatrixUniform;
+	private int viewMatrixUniform;
+	private int normalMatrixUniform;
+	
+	// private ShaderProgram deferredProgram;
+	// private int resolutionUniform;
+	// private int deferredFBO, deferredVAO;
 	
 	private FrustumCulling culling;
 	
@@ -65,20 +70,14 @@ public class WorldRenderer {
 	private BulletRenderer bulletRenderer;
 	private LightSystem lightSystem;
 	
-	private int projectionMatrixUniform;
-	private int viewMatrixUniform;
-	private int normalMatrixUniform;
-	
 	// private int atomicCounterVBO;
 	
-	// private final int TRANSFORM_FEEDBACK_BUFFER_SIZE = 3 * 4 * 36 * Chunk.TOTAL_CUBES;
-	// private int transformFeedbackVBO;
-	
 	static {
-		if(GLUtils.GL_VERSION >= 31)
+		if(GLUtils.GL_VERSION >= 31) {
 			MAX_NUM_LIGHTS = 100;
-		else
+		} else {
 			MAX_NUM_LIGHTS = 50;
+		}
 	}
 	
 	public WorldRenderer(World world) {
@@ -99,56 +98,23 @@ public class WorldRenderer {
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		
-		if(GLUtils.GL_VERSION >= 32)
+		if(GLUtils.GL_VERSION >= 32) {
 			glEnable(GL_DEPTH_CLAMP);
-		
-		loadShaders();
+		}
 		
 		culling = new FrustumCulling();
+		
+		loadShaders();
 		
 		bulletRenderer = new BulletRenderer(world.getBulletManager());
 		
 		loadCube();
 		
-		final int DATA_VBO_SIZE = world.getChunkManager().getChunks().length * ChunkRenderer.CHUNK_DATA_SIZE;
+		setupBlockVAO();
 		
-		chunkVAO = glGenVertexArrays();
-		glBindVertexArray(chunkVAO);
+		// setupDeferredFBO();
 		
-		glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indicesVBO);
-		
-		glEnableVertexAttribArray(0);
-		glVertexAttribPointer(0, 3, GL_FLOAT, false, (2 * 3 + 2) * 4, 0);
-		
-		glEnableVertexAttribArray(1);
-		glVertexAttribPointer(1, 3, GL_FLOAT, false, (2 * 3 + 2) * 4, 3 * 4);
-		
-		glEnableVertexAttribArray(2);
-		glVertexAttribPointer(2, 2, GL_FLOAT, false, (2 * 3 + 2) * 4, 2 * 3 * 4);
-		
-		int dataVBO = glGenBuffers();
-		glBindBuffer(GL_ARRAY_BUFFER, dataVBO);
-		glBufferData(GL_ARRAY_BUFFER, DATA_VBO_SIZE, GL_STREAM_DRAW);
-		
-		glEnableVertexAttribArray(3);
-		glVertexAttribPointer(3, 3, GL_UNSIGNED_INT, false, 4 * 4, 0);
-		GLUtils.glVertexAttribDivisor(3, 1);
-		
-		glEnableVertexAttribArray(4);
-		glVertexAttribIPointer(4, 1, GL_UNSIGNED_INT, 4 * 4, 3 * 4);
-		GLUtils.glVertexAttribDivisor(4, 1);
-		
-		GLUtils.glBindVertexArray(0);
-		
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-		
-		Chunk[] chunks = world.getChunkManager().getChunks();
-		chunkRenderers = new ChunkRenderer[chunks.length];
-		for(int i = 0; i < chunkRenderers.length; i++) {
-			chunkRenderers[i] = new ChunkRenderer(chunks[i], dataVBO, i);
-		}
+		// setupDeferredVAO();
 		
 		COMMANDS_BUFFER_SIZE = chunkRenderers.length * 5 * 4;
 		
@@ -157,112 +123,43 @@ public class WorldRenderer {
 		glBufferData(GL_DRAW_INDIRECT_BUFFER, COMMANDS_BUFFER_SIZE, GL_STREAM_DRAW);
 		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
 		
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, loadCubeTexture("crate.png"));
+		
+		blocksProgram.begin();
+		glUniform1i(blocksProgram.getUniformLocation("cubeTexture"), 0);
+		blocksProgram.end();
+		
 		// atomicCounterVBO = glGenBuffers();
 		// glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, atomicCounterVBO);
-		// glBufferData(GL_ATOMIC_COUNTER_BUFFER, 8, GL_STREAM_READ);
+		// glBufferData(GL_ATOMIC_COUNTER_BUFFER, 4, GL_STREAM_COPY);
 		// glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, 0);
 		//
 		// glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, 0, atomicCounterVBO);
 	}
 	
-	// private final ByteBuffer emptyBuffer = BufferUtils.createByteBuffer(4);
-	//
-	// private void resetAtomicBuffer() {
-	// emptyBuffer.clear();
-	// glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, atomicCounterVBO);
-	// glBufferSubData(GL_ATOMIC_COUNTER_BUFFER, 0, emptyBuffer);
-	// glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, 0);
-	// }
-
 	private void loadShaders() {
-		int version;
-		if(GLUtils.GL_VERSION >= 31)
-			version = 31;
-		else if(GLUtils.GL_VERSION == 30)
-			version = 30;
-		else
-			version = 21;
+		blocksProgram = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "shaders/blocks.vert")),
+				Utils.readFully(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "shaders/deferred.frag")));
 		
-		String shaderName = "fps" + version;
+		projectionMatrixUniform = blocksProgram.getUniformLocation("projectionMatrix");
+		viewMatrixUniform = blocksProgram.getUniformLocation("viewMatrix");
+		normalMatrixUniform = blocksProgram.getUniformLocation("normalMatrix");
 		
-		HashMap<Integer,String> attributes = new HashMap<>();
-		attributes.put(0, "position");
-		attributes.put(1, "normal");
-		attributes.put(2, "tex");
-		attributes.put(3, "cubePos");
-		attributes.put(4, "cubeType");
+		lightSystem = new UniformBufferLightSystem();
+		lightSystem.setupLights(blocksProgram);
 		
-		// worldProgram = new ShaderProgram(
-		// Utils.readFully(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "shaders/fps_transform_feedback.vert")),
-		// attributes,
-		// new String[] {
-		// "originalCubePos",
-		// "originalCubeType",
-		// "worldPosition",
-		// "glPosition"
-		// }, true);
+		blocksProgram.begin();
+		glUniform1f(blocksProgram.getUniformLocation("cubeSize"), Chunk.CUBE_SIZE);
+		blocksProgram.end();
+		
+		// deferredProgram = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "shaders/deferred.vert")),
+		// Utils.readFully(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "shaders/deferred.frag")));
 		//
-		// transformFeedbackVBO = glGenBuffers();
-		// glBindBuffer(GL_TRANSFORM_FEEDBACK_BUFFER, transformFeedbackVBO);
-		// glBufferData(GL_TRANSFORM_FEEDBACK_BUFFER, TRANSFORM_FEEDBACK_BUFFER_SIZE, GL_STREAM_READ);
-		// glBindBuffer(GL_TRANSFORM_FEEDBACK_BUFFER, 0);
+		// lightSystem = new UniformBufferLightSystem();
+		// lightSystem.setupLights(deferredProgram);
 		//
-		// glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, transformFeedbackVBO);
-		
-		worldProgram = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "shaders/" + shaderName + ".vert")),
-				Utils.readFully(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "shaders/" + shaderName + ".frag")),
-				attributes);
-		
-		if(GLUtils.GL_VERSION >= 31)
-			lightSystem = new UniformBufferLightSystem();
-		else
-			lightSystem = new UniformArrayLightSystem();
-		
-		lightSystem.setupLights(worldProgram);
-		
-		projectionMatrixUniform = worldProgram.getUniformLocation("projectionMatrix");
-		viewMatrixUniform = worldProgram.getUniformLocation("viewMatrix");
-		normalMatrixUniform = worldProgram.getUniformLocation("normalMatrix");
-		
-		int cubeTexture = loadCubeTexture("crate.png");
-		
-		final int TEXTURE_BINDING = 0;
-		
-		worldProgram.begin();
-		glUniform1f(worldProgram.getUniformLocation("cubeSize"), Chunk.CUBE_SIZE);
-		glUniform1i(worldProgram.getUniformLocation("cubeTexture"), TEXTURE_BINDING);
-		worldProgram.end();
-		
-		glActiveTexture(GL_TEXTURE0 + TEXTURE_BINDING);
-		glBindTexture(GL11.GL_TEXTURE_2D, cubeTexture);
-	}
-	
-	private int loadCubeTexture(String texName) {
-		try(InputStream in = getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "textures/" + texName)) {
-			PNGDecoder decoder = new PNGDecoder(in);
-			
-			int width = decoder.getWidth();
-			int height = decoder.getHeight();
-			
-			ByteBuffer data = BufferUtils.createByteBuffer(width * height * 4);
-			decoder.decode(data, width * 4, Format.RGBA);
-			data.flip();
-			
-			int tex = glGenTextures();
-			glBindTexture(GL11.GL_TEXTURE_2D, tex);
-			glTexParameteri(GL11.GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-			glTexParameteri(GL11.GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-			glTexParameteri(GL11.GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-			glTexParameteri(GL11.GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-			glTexParameteri(GL11.GL_TEXTURE_2D, EXTTextureFilterAnisotropic.GL_TEXTURE_MAX_ANISOTROPY_EXT, glGetInteger(EXTTextureFilterAnisotropic.GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT));
-			glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-			glGenerateMipmap(GL11.GL_TEXTURE_2D);
-			glBindTexture(GL11.GL_TEXTURE_2D, 0);
-			
-			return tex;
-		} catch(Exception exc) {
-			throw new RuntimeException("Failed to load " + texName, exc);
-		}
+		// resolutionUniform = deferredProgram.getUniformLocation("resolution");
 	}
 	
 	private void loadCube() {
@@ -348,6 +245,183 @@ public class WorldRenderer {
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	}
 	
+	private int loadCubeTexture(String texName) {
+		try(InputStream in = getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "textures/" + texName)) {
+			PNGDecoder decoder = new PNGDecoder(in);
+			
+			int width = decoder.getWidth();
+			int height = decoder.getHeight();
+			
+			ByteBuffer data = BufferUtils.createByteBuffer(width * height * 4);
+			decoder.decode(data, width * 4, Format.RGBA);
+			data.flip();
+			
+			int tex = glGenTextures();
+			glBindTexture(GL_TEXTURE_2D, tex);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, EXTTextureFilterAnisotropic.GL_TEXTURE_MAX_ANISOTROPY_EXT, glGetInteger(EXTTextureFilterAnisotropic.GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT));
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+			glGenerateMipmap(GL_TEXTURE_2D);
+			glBindTexture(GL_TEXTURE_2D, 0);
+			
+			return tex;
+		} catch(Exception exc) {
+			throw new RuntimeException("Failed to load " + texName, exc);
+		}
+	}
+	
+	private void setupBlockVAO() {
+		final int DATA_VBO_SIZE = world.getChunkManager().getChunks().length * ChunkRenderer.CHUNK_DATA_SIZE;
+		
+		chunkVAO = glGenVertexArrays();
+		glBindVertexArray(chunkVAO);
+		
+		glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indicesVBO);
+		
+		glEnableVertexAttribArray(0);
+		glVertexAttribPointer(0, 3, GL_FLOAT, false, (2 * 3 + 2) * 4, 0);
+		
+		glEnableVertexAttribArray(1);
+		glVertexAttribPointer(1, 3, GL_FLOAT, false, (2 * 3 + 2) * 4, 3 * 4);
+		
+		glEnableVertexAttribArray(2);
+		glVertexAttribPointer(2, 2, GL_FLOAT, false, (2 * 3 + 2) * 4, 2 * 3 * 4);
+		
+		int dataVBO = glGenBuffers();
+		glBindBuffer(GL_ARRAY_BUFFER, dataVBO);
+		glBufferData(GL_ARRAY_BUFFER, DATA_VBO_SIZE, GL_STREAM_DRAW);
+		
+		glEnableVertexAttribArray(3);
+		glVertexAttribPointer(3, 3, GL_UNSIGNED_INT, false, 4 * 4, 0);
+		GLUtils.glVertexAttribDivisor(3, 1);
+		
+		glEnableVertexAttribArray(4);
+		glVertexAttribIPointer(4, 1, GL_UNSIGNED_INT, 4 * 4, 3 * 4);
+		GLUtils.glVertexAttribDivisor(4, 1);
+		
+		GLUtils.glBindVertexArray(0);
+		
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+		
+		Chunk[] chunks = world.getChunkManager().getChunks();
+		chunkRenderers = new ChunkRenderer[chunks.length];
+		for(int i = 0; i < chunkRenderers.length; i++) {
+			chunkRenderers[i] = new ChunkRenderer(chunks[i], dataVBO, i);
+		}
+	}
+	
+	private void setupDeferredFBO() {
+		// int cameraPositionsTexture = glGenTextures();
+		// glBindTexture(GL_TEXTURE_2D, cameraPositionsTexture);
+		// glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, GLUtils.getWidth(), GLUtils.getHeight(), 0, GL_RGB, GL_FLOAT, (ByteBuffer)null);
+		// glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		// glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		// glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		// glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		//
+		// // int normalsTexture = glGenTextures();
+		// // glBindTexture(GL_TEXTURE_2D, normalsTexture);
+		// // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, GLUtils.getWidth(), GLUtils.getHeight(), 0, GL_RGB, GL_FLOAT, (ByteBuffer)null);
+		// // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		// // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		// // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		// // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		// //
+		// // int texCoordsTexture = glGenTextures();
+		// // glBindTexture(GL_TEXTURE_2D, texCoordsTexture);
+		// // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, GLUtils.getWidth(), GLUtils.getHeight(), 0, GL_RG, GL_FLOAT, (ByteBuffer)null);
+		// // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		// // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		// // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		// // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		//
+		// glBindTexture(GL_TEXTURE_2D, 0);
+		//
+		// deferredFBO = glGenFramebuffers();
+		// glBindFramebuffer(GL_FRAMEBUFFER, deferredFBO);
+		// glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, cameraPositionsTexture, 0);
+		// // glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, normalsTexture, 0);
+		// // glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, texCoordsTexture, 0);
+		//
+		// IntBuffer drawBuffers = BufferUtils.createIntBuffer(3).put(new int[] {
+		// GL_COLOR_ATTACHMENT0,
+		// // GL_COLOR_ATTACHMENT1,
+		// // GL_COLOR_ATTACHMENT2,
+		// });
+		// drawBuffers.flip();
+		// glDrawBuffers(drawBuffers);
+		//
+		// int fboStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+		// if(fboStatus != GL_FRAMEBUFFER_COMPLETE) {
+		// throw new OpenGLException("FBO not complete, status: " + fboStatus);
+		// }
+		//
+		// glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		//
+		// // random.clear();
+		// // glBindTexture(GL_TEXTURE_2D, cameraPositionsTexture);
+		// // glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_FLOAT, random);
+		// //
+		// // printBuffer("test.txt", random);
+		// //
+		// // readTextures();
+		//
+		// final int CUBE_TEXTURE_BINDING = 0;
+		// final int CAMERA_POSITIONS_TEXTURE_BINDING = 1;
+		// final int NORMALS_TEXTURE_BINDING = 2;
+		// final int TEX_COORDS_TEXTURE_BINDING = 3;
+		//
+		// glActiveTexture(GL_TEXTURE0 + CUBE_TEXTURE_BINDING);
+		// glBindTexture(GL_TEXTURE_2D, loadCubeTexture("crate.png"));
+		//
+		// glActiveTexture(GL_TEXTURE0 + CAMERA_POSITIONS_TEXTURE_BINDING);
+		// glBindTexture(GL_TEXTURE_2D, cameraPositionsTexture);
+		//
+		// // glActiveTexture(GL_TEXTURE0 + NORMALS_TEXTURE_BINDING);
+		// // glBindTexture(GL_TEXTURE_2D, normalsTexture);
+		// //
+		// // glActiveTexture(GL_TEXTURE0 + TEX_COORDS_TEXTURE_BINDING);
+		// // glBindTexture(GL_TEXTURE_2D, texCoordsTexture);
+		//
+		// deferredProgram.begin();
+		// glUniform1i(deferredProgram.getUniformLocation("cubeTexture"), CUBE_TEXTURE_BINDING);
+		// glUniform1i(deferredProgram.getUniformLocation("cameraPositions"), CAMERA_POSITIONS_TEXTURE_BINDING);
+		// glUniform1i(deferredProgram.getUniformLocation("normals"), NORMALS_TEXTURE_BINDING);
+		// glUniform1i(deferredProgram.getUniformLocation("texCoords"), TEX_COORDS_TEXTURE_BINDING);
+		// deferredProgram.end();
+		// }
+		
+		// private void setupDeferredVAO() {
+		// FloatBuffer verts = BufferUtils.createFloatBuffer(8).put(new float[] {
+		// 1, 1,
+		// 1, -1,
+		// -1, 1,
+		// -1, -1
+		// });
+		// verts.flip();
+		//
+		// int vbo = glGenBuffers();
+		// glBindBuffer(GL_ARRAY_BUFFER, vbo);
+		// glBufferData(GL_ARRAY_BUFFER, verts, GL_STATIC_DRAW);
+		//
+		// deferredVAO = glGenVertexArrays();
+		// glBindVertexArray(deferredVAO);
+		// glEnableVertexAttribArray(0);
+		// glVertexAttribPointer(0, 2, GL_FLOAT, false, 0, 0);
+		// glBindVertexArray(0);
+		//
+		// glBindBuffer(GL_ARRAY_BUFFER, 0);
+	}
+	
+	public void resized() {
+		setupDeferredFBO();
+	}
+	
 	private long timePassed;
 	private int lastChunksRendered;
 	
@@ -357,8 +431,9 @@ public class WorldRenderer {
 		while(timePassed >= 1e9) {
 			timePassed -= 1e9;
 			
-			if(timePassed >= 1e9)
+			if(timePassed >= 1e9) {
 				continue;
+			}
 			
 			long cubes = 0;
 			for(ChunkRenderer chunkRenderer : chunkRenderers) {
@@ -366,19 +441,11 @@ public class WorldRenderer {
 			}
 			
 			System.out.printf("Rendering %d chunks, %d cubes\n", lastChunksRendered, cubes);
-			
-			// glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, atomicCounterVBO);
-			// ByteBuffer atomicBuffer = glMapBuffer(GL_ATOMIC_COUNTER_BUFFER, GL_READ_ONLY, 8, null);
-			// int vertexShaderCount = atomicBuffer.getInt();
-			// int fragmentShaderCount = atomicBuffer.getInt();
-			// System.out.printf("Vertex Shader: %d, Fragment Shader: %d.\n", vertexShaderCount, fragmentShaderCount);
-			// glUnmapBuffer(GL_ATOMIC_COUNTER_BUFFER);
-			// glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, 0);
 		}
 	}
 	
 	private final Vector3 mainDiffuseColor = new Vector3(0.5f, 0.5f, 0.5f);
-	private final Vector3 mainAmbientColor = new Vector3(0.1f, 0.1f, 0.1f);
+	private final Vector3 mainAmbientColor = new Vector3(0.01f, 0.01f, 0.01f);
 	
 	private final Bullet aim = new Bullet(new Vector3(), new Vector3(), 4, 0, Long.MAX_VALUE, false, new Vector3(1));
 	
@@ -406,22 +473,9 @@ public class WorldRenderer {
 		// Convert Camera's Quaternion to a Matrix4 and translate it by the camera's position
 		camera.getOrientation().toMatrix(viewMatrix).translate(cameraPosTemp.set(camera.getPosition()).mult(-1));
 		
-		worldProgram.begin();
-		
-		glUniformMatrix4(projectionMatrixUniform, false, camera.getProjectionMatrix().toBuffer());
-		glUniformMatrix4(viewMatrixUniform, false, viewMatrix.toBuffer());
-		
-		normalMatrix.set(viewMatrix).inverse().transpose();
-		glUniformMatrix3(normalMatrixUniform, false, normalMatrix.toBuffer());
-		
-		final float mainK = 0.00001f;
-		lightSystem.renderLights(mainDiffuseColor, mainK, mainAmbientColor, viewMatrix, bulletRenderer);
-		
 		// Setting up the 6 planes that define the edges of the frustum
 		culling.setupPlanes(cullingProjectionMatrix.set(camera.getProjectionMatrix()).mult(viewMatrix));
 		
-		// resetAtomicBuffer();
-
 		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandsVBO);
 		ByteBuffer commandsMappedBuffer = glMapBufferRange(GL_DRAW_INDIRECT_BUFFER, 0, COMMANDS_BUFFER_SIZE,
 				GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_UNSYNCHRONIZED_BIT, null);
@@ -456,65 +510,46 @@ public class WorldRenderer {
 		}
 		
 		lastChunksRendered = chunksRendered;
-
-	glUnmapBuffer(GL_DRAW_INDIRECT_BUFFER);
 		
-		// glBeginTransformFeedback(GL_TRIANGLES);
+		glUnmapBuffer(GL_DRAW_INDIRECT_BUFFER);
 		
-		GLUtils.glBindVertexArray(chunkVAO);
-		glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_SHORT, 0, chunksRendered, 0);
+		final float mainK = 0.00001f;
+		lightSystem.renderLights(mainDiffuseColor, mainK, mainAmbientColor, viewMatrix, bulletRenderer);
 		
-		// glEndTransformFeedback();
+		{
+			// glBindFramebuffer(GL_DRAW_FRAMEBUFFER, deferredFBO);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			
+			blocksProgram.begin();
+			
+			glUniformMatrix4(projectionMatrixUniform, false, camera.getProjectionMatrix().toBuffer());
+			glUniformMatrix4(viewMatrixUniform, false, viewMatrix.toBuffer());
+			
+			normalMatrix.set(viewMatrix).inverse().transpose();
+			glUniformMatrix3(normalMatrixUniform, false, normalMatrix.toBuffer());
+			
+			// resetAtomicCounter();
+			
+			GLUtils.glBindVertexArray(chunkVAO);
+			glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_SHORT, 0, chunksRendered, 0);
+		}
 		
 		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
 		
-		// glFinish();
+		// readAtomicCounter();
+		
+		// {
+		// glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+		// glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		//
-		// if(printCount++ < 5) {
-		// GLSync sync = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
-		// switch(glClientWaitSync(sync, 0, 1_000_000_000)) {
-		// case GL_ALREADY_SIGNALED:
-		// System.out.println("already??");
-		// break;
-		// case GL_TIMEOUT_EXPIRED:
-		// System.out.println("wat");
-		// break;
-		// case GL_CONDITION_SATISFIED:
-		// System.out.println("cool");
-		// break;
-		// case GL_WAIT_FAILED:
-		// System.out.println("damn");
-		// Utils.checkGLError("glClientWaitSync");
-		// break;
-		// }
+		// deferredProgram.begin();
+		// glUniform2f(resolutionUniform, GLUtils.getWidth(), GLUtils.getHeight());
 		//
-		// glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, atomicCounterVBO);
-		// ByteBuffer atomicBuffer = glMapBuffer(GL_ATOMIC_COUNTER_BUFFER, GL_READ_ONLY, 4, null);
-		// int vertexShaderCount = atomicBuffer.getInt();
-		// System.out.printf("Vertex shader called %d times.\n", vertexShaderCount);
-		// glUnmapBuffer(GL_ATOMIC_COUNTER_BUFFER);
-		// glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, 0);
+		// final float mainK = 0.00001f;
+		// lightSystem.renderLights(mainDiffuseColor, mainK, mainAmbientColor, viewMatrix, bulletRenderer);
 		//
-		// glBindBuffer(GL_TRANSFORM_FEEDBACK_BUFFER, transformFeedbackVBO);
-		// ByteBuffer transformFeedbackBuffer = glMapBuffer(GL_TRANSFORM_FEEDBACK_BUFFER, GL_READ_ONLY, TRANSFORM_FEEDBACK_BUFFER_SIZE, null);
-		//
-		// try(PrintWriter out = new PrintWriter(new File("transform_feedback_output.txt"))) {
-		// out.println("Transform Feedback data:");
-		// for(int a = 0; a < vertexShaderCount; a++) {
-		// out.printf("CubePos(%.3f,%.3f,%.3f), CubeType(%.3f), WorldPos(%.3f,%.3f,%.3f,%.3f), glPos(%.3f,%.3f,%.3f,%.3f)\n",
-		// // transformFeedbackBuffer.getFloat(), transformFeedbackBuffer.getFloat(), transformFeedbackBuffer.getFloat(), transformFeedbackBuffer.getFloat(),
-		// transformFeedbackBuffer.getFloat(), transformFeedbackBuffer.getFloat(), transformFeedbackBuffer.getFloat(),
-		// transformFeedbackBuffer.getFloat(),
-		// transformFeedbackBuffer.getFloat(), transformFeedbackBuffer.getFloat(), transformFeedbackBuffer.getFloat(), transformFeedbackBuffer.getFloat(),
-		// transformFeedbackBuffer.getFloat(), transformFeedbackBuffer.getFloat(), transformFeedbackBuffer.getFloat(), transformFeedbackBuffer.getFloat());
-		// }
-		// glUnmapBuffer(GL_TRANSFORM_FEEDBACK_BUFFER);
-		// glBindBuffer(GL_TRANSFORM_FEEDBACK_BUFFER, 0);
-		// } catch(Exception exc) {
-		// exc.printStackTrace();
-		// }
-		//
-		// System.exit(0);
+		// GLUtils.glBindVertexArray(deferredVAO);
+		// glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 		// }
 		
 		Stopwatch.stop();
@@ -528,6 +563,52 @@ public class WorldRenderer {
 		glEnable(GL_DEPTH_TEST);
 		
 		Stopwatch.stop();
+	}
+	
+	// private static final IntBuffer zeroData = (IntBuffer)BufferUtils.createIntBuffer(1).put(0).flip();
+	//
+	// private void resetAtomicCounter() {
+	// glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, atomicCounterVBO);
+	// glBufferSubData(GL_ATOMIC_COUNTER_BUFFER, 0, zeroData);
+	// glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, 0);
+	// }
+	//
+	// private void readAtomicCounter() {
+	// glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, atomicCounterVBO);
+	// ByteBuffer buffer = glMapBuffer(GL_ATOMIC_COUNTER_BUFFER, GL_READ_ONLY, 4, null);
+	//
+	// if(buffer == null)
+	// Utils.checkGLError("atomic");
+	//
+	// System.out.println(buffer.getInt());
+	// glUnmapBuffer(GL_ATOMIC_COUNTER_BUFFER);
+	// glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, 0);
+	// }
+	
+	// private void readTextures() {
+	// int pbo = glGenBuffers();
+	// // glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo);
+	// // glBufferData(GL_PIXEL_PACK_BUFFER, GLUtils.getWidth() * GLUtils.getHeight() * 3, GL_STREAM_READ);
+	//
+	// FloatBuffer buffer = BufferUtils.createFloatBuffer(GLUtils.getWidth() * GLUtils.getHeight() * 3);
+	//
+	// glBindFramebuffer(GL_READ_FRAMEBUFFER, deferredFBO);
+	// glReadBuffer(GL_COLOR_ATTACHMENT0);
+	// glReadPixels(0, 0, GLUtils.getWidth(), GLUtils.getHeight(), GL_RGB, GL_FLOAT, buffer);
+	//
+	// printBuffer("camera_positions_texture.txt", buffer);
+	//
+	// System.exit(0);
+	// }
+	
+	private void printBuffer(String file, FloatBuffer buffer) {
+		try(PrintWriter out = new PrintWriter(new FileWriter(file))) {
+			while(buffer.hasRemaining()) {
+				out.printf("(%.1f,%.1f,%.1f)\n", buffer.get(), buffer.get(), buffer.get());
+			}
+		} catch(Exception exc) {
+			exc.printStackTrace();
+		}
 	}
 	
 	public static class DrawElementsIndirectCommand {
@@ -552,57 +633,9 @@ public class WorldRenderer {
 		void renderLights(Vector3 diffuseColor, float mainK, Vector3 ambientColor, Matrix4 viewMatrix, BulletRenderer bulletRenderer);
 	}
 	
-	private static class UniformArrayLightSystem implements LightSystem {
-		private FloatBuffer lightsBuffer;
-		private int ambientLightUniform;
-		private int numLightsUniform;
-		private int lightsArrayUniform;
-		
-		private int lastBulletCount = -1;
-		
-		@Override
-		public void setupLights(ShaderProgram program) {
-			lightsBuffer = BufferUtils.createFloatBuffer(MAX_NUM_LIGHTS * 2 * 4);
-			ambientLightUniform = program.getUniformLocation("ambientLight");
-			numLightsUniform = program.getUniformLocation("numberOfLights");
-			lightsArrayUniform = program.getUniformLocation("lights");
-			
-			if(ambientLightUniform == -1)
-				throw new IllegalArgumentException("Invalid program, missing ambientLight uniform");
-			if(numLightsUniform == -1)
-				throw new IllegalArgumentException("Invalid program, missing numberOfLights uniform");
-			if(lightsArrayUniform == -1)
-				throw new IllegalArgumentException("Invalid program, missing lights array uniform");
-		}
-		
-		@Override
-		public void renderLights(Vector3 diffuseColor, float mainK, Vector3 ambientColor, Matrix4 viewMatrix, BulletRenderer bulletRenderer) {
-			lightsBuffer.clear();
-			
-			int bulletCount = bulletRenderer.getBulletLightData(viewMatrix, lightsBuffer, MAX_NUM_LIGHTS - 1);
-			
-			if(lastBulletCount == 0 && bulletCount == 0)
-				return;
-			
-			lastBulletCount = bulletCount;
-			
-			lightsBuffer.put(0f).put(0f).put(0f); // camera position
-			lightsBuffer.put(5000f); // camera light range
-			lightsBuffer.put(diffuseColor.toBuffer());
-			lightsBuffer.put(mainK);
-			
-			lightsBuffer.flip();
-			
-			glUniform4(lightsArrayUniform, lightsBuffer);
-			glUniform1i(numLightsUniform, bulletCount + 1);
-			glUniform3(ambientLightUniform, ambientColor.toBuffer());
-		}
-	}
-	
 	private static class UniformBufferLightSystem implements LightSystem {
 		private static final int LIGHTS_UNIFORM_BUFFER_SIZE = 4 * (MAX_NUM_LIGHTS * 2 * 4 + 4);
 		
-		// private FloatBuffer lightsBuffer;
 		private FloatBuffer bulletsBuffer;
 		private int lightsUniformBufferVBO;
 		
@@ -610,7 +643,6 @@ public class WorldRenderer {
 		
 		@Override
 		public void setupLights(ShaderProgram program) {
-			// lightsBuffer = BufferUtils.createFloatBuffer(LIGHTS_UNIFORM_BUFFER_SIZE / 4);
 			bulletsBuffer = BufferUtils.createFloatBuffer(MAX_NUM_LIGHTS * 2 * 4);
 			
 			final int BUFFER_BLOCK_BINDING = 1;
@@ -620,7 +652,7 @@ public class WorldRenderer {
 			if(lightsBlockIndex == -1) {
 				throw new IllegalArgumentException("Uniform Block 'Lights' not found.");
 			}
-	
+			
 			glUniformBlockBinding(program.getProgram(), lightsBlockIndex, BUFFER_BLOCK_BINDING);
 			
 			lightsUniformBufferVBO = glGenBuffers();
@@ -641,8 +673,9 @@ public class WorldRenderer {
 				// Fill buffer with each bullet's position as each bullet is a light source
 				int bulletCount = bulletRenderer.getBulletLightData(viewMatrix, bulletsBuffer, MAX_NUM_LIGHTS - 1);
 				
-				if(lastBulletCount == 0 && bulletCount == 0)
+				if(lastBulletCount == 0 && bulletCount == 0) {
 					return;
+				}
 				
 				lastBulletCount = bulletCount;
 				
@@ -655,9 +688,8 @@ public class WorldRenderer {
 					Utils.checkGLError("lights map buffer");
 					throw new OpenGLException("lightsMappedBuffer == null ... no GL error?!");
 				}
-	
+				
 				FloatBuffer lightsBuffer = lightsMappedBuffer.asFloatBuffer();
-				// lightsBuffer.clear();
 				
 				lightsBuffer.put(ambientColor.toBuffer());
 				lightsBuffer.put(bulletCount + 1);
@@ -670,9 +702,6 @@ public class WorldRenderer {
 				lightsBuffer.put(diffuseColor.toBuffer());
 				lightsBuffer.put(mainK);
 				
-				// lightsBuffer.flip();
-				// glBufferData(GL_UNIFORM_BUFFER, LIGHTS_UNIFORM_BUFFER_SIZE, GL_STREAM_DRAW);
-				// glBufferSubData(GL_UNIFORM_BUFFER, 0, lightsBuffer);
 				glUnmapBuffer(GL_UNIFORM_BUFFER);
 				
 				glBindBuffer(GL_UNIFORM_BUFFER, 0);

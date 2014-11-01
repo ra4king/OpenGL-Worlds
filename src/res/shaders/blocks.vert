@@ -1,11 +1,11 @@
-#version 420
+#version 440
 
-in vec3 position;
-in vec3 normal;
-in vec2 tex;
+layout(location = 0) in vec3 position;
+layout(location = 1) in vec3 normal;
+layout(location = 2) in vec2 tex;
 
-in vec3 cubePos; // XYZ: index
-in uint cubeType;
+layout(location = 3) in vec3 cubePos; // XYZ: index
+layout(location = 4) in uint cubeType;
 
 out vec3 cameraSpacePosition;
 out vec3 norm;

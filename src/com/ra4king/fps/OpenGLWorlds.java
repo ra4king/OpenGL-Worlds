@@ -14,11 +14,11 @@ import com.ra4king.opengl.util.Stopwatch;
 /**
  * @author Roi Atalla
  */
-public class OpenGLWorld extends GLProgram {
+public class OpenGLWorlds extends GLProgram {
 	public static void main(String[] args) throws Exception {
 		// System.setProperty("org.lwjgl.util.Debug", "true");
-
-		new OpenGLWorld().run(true, new PixelFormat(16, 0, 8, 0, 4));
+		
+		new OpenGLWorlds().run(true, new PixelFormat(16, 0, 8, 0, 4));// , new ContextAttribs(4, 4).withDebug(true).withProfileCore(true));
 	}
 	
 	private World world;
@@ -26,14 +26,23 @@ public class OpenGLWorld extends GLProgram {
 	
 	// private Fractal fractal;
 	
-	public OpenGLWorld() {
-		super("OpenGLWorld", 800, 600, true);
+	public OpenGLWorlds() {
+		super("OpenGLWorlds", 800, 600, true);
 	}
 	
 	@Override
 	public void init() {
+		System.out.println(glGetString(GL_VERSION));
+		System.out.println(glGetString(GL_VENDOR));
+		System.out.println(glGetString(GL_RENDERER));
+
 		setPrintDebug(true);
-		setFPS(0);
+		setFPS(200);
+		
+		// glEnable(GL_DEBUG_OUTPUT);
+		//
+		// glDebugMessageCallback(new KHRDebugCallback((int source, int type, int id, int severity, String message) ->
+		// System.out.println("GL debug: " + message)));
 		
 		GLUtils.init();
 		
@@ -47,7 +56,8 @@ public class OpenGLWorld extends GLProgram {
 		world = new World();
 		worldRenderer = new WorldRenderer(world);
 		
-		world.getChunkManager().setupBlocks(false);
+		world.generateRandomBlocks();
+		// world.getChunkManager().setupBlocks(false);
 	}
 	
 	@Override
@@ -55,6 +65,7 @@ public class OpenGLWorld extends GLProgram {
 		super.resized();
 		
 		world.resized();
+		worldRenderer.resized();
 	}
 	
 	@Override
@@ -67,6 +78,14 @@ public class OpenGLWorld extends GLProgram {
 		if(key == Keyboard.KEY_ESCAPE)
 			Mouse.setGrabbed(!Mouse.isGrabbed());
 		
+		if(key == Keyboard.KEY_G) {
+			world.clearAll();
+			world.generateRandomBlocks();
+		}
+		
+		if(key == Keyboard.KEY_C)
+			world.clearAll();
+
 		world.keyPressed(key, c);
 	}
 	
@@ -83,8 +102,6 @@ public class OpenGLWorld extends GLProgram {
 	
 	@Override
 	public void render() {
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		
 		Stopwatch.start("World Render");
 		worldRenderer.render();
 		Stopwatch.stop();
