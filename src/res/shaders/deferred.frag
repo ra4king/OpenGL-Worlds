@@ -31,7 +31,7 @@ layout(std140) uniform Lights {
 
 out vec4 fragColor;
 
-const float fogRange = -1f / 200f;
+const float fogRange = -1.0 / 200.0;
 
 vec3 calculateLight(vec3 color, float k, vec3 normal, vec3 lightDistance) {
 	vec3 lightDirection = normalize(lightDistance);
@@ -76,20 +76,18 @@ void main() {
 		vec3 lightDistance = light.position - cameraSpacePosition;
 		
 		if(dot(lightDistance, lightDistance) <= light.range * light.range) {
-			totalLight += calculateLight(light.color, light.k, norm, lightDistance) * 0.55f;
+			totalLight += calculateLight(light.color, light.k, norm, lightDistance) * 0.55;
 		}
 	}
 	
-	float fog = clamp(1f - cameraSpacePosition.z * fogRange, 0.1f, 1.0f);
-	
-	
+	float fog = clamp(1.0 - cameraSpacePosition.z * fogRange, 0.1, 1.0);
 	
 	#ifdef RGB_WAVE
-	float redWave = 2 * sin(cameraSpacePosition.x + cameraSpacePosition.y) - 1;
-	float greenWave = 2 * sin(cameraSpacePosition.x + cameraSpacePosition.z) - 1;
-	float blueWave = 2 * sin(cameraSpacePosition.y + cameraSpacePosition.z) - 1;
+	float redWave = clamp(2.0 * sin(cameraSpacePosition.x + cameraSpacePosition.y) - 1.0, 0.0, 1.0);
+	float greenWave = clamp(2.0 * sin(cameraSpacePosition.x + cameraSpacePosition.z) - 1.0, 0.0, 1.0);
+	float blueWave = clamp(2.0 * sin(cameraSpacePosition.y + cameraSpacePosition.z) - 1.0, 0.0, 1.0);
 	#else
-	float sineWave = 2 * sin(cameraSpacePosition.x + cameraSpacePosition.y) - 1;
+	float sineWave = clamp(2.0 * sin(cameraSpacePosition.x + cameraSpacePosition.y) - 1.0, 0.0, 1.0);
 	#endif
 	
 	vec4 gamma = vec4(1.0 / 2.2);
