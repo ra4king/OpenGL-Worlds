@@ -2,16 +2,12 @@
 
 uniform vec2 resolution;
 
-in vec3 cameraSpacePosition;
-in vec3 norm;
-in vec2 texCoord;
-
-//uniform sampler2D cameraPositions;
-//uniform sampler2D normals;
-//uniform sampler2D texCoords;
-
-uniform float cubeTextureK;
 uniform sampler2D cubeTexture;
+
+uniform sampler2D cameraPositions;
+uniform sampler2D normals;
+uniform sampler2D texCoords;
+uniform sampler2D depth;
 
 struct PointLight {
 	vec3 position;
@@ -52,31 +48,31 @@ vec3 calculateLight(vec3 color, float k, vec3 normal, vec3 lightDistance) {
 }
 
 void main() {
-	//vec2 tex = gl_FragCoord.xy / resolution;
+	vec2 tex = gl_FragCoord.xy / resolution;
 	
-	//vec3 cameraSpacePosition = texture(cameraPositions, tex).xyz;
+	vec3 cameraSpacePosition = texture(cameraPositions, tex).xyz;
+	vec3 normal = (texture(normals, tex).xyz);
+	vec2 texCoord = texture(texCoords, tex).st;
+	gl_FragDepth = texture(depth, tex).x;
 	
-	//if(cameraSpacePosition == vec3(0.0)) {
-	//	fragColor = vec4(tex, 0, 1);
-	//	return;
-	//}
-	//else {
-	//	fragColor = vec4(cameraSpacePosition, 1);
-	//	return;
-	//}
+	if(cameraSpacePosition == vec3(0.0)) {
+		discard;
+	}
 	
-	//vec3 normal = normalize(texture(normals, tex)).xyz;
-	//vec2 texCoord = texture(texCoords, tex).st;
+	if(normal == vec3(0.0)) {
+		fragColor = vec4(1, 0, 0, 1);
+		return;
+	}
 	
 	vec3 totalLight = ambientLight;
 	
-	for(int a = int(numberOfLights - 1); a < numberOfLights; a++) {
+	for(int a = 0; a < numberOfLights; a++) {
 		PointLight light = lights[a];
 		
 		vec3 lightDistance = light.position - cameraSpacePosition;
 		
 		if(dot(lightDistance, lightDistance) <= light.range * light.range) {
-			totalLight += calculateLight(light.color, light.k, norm, lightDistance) * 0.55;
+			totalLight += calculateLight(light.color, light.k, normal, lightDistance) * 0.55;
 		}
 	}
 	

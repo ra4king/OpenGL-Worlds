@@ -14,9 +14,7 @@ import static org.lwjgl.opengl.GL32.*;
 import static org.lwjgl.opengl.GL40.*;
 import static org.lwjgl.opengl.GL43.*;
 
-import java.io.FileWriter;
 import java.io.InputStream;
-import java.io.PrintWriter;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
@@ -59,9 +57,9 @@ public class WorldRenderer {
 	private int viewMatrixUniform;
 	private int normalMatrixUniform;
 	
-	// private ShaderProgram deferredProgram;
-	// private int resolutionUniform;
-	// private int deferredFBO, deferredVAO;
+	private ShaderProgram deferredProgram;
+	private int resolutionUniform;
+	private int deferredFBO, deferredVAO;
 	
 	private FrustumCulling culling;
 	
@@ -74,8 +72,6 @@ public class WorldRenderer {
 	private BulletRenderer bulletRenderer;
 	private LightSystem lightSystem;
 	
-	// private int atomicCounterVBO;
-	
 	static {
 		if(GLUtils.GL_VERSION >= 31) {
 			MAX_NUM_LIGHTS = 100;
@@ -87,20 +83,11 @@ public class WorldRenderer {
 	public WorldRenderer(World world) {
 		this.world = world;
 		
-		glClearColor(0, 0, 0, 0);// 0.4f, 0.6f, 0.9f, 0f);
-		
 		glEnable(GL_DEPTH_TEST);
-		glDepthRange(0, 1);
-		
-		glDepthMask(true);
-		glDepthFunc(GL_LESS);
 		
 		glEnable(GL_CULL_FACE);
 		glCullFace(GL_BACK);
 		glFrontFace(GL_CW);
-		
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		
 		if(GLUtils.GL_VERSION >= 32) {
 			glEnable(GL_DEPTH_CLAMP);
@@ -113,12 +100,10 @@ public class WorldRenderer {
 		bulletRenderer = new BulletRenderer(world.getBulletManager());
 		
 		loadCube();
-		
 		setupBlockVAO();
 		
-		// setupDeferredFBO();
-		
-		// setupDeferredVAO();
+		setupDeferredFBO();
+		setupDeferredVAO();
 		
 		COMMANDS_BUFFER_SIZE = chunkRenderers.length * 5 * 4;
 		
@@ -126,44 +111,27 @@ public class WorldRenderer {
 		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandsVBO);
 		glBufferData(GL_DRAW_INDIRECT_BUFFER, COMMANDS_BUFFER_SIZE, GL_STREAM_DRAW);
 		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
-		
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, loadCubeTexture("crate.png"));
-		
-		blocksProgram.begin();
-		glUniform1i(blocksProgram.getUniformLocation("cubeTexture"), 0);
-		blocksProgram.end();
-		
-		// atomicCounterVBO = glGenBuffers();
-		// glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, atomicCounterVBO);
-		// glBufferData(GL_ATOMIC_COUNTER_BUFFER, 4, GL_STREAM_COPY);
-		// glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, 0);
-		//
-		// glBindBufferBase(GL_ATOMIC_COUNTER_BUFFER, 0, atomicCounterVBO);
 	}
 	
 	private void loadShaders() {
 		blocksProgram = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "shaders/blocks.vert")),
-				Utils.readFully(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "shaders/deferred.frag")));
+				Utils.readFully(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "shaders/blocks.frag")));
 		
 		projectionMatrixUniform = blocksProgram.getUniformLocation("projectionMatrix");
 		viewMatrixUniform = blocksProgram.getUniformLocation("viewMatrix");
 		normalMatrixUniform = blocksProgram.getUniformLocation("normalMatrix");
 		
-		lightSystem = new UniformBufferLightSystem();
-		lightSystem.setupLights(blocksProgram);
-		
 		blocksProgram.begin();
 		glUniform1f(blocksProgram.getUniformLocation("cubeSize"), Chunk.CUBE_SIZE);
 		blocksProgram.end();
 		
-		// deferredProgram = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "shaders/deferred.vert")),
-		// Utils.readFully(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "shaders/deferred.frag")));
-		//
-		// lightSystem = new UniformBufferLightSystem();
-		// lightSystem.setupLights(deferredProgram);
-		//
-		// resolutionUniform = deferredProgram.getUniformLocation("resolution");
+		deferredProgram = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "shaders/deferred.vert")),
+				Utils.readFully(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "shaders/deferred.frag")));
+		
+		lightSystem = new UniformBufferLightSystem();
+		lightSystem.setupLights(deferredProgram);
+		
+		resolutionUniform = deferredProgram.getUniformLocation("resolution");
 	}
 	
 	private void loadCube() {
@@ -295,10 +263,6 @@ public class WorldRenderer {
 		glEnableVertexAttribArray(2);
 		glVertexAttribPointer(2, 2, GL_FLOAT, false, (2 * 3 + 2) * 4, 2 * 3 * 4);
 		
-		// int dataVBO = glGenBuffers();
-		// glBindBuffer(GL_ARRAY_BUFFER, dataVBO);
-		// glBufferData(GL_ARRAY_BUFFER, DATA_VBO_SIZE, GL_STREAM_DRAW);
-		
 		GLBuffer chunkBuffer = new BufferStorage(GL_ARRAY_BUFFER, DATA_VBO_SIZE, true, 3);
 		
 		glEnableVertexAttribArray(3);
@@ -322,108 +286,114 @@ public class WorldRenderer {
 	}
 	
 	private void setupDeferredFBO() {
-		// int cameraPositionsTexture = glGenTextures();
-		// glBindTexture(GL_TEXTURE_2D, cameraPositionsTexture);
-		// glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, GLUtils.getWidth(), GLUtils.getHeight(), 0, GL_RGB, GL_FLOAT, (ByteBuffer)null);
-		// glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		// glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		// glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		// glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-		//
-		// // int normalsTexture = glGenTextures();
-		// // glBindTexture(GL_TEXTURE_2D, normalsTexture);
-		// // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, GLUtils.getWidth(), GLUtils.getHeight(), 0, GL_RGB, GL_FLOAT, (ByteBuffer)null);
-		// // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		// // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		// // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		// // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-		// //
-		// // int texCoordsTexture = glGenTextures();
-		// // glBindTexture(GL_TEXTURE_2D, texCoordsTexture);
-		// // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, GLUtils.getWidth(), GLUtils.getHeight(), 0, GL_RG, GL_FLOAT, (ByteBuffer)null);
-		// // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		// // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		// // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-		// // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-		//
-		// glBindTexture(GL_TEXTURE_2D, 0);
-		//
-		// deferredFBO = glGenFramebuffers();
-		// glBindFramebuffer(GL_FRAMEBUFFER, deferredFBO);
-		// glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, cameraPositionsTexture, 0);
-		// // glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, normalsTexture, 0);
-		// // glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, texCoordsTexture, 0);
-		//
-		// IntBuffer drawBuffers = BufferUtils.createIntBuffer(3).put(new int[] {
-		// GL_COLOR_ATTACHMENT0,
-		// // GL_COLOR_ATTACHMENT1,
-		// // GL_COLOR_ATTACHMENT2,
-		// });
-		// drawBuffers.flip();
-		// glDrawBuffers(drawBuffers);
-		//
-		// int fboStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-		// if(fboStatus != GL_FRAMEBUFFER_COMPLETE) {
-		// throw new OpenGLException("FBO not complete, status: " + fboStatus);
-		// }
-		//
-		// glBindFramebuffer(GL_FRAMEBUFFER, 0);
-		//
-		// // random.clear();
-		// // glBindTexture(GL_TEXTURE_2D, cameraPositionsTexture);
-		// // glGetTexImage(GL_TEXTURE_2D, 0, GL_RGB, GL_FLOAT, random);
-		// //
-		// // printBuffer("test.txt", random);
-		// //
-		// // readTextures();
-		//
-		// final int CUBE_TEXTURE_BINDING = 0;
-		// final int CAMERA_POSITIONS_TEXTURE_BINDING = 1;
-		// final int NORMALS_TEXTURE_BINDING = 2;
-		// final int TEX_COORDS_TEXTURE_BINDING = 3;
-		//
-		// glActiveTexture(GL_TEXTURE0 + CUBE_TEXTURE_BINDING);
-		// glBindTexture(GL_TEXTURE_2D, loadCubeTexture("crate.png"));
-		//
-		// glActiveTexture(GL_TEXTURE0 + CAMERA_POSITIONS_TEXTURE_BINDING);
-		// glBindTexture(GL_TEXTURE_2D, cameraPositionsTexture);
-		//
-		// // glActiveTexture(GL_TEXTURE0 + NORMALS_TEXTURE_BINDING);
-		// // glBindTexture(GL_TEXTURE_2D, normalsTexture);
-		// //
-		// // glActiveTexture(GL_TEXTURE0 + TEX_COORDS_TEXTURE_BINDING);
-		// // glBindTexture(GL_TEXTURE_2D, texCoordsTexture);
-		//
-		// deferredProgram.begin();
-		// glUniform1i(deferredProgram.getUniformLocation("cubeTexture"), CUBE_TEXTURE_BINDING);
-		// glUniform1i(deferredProgram.getUniformLocation("cameraPositions"), CAMERA_POSITIONS_TEXTURE_BINDING);
-		// glUniform1i(deferredProgram.getUniformLocation("normals"), NORMALS_TEXTURE_BINDING);
-		// glUniform1i(deferredProgram.getUniformLocation("texCoords"), TEX_COORDS_TEXTURE_BINDING);
-		// deferredProgram.end();
-		// }
+		deferredFBO = glGenFramebuffers();
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, deferredFBO);
 		
-		// private void setupDeferredVAO() {
-		// FloatBuffer verts = BufferUtils.createFloatBuffer(8).put(new float[] {
-		// 1, 1,
-		// 1, -1,
-		// -1, 1,
-		// -1, -1
-		// });
-		// verts.flip();
-		//
-		// int vbo = glGenBuffers();
-		// glBindBuffer(GL_ARRAY_BUFFER, vbo);
-		// glBufferData(GL_ARRAY_BUFFER, verts, GL_STATIC_DRAW);
-		//
-		// deferredVAO = glGenVertexArrays();
-		// glBindVertexArray(deferredVAO);
-		// glEnableVertexAttribArray(0);
-		// glVertexAttribPointer(0, 2, GL_FLOAT, false, 0, 0);
-		// glBindVertexArray(0);
-		//
-		// glBindBuffer(GL_ARRAY_BUFFER, 0);
+		int cameraPositionsTexture = glGenTextures();
+		glBindTexture(GL_TEXTURE_2D, cameraPositionsTexture);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, GLUtils.getWidth(), GLUtils.getHeight(), 0, GL_RGB, GL_FLOAT, (ByteBuffer)null);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, cameraPositionsTexture, 0);
+		
+		int normalsTexture = glGenTextures();
+		glBindTexture(GL_TEXTURE_2D, normalsTexture);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, GLUtils.getWidth(), GLUtils.getHeight(), 0, GL_RGB, GL_FLOAT, (ByteBuffer)null);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, normalsTexture, 0);
+		
+		int texCoordsTexture = glGenTextures();
+		glBindTexture(GL_TEXTURE_2D, texCoordsTexture);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, GLUtils.getWidth(), GLUtils.getHeight(), 0, GL_RGB, GL_FLOAT, (ByteBuffer)null);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, texCoordsTexture, 0);
+		
+		int depthTexture = glGenTextures();
+		glBindTexture(GL_TEXTURE_2D, depthTexture);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, GLUtils.getWidth(), GLUtils.getHeight(), 0, GL_DEPTH_COMPONENT, GL_FLOAT, (ByteBuffer)null);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthTexture, 0);
+		
+		glBindTexture(GL_TEXTURE_2D, 0);
+		
+		IntBuffer drawBuffers = BufferUtils.createIntBuffer(3).put(new int[] {
+				GL_COLOR_ATTACHMENT0,
+				GL_COLOR_ATTACHMENT1,
+				GL_COLOR_ATTACHMENT2,
+		});
+		drawBuffers.flip();
+		glDrawBuffers(drawBuffers);
+		
+		int fboStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+		if(fboStatus != GL_FRAMEBUFFER_COMPLETE) {
+			throw new OpenGLException("FBO not complete, status: " + fboStatus);
+		}
+		
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+		
+		final int CUBE_TEXTURE_BINDING = 0;
+		final int CAMERA_POSITIONS_TEXTURE_BINDING = 1;
+		final int NORMALS_TEXTURE_BINDING = 2;
+		final int TEX_COORDS_TEXTURE_BINDING = 3;
+		final int DEPTH_TEXTURE_BINDING = 4;
+		
+		glActiveTexture(GL_TEXTURE0 + CUBE_TEXTURE_BINDING);
+		glBindTexture(GL_TEXTURE_2D, loadCubeTexture("crate.png"));
+		
+		glActiveTexture(GL_TEXTURE0 + CAMERA_POSITIONS_TEXTURE_BINDING);
+		glBindTexture(GL_TEXTURE_2D, cameraPositionsTexture);
+		
+		glActiveTexture(GL_TEXTURE0 + NORMALS_TEXTURE_BINDING);
+		glBindTexture(GL_TEXTURE_2D, normalsTexture);
+		
+		glActiveTexture(GL_TEXTURE0 + TEX_COORDS_TEXTURE_BINDING);
+		glBindTexture(GL_TEXTURE_2D, texCoordsTexture);
+		
+		glActiveTexture(GL_TEXTURE0 + DEPTH_TEXTURE_BINDING);
+		glBindTexture(GL_TEXTURE_2D, depthTexture);
+		
+		deferredProgram.begin();
+		glUniform1i(deferredProgram.getUniformLocation("cubeTexture"), CUBE_TEXTURE_BINDING);
+		glUniform1i(deferredProgram.getUniformLocation("cameraPositions"), CAMERA_POSITIONS_TEXTURE_BINDING);
+		glUniform1i(deferredProgram.getUniformLocation("normals"), NORMALS_TEXTURE_BINDING);
+		glUniform1i(deferredProgram.getUniformLocation("texCoords"), TEX_COORDS_TEXTURE_BINDING);
+		glUniform1i(deferredProgram.getUniformLocation("depth"), DEPTH_TEXTURE_BINDING);
+		deferredProgram.end();
 	}
 	
+	private void setupDeferredVAO() {
+		FloatBuffer verts = BufferUtils.createFloatBuffer(8).put(new float[] {
+				1, 1,
+				1, -1,
+				-1, 1,
+				-1, -1
+		});
+		verts.flip();
+		
+		int vbo = glGenBuffers();
+		glBindBuffer(GL_ARRAY_BUFFER, vbo);
+		glBufferData(GL_ARRAY_BUFFER, verts, GL_STATIC_DRAW);
+		
+		deferredVAO = glGenVertexArrays();
+		glBindVertexArray(deferredVAO);
+		glEnableVertexAttribArray(0);
+		glVertexAttribPointer(0, 2, GL_FLOAT, false, 0, 0);
+		glBindVertexArray(0);
+		
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+	}
+
 	public void resized() {
 		setupDeferredFBO();
 	}
@@ -519,13 +489,14 @@ public class WorldRenderer {
 		
 		glUnmapBuffer(GL_DRAW_INDIRECT_BUFFER);
 		
-		final float mainK = 0.00001f;
-		lightSystem.renderLights(mainDiffuseColor, mainK, mainAmbientColor, viewMatrix, bulletRenderer);
-		
 		{
-			// glBindFramebuffer(GL_DRAW_FRAMEBUFFER, deferredFBO);
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, deferredFBO);
+			
+			glClearColor(0, 0, 0, 0);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			
+			glDisable(GL_BLEND);
+
 			blocksProgram.begin();
 			
 			glUniformMatrix4(projectionMatrixUniform, false, camera.getProjectionMatrix().toBuffer());
@@ -533,8 +504,6 @@ public class WorldRenderer {
 			
 			normalMatrix.set(viewMatrix).inverse().transpose();
 			glUniformMatrix3(normalMatrixUniform, false, normalMatrix.toBuffer());
-			
-			// resetAtomicCounter();
 			
 			GLUtils.glBindVertexArray(chunkVAO);
 			glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_SHORT, 0, chunksRendered, 0);
@@ -544,21 +513,24 @@ public class WorldRenderer {
 		
 		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
 		
-		// readAtomicCounter();
-		
-		// {
-		// glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-		// glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		//
-		// deferredProgram.begin();
-		// glUniform2f(resolutionUniform, GLUtils.getWidth(), GLUtils.getHeight());
-		//
-		// final float mainK = 0.00001f;
-		// lightSystem.renderLights(mainDiffuseColor, mainK, mainAmbientColor, viewMatrix, bulletRenderer);
-		//
-		// GLUtils.glBindVertexArray(deferredVAO);
-		// glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-		// }
+		{
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+			
+			glClearColor(0.4f, 0.6f, 0.9f, 0f);
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			
+			glEnable(GL_BLEND);
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			
+			deferredProgram.begin();
+			glUniform2f(resolutionUniform, GLUtils.getWidth(), GLUtils.getHeight());
+			
+			final float mainK = 0.00001f;
+			lightSystem.renderLights(mainDiffuseColor, mainK, mainAmbientColor, viewMatrix, bulletRenderer);
+			
+			GLUtils.glBindVertexArray(deferredVAO);
+			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+		}
 		
 		Stopwatch.stop();
 		
@@ -571,52 +543,6 @@ public class WorldRenderer {
 		glEnable(GL_DEPTH_TEST);
 		
 		Stopwatch.stop();
-	}
-	
-	// private static final IntBuffer zeroData = (IntBuffer)BufferUtils.createIntBuffer(1).put(0).flip();
-	//
-	// private void resetAtomicCounter() {
-	// glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, atomicCounterVBO);
-	// glBufferSubData(GL_ATOMIC_COUNTER_BUFFER, 0, zeroData);
-	// glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, 0);
-	// }
-	//
-	// private void readAtomicCounter() {
-	// glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, atomicCounterVBO);
-	// ByteBuffer buffer = glMapBuffer(GL_ATOMIC_COUNTER_BUFFER, GL_READ_ONLY, 4, null);
-	//
-	// if(buffer == null)
-	// Utils.checkGLError("atomic");
-	//
-	// System.out.println(buffer.getInt());
-	// glUnmapBuffer(GL_ATOMIC_COUNTER_BUFFER);
-	// glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, 0);
-	// }
-	
-	// private void readTextures() {
-	// int pbo = glGenBuffers();
-	// // glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo);
-	// // glBufferData(GL_PIXEL_PACK_BUFFER, GLUtils.getWidth() * GLUtils.getHeight() * 3, GL_STREAM_READ);
-	//
-	// FloatBuffer buffer = BufferUtils.createFloatBuffer(GLUtils.getWidth() * GLUtils.getHeight() * 3);
-	//
-	// glBindFramebuffer(GL_READ_FRAMEBUFFER, deferredFBO);
-	// glReadBuffer(GL_COLOR_ATTACHMENT0);
-	// glReadPixels(0, 0, GLUtils.getWidth(), GLUtils.getHeight(), GL_RGB, GL_FLOAT, buffer);
-	//
-	// printBuffer("camera_positions_texture.txt", buffer);
-	//
-	// System.exit(0);
-	// }
-	
-	private void printBuffer(String file, FloatBuffer buffer) {
-		try(PrintWriter out = new PrintWriter(new FileWriter(file))) {
-			while(buffer.hasRemaining()) {
-				out.printf("(%.1f,%.1f,%.1f)\n", buffer.get(), buffer.get(), buffer.get());
-			}
-		} catch(Exception exc) {
-			exc.printStackTrace();
-		}
 	}
 	
 	public static class DrawElementsIndirectCommand {
