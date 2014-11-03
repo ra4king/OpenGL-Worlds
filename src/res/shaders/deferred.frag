@@ -17,7 +17,7 @@ struct PointLight {
 	float k;
 };
 
-#define MAX_LIGHTS 100
+#define MAX_LIGHTS 200
 
 layout(std140) uniform Lights {
 	vec3 ambientLight;
@@ -28,23 +28,15 @@ layout(std140) uniform Lights {
 out vec4 fragColor;
 
 const float fogRange = -1.0 / 200.0;
+const float specularExponent = 0.01;
 
 vec3 calculateLight(vec3 color, float k, vec3 normal, vec3 lightDistance) {
 	vec3 lightDirection = normalize(lightDistance);
 	float cos = clamp(dot(normal, lightDirection), 0, 1);
-	float dot = dot(lightDistance, lightDistance);
-	float atten = 1.0 / (1.0 + k * dot);
+	float lightDot = dot(lightDistance, lightDistance);
+	float atten = 1.0 / (1.0 + k * lightDot);
 	
-	//vec3 viewDirection = normalize(-cameraSpacePosition);
-	//vec3 halfAngle = normalize(lightDirection + viewDirection);
-	//float angleNormalHalf = acos(dot(halfAngle, normal));
-	//float exponent = angleNormalHalf / specularExponent;
-	//exponent = -(exponent * exponent);
-	//float guassianTerm = exp(exponent);
-	
-	//guassianTerm = cos != 0.0 ? gaussianTerm : 0.0;
-	
-	return color * atten * cos;// * gaussianTerm;
+	return color * atten * cos;
 }
 
 void main() {
@@ -57,11 +49,6 @@ void main() {
 	
 	if(cameraSpacePosition == vec3(0.0)) {
 		discard;
-	}
-	
-	if(normal == vec3(0.0)) {
-		fragColor = vec4(1, 0, 0, 1);
-		return;
 	}
 	
 	vec3 totalLight = ambientLight;
@@ -82,7 +69,8 @@ void main() {
 	float redWave = clamp(2.0 * sin(cameraSpacePosition.x + cameraSpacePosition.y) - 1.0, 0.0, 1.0);
 	float greenWave = clamp(2.0 * sin(cameraSpacePosition.x + cameraSpacePosition.z) - 1.0, 0.0, 1.0);
 	float blueWave = clamp(2.0 * sin(cameraSpacePosition.y + cameraSpacePosition.z) - 1.0, 0.0, 1.0);
-	#elif SINE_WAVE
+	#endif
+	#ifdef SINE_WAVE
 	float sineWave = clamp(2.0 * sin(cameraSpacePosition.x + cameraSpacePosition.y) - 1.0, 0.0, 1.0);
 	#endif
 	
@@ -91,7 +79,8 @@ void main() {
 	fragColor = pow(vec4(texture(cubeTexture, texCoord).rgb * totalLight * fog
 		#ifdef RGB_WAVE
 		* vec3(redWave, greenWave, blueWave)
-		#elif SINE_WAVE
+		#endif
+		#ifdef SINE_WAVE
 		vec3(sineWave, sineWave, sineWave)
 		#endif
 		, 1), gamma);

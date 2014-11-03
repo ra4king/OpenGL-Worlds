@@ -74,7 +74,7 @@ public class WorldRenderer {
 	
 	static {
 		if(GLUtils.GL_VERSION >= 31) {
-			MAX_NUM_LIGHTS = 100;
+			MAX_NUM_LIGHTS = 200;
 		} else {
 			MAX_NUM_LIGHTS = 50;
 		}
