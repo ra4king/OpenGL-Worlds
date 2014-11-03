@@ -1,12 +1,8 @@
 package com.ra4king.fps.renderers;
 
-import static org.lwjgl.opengl.GL15.*;
-import static org.lwjgl.opengl.GL30.*;
-
 import java.nio.ByteBuffer;
 
 import org.lwjgl.BufferUtils;
-import org.lwjgl.opengl.OpenGLException;
 
 import com.ra4king.fps.renderers.WorldRenderer.DrawElementsIndirectCommand;
 import com.ra4king.fps.world.Chunk;
@@ -14,14 +10,14 @@ import com.ra4king.fps.world.Chunk.Block;
 import com.ra4king.fps.world.Chunk.BlockType;
 import com.ra4king.fps.world.Chunk.ChunkModifiedCallback;
 import com.ra4king.opengl.util.Stopwatch;
-import com.ra4king.opengl.util.Utils;
+import com.ra4king.opengl.util.buffers.GLBuffer;
 
 import net.indiespot.struct.cp.Struct;
 import net.indiespot.struct.cp.TakeStruct;
 
 public class ChunkRenderer implements ChunkModifiedCallback {
 	private Chunk chunk;
-	private int dataVBO;
+	private GLBuffer glBuffer;
 	private int chunkNumOffset;
 	
 	private ByteBuffer buffer;
@@ -32,9 +28,9 @@ public class ChunkRenderer implements ChunkModifiedCallback {
 	
 	public static final int CHUNK_DATA_SIZE = Chunk.TOTAL_CUBES * Struct.sizeof(Block.class);
 
-	public ChunkRenderer(Chunk chunk, int dataVBO, int chunkNumOffset) {
+	public ChunkRenderer(Chunk chunk, GLBuffer glBuffer, int chunkNumOffset) {
 		this.chunk = chunk;
-		this.dataVBO = dataVBO;
+		this.glBuffer = glBuffer;
 		this.chunkNumOffset = chunkNumOffset;
 		
 		buffer = BufferUtils.createByteBuffer(CHUNK_DATA_SIZE);
@@ -115,20 +111,24 @@ public class ChunkRenderer implements ChunkModifiedCallback {
 		
 		final int DATA_SIZE = blockCount * Struct.sizeof(Block.class);
 		
-		glBindBuffer(GL_ARRAY_BUFFER, dataVBO);
-		ByteBuffer mappedBuffer = glMapBufferRange(GL_ARRAY_BUFFER, chunkNumOffset * CHUNK_DATA_SIZE, DATA_SIZE,
-				GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT | GL_MAP_UNSYNCHRONIZED_BIT, null);
-		if(mappedBuffer == null) {
-			Utils.checkGLError("chunk mapped buffer, offset: " + chunkNumOffset + ", data size: " + DATA_SIZE);
-			throw new OpenGLException("mappedBuffer == null ... no GL error?!");
-		}
+		// glBindBuffer(GL_ARRAY_BUFFER, dataVBO);
+		// ByteBuffer mappedBuffer = glMapBufferRange(GL_ARRAY_BUFFER, chunkNumOffset * CHUNK_DATA_SIZE, DATA_SIZE,
+		// GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_RANGE_BIT | GL_MAP_UNSYNCHRONIZED_BIT, null);
+		// if(mappedBuffer == null) {
+		// Utils.checkGLError("chunk mapped buffer, offset: " + chunkNumOffset + ", data size: " + DATA_SIZE);
+		// throw new OpenGLException("mappedBuffer == null ... no GL error?!");
+		// }
 		
+		ByteBuffer uploadBuffer = glBuffer.bind(chunkNumOffset * CHUNK_DATA_SIZE, DATA_SIZE);
 		buffer.position(0).limit(DATA_SIZE);
-		mappedBuffer.put(buffer);
+		uploadBuffer.put(buffer);
+		glBuffer.unbind();
 		
-		glUnmapBuffer(GL_ARRAY_BUFFER);
+		// mappedBuffer.put(buffer);
 		
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
+		// glUnmapBuffer(GL_ARRAY_BUFFER);
+		
+		// glBindBuffer(GL_ARRAY_BUFFER, 0);
 		
 		Stopwatch.stop();
 	}

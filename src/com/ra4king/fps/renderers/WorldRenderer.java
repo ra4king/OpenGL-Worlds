@@ -37,6 +37,7 @@ import com.ra4king.opengl.util.PNGDecoder.Format;
 import com.ra4king.opengl.util.ShaderProgram;
 import com.ra4king.opengl.util.Stopwatch;
 import com.ra4king.opengl.util.Utils;
+import com.ra4king.opengl.util.buffers.BufferStorage;
 import com.ra4king.opengl.util.math.Matrix3;
 import com.ra4king.opengl.util.math.Matrix4;
 import com.ra4king.opengl.util.math.MatrixStack;
@@ -66,6 +67,7 @@ public class WorldRenderer {
 	
 	private int chunkVAO, cubeVBO, indicesVBO, commandsVBO;
 	private ChunkRenderer[] chunkRenderers;
+	private BufferStorage chunkBuffer;
 	
 	private BulletRenderer bulletRenderer;
 	private LightSystem lightSystem;
@@ -291,9 +293,11 @@ public class WorldRenderer {
 		glEnableVertexAttribArray(2);
 		glVertexAttribPointer(2, 2, GL_FLOAT, false, (2 * 3 + 2) * 4, 2 * 3 * 4);
 		
-		int dataVBO = glGenBuffers();
-		glBindBuffer(GL_ARRAY_BUFFER, dataVBO);
-		glBufferData(GL_ARRAY_BUFFER, DATA_VBO_SIZE, GL_STREAM_DRAW);
+		// int dataVBO = glGenBuffers();
+		// glBindBuffer(GL_ARRAY_BUFFER, dataVBO);
+		// glBufferData(GL_ARRAY_BUFFER, DATA_VBO_SIZE, GL_STREAM_DRAW);
+		
+		chunkBuffer = new BufferStorage(GL_ARRAY_BUFFER, DATA_VBO_SIZE, true, 1);
 		
 		glEnableVertexAttribArray(3);
 		glVertexAttribPointer(3, 3, GL_UNSIGNED_INT, false, 4 * 4, 0);
@@ -311,7 +315,7 @@ public class WorldRenderer {
 		Chunk[] chunks = world.getChunkManager().getChunks();
 		chunkRenderers = new ChunkRenderer[chunks.length];
 		for(int i = 0; i < chunkRenderers.length; i++) {
-			chunkRenderers[i] = new ChunkRenderer(chunks[i], dataVBO, i);
+			chunkRenderers[i] = new ChunkRenderer(chunks[i], chunkBuffer, i);
 		}
 	}
 	

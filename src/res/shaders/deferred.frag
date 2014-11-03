@@ -86,16 +86,16 @@ void main() {
 	float redWave = clamp(2.0 * sin(cameraSpacePosition.x + cameraSpacePosition.y) - 1.0, 0.0, 1.0);
 	float greenWave = clamp(2.0 * sin(cameraSpacePosition.x + cameraSpacePosition.z) - 1.0, 0.0, 1.0);
 	float blueWave = clamp(2.0 * sin(cameraSpacePosition.y + cameraSpacePosition.z) - 1.0, 0.0, 1.0);
-	#else
+	#elif SINE_WAVE
 	float sineWave = clamp(2.0 * sin(cameraSpacePosition.x + cameraSpacePosition.y) - 1.0, 0.0, 1.0);
 	#endif
 	
 	vec4 gamma = vec4(1.0 / 2.2);
 	gamma.w = 1;
-	fragColor = pow(vec4(texture(cubeTexture, texCoord).rgb * totalLight * fog *
+	fragColor = pow(vec4(texture(cubeTexture, texCoord).rgb * totalLight * fog
 		#ifdef RGB_WAVE
-		vec3(redWave, greenWave, blueWave)
-		#else
+		* vec3(redWave, greenWave, blueWave)
+		#elif SINE_WAVE
 		vec3(sineWave, sineWave, sineWave)
 		#endif
 		, 1), gamma);
