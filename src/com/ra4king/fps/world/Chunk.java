@@ -45,7 +45,7 @@ public class Chunk {
 			int y = rem / CHUNK_CUBE_WIDTH;
 			int z = i / (CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT);
 			
-			blocks[i] = callback.chunkAdd(x, y, z, BlockType.AIR);
+			blocks[i] = callback.chunkInit(x, y, z, BlockType.AIR);
 		}
 	}
 	
@@ -79,6 +79,13 @@ public class Chunk {
 	}
 	
 	public int posToArrayIndex(int x, int y, int z) {
+		if(!containsBlock(x, y, z))
+			throw new IllegalArgumentException("Invalid coords.");
+		
+		x %= CHUNK_CUBE_WIDTH;
+		y %= CHUNK_CUBE_HEIGHT;
+		z %= CHUNK_CUBE_DEPTH;
+		
 		return z * CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT + y * CHUNK_CUBE_WIDTH + x;
 	}
 	
@@ -87,62 +94,116 @@ public class Chunk {
 	}
 	
 	public boolean isValidPos(int x, int y, int z) {
-		return !(x < 0 || x >= CHUNK_CUBE_WIDTH || y < 0 || y >= CHUNK_CUBE_HEIGHT || z < 0 || z >= CHUNK_CUBE_DEPTH);
+		return x >= cornerX && x < cornerX + CHUNK_CUBE_WIDTH && y >= cornerY && y < cornerY + CHUNK_CUBE_HEIGHT && z >= cornerZ && z < cornerZ + CHUNK_CUBE_DEPTH;
 	}
 	
 	@TakeStruct
 	public Block get(int x, int y, int z) {
-		if(!isValidPos(x, y, z))
+		if(!isValidPos(x, y, z)) {
 			return Struct.typedNull(Block.class);
+		}
 		
 		return blocks[posToArrayIndex(x, y, z)];
+	}
+	
+	@TakeStruct
+	public Block[] getNeighbors(int x, int y, int z) {
+		Block[] neighbors = new Block[6];
+		int idx = 0;
+		
+		for(int a = -1; a < 2; a++) {
+			if(a == 0)
+				continue;
+			
+			Block block = get(x + a, y, z);
+			if(block != Struct.typedNull(Block.class)) {
+				neighbors[idx++] = block;
+			}
+		}
+		
+		for(int b = -1; b < 2; b++) {
+			if(b == 0)
+				continue;
+			
+			Block block = get(x, y + b, z);
+			if(block != Struct.typedNull(Block.class)) {
+				neighbors[idx++] = block;
+			}
+		}
+		
+		for(int c = -1; c < 2; c++) {
+			if(c == 0)
+				continue;
+			
+			Block block = get(x, y, z + c);
+			if(block != Struct.typedNull(Block.class)) {
+				neighbors[idx++] = block;
+			}
+		}
+		
+		return neighbors;
+	}
+	
+	@TakeStruct
+	public Block[] getNeighbors(Block b) {
+		return getNeighbors(b.getX() % Chunk.CHUNK_CUBE_WIDTH, b.getY() % Chunk.CHUNK_CUBE_HEIGHT, b.getZ() % Chunk.CHUNK_CUBE_DEPTH);
 	}
 	
 	public Block[] getBlocks() {
 		return blocks;
 	}
 	
-	public void set(BlockType block, int x, int y, int z) {
-		if(!isValidPos(x, y, z))
+	public void set(BlockType blockType, int x, int y, int z) {
+		if(!isValidPos(x, y, z)) {
 			throw new IllegalArgumentException("Invalid block position.");
+		}
 		
 		int i = posToArrayIndex(x, y, z);
 		
-		if(blocks[i].type == block.ordinal()) {
+		Block block = blocks[i];
+		
+		if(block.getType() == blockType) {
 			return;
 		}
 		
-		if(blocks[i] == Struct.typedNull(Block.class)) {
-			blocks[i] = callback.chunkAdd(x, y, z, block);
+		if(block == Struct.typedNull(Block.class)) {
+			// blocks[i] = callback.chunkInit(x, y, z, blockType);
+			// All blocks must be initialized, this shouldn't happen
+			throw new IllegalStateException(String.format("Block at (%d,%d,%d) is null!", x, y, z));
 		}
 		
-		if(block != BlockType.AIR) {
-			if(blocks[i].type == BlockType.AIR.ordinal())
-				cubeCount++;
-		}
-		else if(block.ordinal() != blocks[i].type) {
+		if(blockType != BlockType.AIR) {
+			if(block.getType() == BlockType.AIR) {
+				cubeCount++; // Air -> Not Air
+			}
+			
+			block.setType(blockType);
+			if(callback != null)
+				callback.chunkModified(block);
+		} else if(blockType != block.getType()) { // Not Air -> Air
+			block.setType(blockType);
+			if(callback != null)
+				callback.chunkRemoved(block);
 			cubeCount--;
 		}
-		
-		blocks[i].type = block.ordinal();
-		
-		callback.chunkModified();
 	}
 	
 	public void clearAll() {
 		for(int x = 0; x < CHUNK_CUBE_WIDTH; x++) {
 			for(int y = 0; y < CHUNK_CUBE_HEIGHT; y++) {
 				for(int z = 0; z < CHUNK_CUBE_DEPTH; z++) {
-					set(BlockType.AIR, x, y, z);
+					set(BlockType.AIR, cornerX + x, cornerY + y, cornerZ + z);
 				}
 			}
 		}
 	}
 	
 	public static interface ChunkModifiedCallback {
-		Block chunkAdd(int x, int y, int z, BlockType block);
+		Block chunkInit(int x, int y, int z, BlockType block);
 		
-		void chunkModified();
+		void chunkRemoved(Block block);
+		
+		void chunkModified(Block block);
 	}
 	
 	public static enum BlockType {

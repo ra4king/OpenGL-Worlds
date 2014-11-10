@@ -57,6 +57,13 @@ public class ChunkManager {
 		return chunks;
 	}
 	
+	public Chunk getChunk(int x, int y, int z) {
+		int pos = posToArrayIndex(x, y, z);
+		if(pos < 0 || pos >= chunks.length)
+			return null;
+		return chunks[pos];
+	}
+	
 	private final Vector3 temp = new Vector3();
 	
 	@TakeStruct
@@ -64,11 +71,6 @@ public class ChunkManager {
 		int px = Math.round(v.x() / Chunk.SPACING);
 		int py = Math.round(v.y() / Chunk.SPACING);
 		int pz = Math.round(-v.z() / Chunk.SPACING);
-		
-		// if(px < -1 || px > CHUNKS_SIDE_X * Chunk.CHUNK_CUBE_WIDTH ||
-		// py < -1 || py > CHUNKS_SIDE_Y * Chunk.CHUNK_CUBE_HEIGHT ||
-		// pz < -1 || pz > CHUNKS_SIDE_Z * Chunk.CHUNK_CUBE_DEPTH)
-		// return Struct.typedNull(Block.class);
 		
 		float lowestDistance = Float.MAX_VALUE;
 		Block closestBlock = Struct.typedNull(Block.class);
@@ -102,25 +104,24 @@ public class ChunkManager {
 	
 	@TakeStruct
 	public Block[] getBlocks(Vector3 v, float radius) {
+		// Get approximate index (x,y,z) coordinate
 		int px = Math.round(v.x() / Chunk.SPACING);
 		int py = Math.round(v.y() / Chunk.SPACING);
 		int pz = Math.round(-v.z() / Chunk.SPACING);
 		
-		// if(px < -1 || px > CHUNKS_SIDE_X * Chunk.CHUNK_CUBE_WIDTH ||
-		// py < -1 || py > CHUNKS_SIDE_Y * Chunk.CHUNK_CUBE_HEIGHT ||
-		// pz < -1 || pz > CHUNKS_SIDE_Z * Chunk.CHUNK_CUBE_DEPTH)
-		// return Struct.emptyArray(Block.class, 0);
-		
 		final float halfSpacing = Chunk.SPACING * 0.5f;
 		
+		// How many cubes fit in radius
 		final int count = (int)Math.ceil(radius / Chunk.SPACING);
 		
-		float dist = Chunk.CUBE_SIZE * 0.5f + radius;
-		dist *= dist;
+		// (half cube + radius)^s = distSqr^2
+		float distSqr = Chunk.CUBE_SIZE * 0.5f + radius;
+		distSqr *= distSqr;
 		
 		Block[] blocks = Struct.emptyArray(Block.class, 100);
 		int size = 0;
 		
+		// Test against -count.xyz to +count.xyz offset from the p.xyz index
 		for(int a = -count; a <= count; a++) {
 			for(int b = -count; b <= count; b++) {
 				for(int c = -count; c <= count; c++) {
@@ -129,10 +130,12 @@ public class ChunkManager {
 					if(block == null || block.getType() == BlockType.AIR)
 						continue;
 					
-					float len = temp.set(px + a, py + b, -(pz + c)).mult(Chunk.SPACING).add(halfSpacing, halfSpacing, -halfSpacing).sub(v).lengthSquared();
+					// Length squared of ((px,py,pz)+(a,b,c) - v)
+					float lenSqr = temp.set(px + a, py + b, -(pz + c)).mult(Chunk.SPACING).add(halfSpacing, halfSpacing, -halfSpacing).sub(v).lengthSquared();
 					
-					if(len <= dist) {
+					if(lenSqr <= distSqr) {
 						if(size >= blocks.length) {
+							System.out.println("Resized " + size + "!");
 							Block[] temp = Struct.emptyArray(Block.class, blocks.length * 2);
 							System.arraycopy(blocks, 0, temp, 0, blocks.length);
 							blocks = temp;
@@ -160,7 +163,7 @@ public class ChunkManager {
 			return Struct.typedNull(Block.class);
 		
 		Chunk chunk = chunks[i];
-		return chunk.get(x % Chunk.CHUNK_CUBE_WIDTH, y % Chunk.CHUNK_CUBE_HEIGHT, z % Chunk.CHUNK_CUBE_DEPTH);
+		return chunk.get(x, y, z);
 	}
 	
 	public void setBlock(BlockType type, Block block) {
@@ -173,7 +176,7 @@ public class ChunkManager {
 			throw new IllegalArgumentException("Invalid cube position (" + x + "," + y + "," + z + ").");
 		
 		Chunk chunk = chunks[i];
-		chunk.set(type, x % Chunk.CHUNK_CUBE_WIDTH, y % Chunk.CHUNK_CUBE_HEIGHT, z % Chunk.CHUNK_CUBE_DEPTH);
+		chunk.set(type, x, y, z);
 	}
 	
 	public void update(long deltaTime) {
