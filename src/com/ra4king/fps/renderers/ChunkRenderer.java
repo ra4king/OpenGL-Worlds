@@ -30,7 +30,7 @@ public class ChunkRenderer implements ChunkModifiedCallback {
 	
 	private boolean chunkModified = true;
 	
-	public static final int CHUNK_DATA_SIZE = Chunk.TOTAL_CUBES * Struct.sizeof(Block.class);
+	public static final int CHUNK_DATA_SIZE = Chunk.TOTAL_BLOCKS * Struct.sizeof(Block.class);
 	
 	public ChunkRenderer(Chunk chunk, GLBuffer glBuffer, int chunkNumOffset) {
 		this.chunk = chunk;
@@ -53,7 +53,7 @@ public class ChunkRenderer implements ChunkModifiedCallback {
 	public Block chunkInit(int x, int y, int z, BlockType type) {
 		chunkModified = true;
 		
-		if(blockCount >= Chunk.TOTAL_CUBES) {
+		if(blockCount >= Chunk.TOTAL_BLOCKS) {
 			throw new IllegalArgumentException("Already initialized all Blocks.");
 		}
 		
@@ -170,6 +170,12 @@ public class ChunkRenderer implements ChunkModifiedCallback {
 	// return -1;
 	// }
 	
+	private boolean isBlockOnChunkSurface(Block b) {
+		return b.getX() == chunk.getCornerX() || b.getX() == chunk.getCornerX() + Chunk.CHUNK_BLOCK_WIDTH - 1 ||
+				b.getY() == chunk.getCornerY() || b.getY() == chunk.getCornerY() + Chunk.CHUNK_BLOCK_HEIGHT - 1 ||
+				b.getZ() == chunk.getCornerZ() || b.getZ() == chunk.getCornerZ() + Chunk.CHUNK_BLOCK_DEPTH - 1;
+	}
+	
 	private void updateCompactArray() {
 		Stopwatch.start("Loop 1");
 		for(int a = compact.length - 1; a >= blockCount; a--) {
@@ -180,8 +186,10 @@ public class ChunkRenderer implements ChunkModifiedCallback {
 					Struct.swap(Block.class, src, dest);
 					
 					Block[] blocks = chunk.getBlocks();
-					blocks[chunk.posToArrayIndex(src.getX(), src.getY(), src.getZ())] = src;
-					blocks[chunk.posToArrayIndex(dest.getX(), dest.getY(), dest.getZ())] = dest;
+					blocks[chunk.posToArrayIndex(src)] = src;
+					blocks[chunk.posToArrayIndex(dest)] = dest;
+					
+					testForSurface(dest);
 				} else {
 					blockCount++;
 				}
@@ -200,12 +208,43 @@ public class ChunkRenderer implements ChunkModifiedCallback {
 					Block[] blocks = chunk.getBlocks();
 					blocks[chunk.posToArrayIndex(src.getX(), src.getY(), src.getZ())] = src;
 					blocks[chunk.posToArrayIndex(dest.getX(), dest.getY(), dest.getZ())] = dest;
+					
+					testForSurface(dest);
 				} else {
 					blockCount--;
 				}
 			}
 		}
 		Stopwatch.stop();
+	}
+	
+	private void testForSurface(Block block) {
+		Chunk neighbor;
+		if(block.getX() == chunk.getCornerX()) {
+			neighbor = chunk.getChunkManager().getChunkContaining(chunk.getCornerX() - 1, chunk.getCornerY(), chunk.getCornerZ());
+			if(neighbor != null)
+				neighbor.getCallback().chunkModified(block);
+		} else if(block.getX() == chunk.getCornerX() + Chunk.CHUNK_BLOCK_WIDTH - 1) {
+			neighbor = chunk.getChunkManager().getChunkContaining(chunk.getCornerX() + 1, chunk.getCornerY(), chunk.getCornerZ());
+			if(neighbor != null)
+				neighbor.getCallback().chunkModified(block);
+		} else if(block.getY() == chunk.getCornerY()) {
+			neighbor = chunk.getChunkManager().getChunkContaining(chunk.getCornerX(), chunk.getCornerY() - 1, chunk.getCornerZ());
+			if(neighbor != null)
+				neighbor.getCallback().chunkModified(block);
+		} else if(block.getY() == chunk.getCornerY() + Chunk.CHUNK_BLOCK_HEIGHT - 1) {
+			neighbor = chunk.getChunkManager().getChunkContaining(chunk.getCornerX(), chunk.getCornerY() + 1, chunk.getCornerZ());
+			if(neighbor != null)
+				neighbor.getCallback().chunkModified(block);
+		} else if(block.getZ() == chunk.getCornerZ()) {
+			neighbor = chunk.getChunkManager().getChunkContaining(chunk.getCornerX(), chunk.getCornerY(), chunk.getCornerZ() - 1);
+			if(neighbor != null)
+				neighbor.getCallback().chunkModified(block);
+		} else if(block.getZ() == chunk.getCornerZ() + Chunk.CHUNK_BLOCK_DEPTH - 1) {
+			neighbor = chunk.getChunkManager().getChunkContaining(chunk.getCornerX(), chunk.getCornerY(), chunk.getCornerZ() + 1);
+			if(neighbor != null)
+				neighbor.getCallback().chunkModified(block);
+		}
 	}
 	
 	private void updateVBO(GLSync memoryFence) {
@@ -260,7 +299,7 @@ public class ChunkRenderer implements ChunkModifiedCallback {
 		}
 		
 		command.instanceCount = blockCount;
-		command.baseInstance = chunkNumOffset * Chunk.TOTAL_CUBES;
+		command.baseInstance = chunkNumOffset * Chunk.TOTAL_BLOCKS;
 		
 		return true;
 	}

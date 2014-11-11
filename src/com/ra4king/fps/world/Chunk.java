@@ -9,11 +9,11 @@ import net.indiespot.struct.cp.TakeStruct;
  * @author Roi Atalla
  */
 public class Chunk {
-	public static final int CHUNK_CUBE_WIDTH = 32, CHUNK_CUBE_HEIGHT = 32, CHUNK_CUBE_DEPTH = 32;
-	public static final int TOTAL_CUBES = Chunk.CHUNK_CUBE_WIDTH * Chunk.CHUNK_CUBE_HEIGHT * Chunk.CHUNK_CUBE_DEPTH;
+	public static final int CHUNK_BLOCK_WIDTH = 32, CHUNK_BLOCK_HEIGHT = 32, CHUNK_BLOCK_DEPTH = 32;
+	public static final int TOTAL_BLOCKS = Chunk.CHUNK_BLOCK_WIDTH * Chunk.CHUNK_BLOCK_HEIGHT * Chunk.CHUNK_BLOCK_DEPTH;
 	
-	public static final float CUBE_SIZE = 2;
-	public static final float SPACING = CUBE_SIZE; // cannot be less than CUBE_SIZE
+	public static final float BLOCK_SIZE = 2;
+	public static final float SPACING = BLOCK_SIZE; // cannot be less than BLOCK_SIZE
 	
 	private ChunkModifiedCallback callback;
 	
@@ -22,7 +22,7 @@ public class Chunk {
 	// z * width * height + y * width + x
 	private final Block[] blocks; // structured array
 	
-	private int cubeCount;
+	private int blockCount;
 	
 	private ChunkManager manager;
 	
@@ -33,17 +33,17 @@ public class Chunk {
 		this.cornerY = cornerY;
 		this.cornerZ = cornerZ;
 		
-		blocks = Struct.emptyArray(Block.class, CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT * CHUNK_CUBE_DEPTH);
+		blocks = Struct.emptyArray(Block.class, CHUNK_BLOCK_WIDTH * CHUNK_BLOCK_HEIGHT * CHUNK_BLOCK_DEPTH);
 	}
 	
 	private void setupBlocks() {
-		cubeCount = blocks.length;
+		blockCount = blocks.length;
 		
-		for(int i = 0; i < cubeCount; i++) {
-			int rem = i % (CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT);
-			int x = rem % CHUNK_CUBE_WIDTH;
-			int y = rem / CHUNK_CUBE_WIDTH;
-			int z = i / (CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT);
+		for(int i = 0; i < blockCount; i++) {
+			int rem = i % (CHUNK_BLOCK_WIDTH * CHUNK_BLOCK_HEIGHT);
+			int x = rem % CHUNK_BLOCK_WIDTH;
+			int y = rem / CHUNK_BLOCK_WIDTH;
+			int z = i / (CHUNK_BLOCK_WIDTH * CHUNK_BLOCK_HEIGHT);
 			
 			blocks[i] = callback.chunkInit(x, y, z, BlockType.AIR);
 		}
@@ -52,6 +52,10 @@ public class Chunk {
 	public void setCallback(ChunkModifiedCallback callback) {
 		this.callback = callback;
 		setupBlocks();
+	}
+	
+	public ChunkModifiedCallback getCallback() {
+		return callback;
 	}
 	
 	public ChunkManager getChunkManager() {
@@ -75,26 +79,36 @@ public class Chunk {
 	}
 	
 	public boolean containsBlock(int x, int y, int z) {
-		return cornerEquals((x / CHUNK_CUBE_WIDTH) * CHUNK_CUBE_WIDTH, (y / CHUNK_CUBE_HEIGHT) * CHUNK_CUBE_HEIGHT, (z / CHUNK_CUBE_DEPTH) * CHUNK_CUBE_DEPTH);
+		return x >= cornerX && x < cornerX + CHUNK_BLOCK_WIDTH &&
+				y >= cornerY && y < cornerY + CHUNK_BLOCK_HEIGHT &&
+				z >= cornerZ && z < cornerZ + CHUNK_BLOCK_DEPTH;
+	}
+	
+	public boolean containsBlock(Block block) {
+		return containsBlock(block.getX(), block.getY(), block.getZ());
 	}
 	
 	public int posToArrayIndex(int x, int y, int z) {
 		if(!containsBlock(x, y, z))
 			throw new IllegalArgumentException("Invalid coords.");
 		
-		x %= CHUNK_CUBE_WIDTH;
-		y %= CHUNK_CUBE_HEIGHT;
-		z %= CHUNK_CUBE_DEPTH;
+		x %= CHUNK_BLOCK_WIDTH;
+		y %= CHUNK_BLOCK_HEIGHT;
+		z %= CHUNK_BLOCK_DEPTH;
 		
-		return z * CHUNK_CUBE_WIDTH * CHUNK_CUBE_HEIGHT + y * CHUNK_CUBE_WIDTH + x;
+		return z * CHUNK_BLOCK_WIDTH * CHUNK_BLOCK_HEIGHT + y * CHUNK_BLOCK_WIDTH + x;
 	}
 	
-	public int getCubeCount() {
-		return cubeCount;
+	public int posToArrayIndex(Block block) {
+		return posToArrayIndex(block.getX(), block.getY(), block.getZ());
+	}
+	
+	public int getBlockCount() {
+		return blockCount;
 	}
 	
 	public boolean isValidPos(int x, int y, int z) {
-		return x >= cornerX && x < cornerX + CHUNK_CUBE_WIDTH && y >= cornerY && y < cornerY + CHUNK_CUBE_HEIGHT && z >= cornerZ && z < cornerZ + CHUNK_CUBE_DEPTH;
+		return x >= cornerX && x < cornerX + CHUNK_BLOCK_WIDTH && y >= cornerY && y < cornerY + CHUNK_BLOCK_HEIGHT && z >= cornerZ && z < cornerZ + CHUNK_BLOCK_DEPTH;
 	}
 	
 	@TakeStruct
@@ -146,7 +160,7 @@ public class Chunk {
 	
 	@TakeStruct
 	public Block[] getNeighbors(Block b) {
-		return getNeighbors(b.getX() % Chunk.CHUNK_CUBE_WIDTH, b.getY() % Chunk.CHUNK_CUBE_HEIGHT, b.getZ() % Chunk.CHUNK_CUBE_DEPTH);
+		return getNeighbors(b.getX() % Chunk.CHUNK_BLOCK_WIDTH, b.getY() % Chunk.CHUNK_BLOCK_HEIGHT, b.getZ() % Chunk.CHUNK_BLOCK_DEPTH);
 	}
 	
 	public Block[] getBlocks() {
@@ -174,24 +188,22 @@ public class Chunk {
 		
 		if(blockType != BlockType.AIR) {
 			if(block.getType() == BlockType.AIR) {
-				cubeCount++; // Air -> Not Air
+				blockCount++; // Air -> Not Air
 			}
 			
 			block.setType(blockType);
-			if(callback != null)
-				callback.chunkModified(block);
+			callback.chunkModified(block);
 		} else if(blockType != block.getType()) { // Not Air -> Air
 			block.setType(blockType);
-			if(callback != null)
-				callback.chunkRemoved(block);
-			cubeCount--;
+			callback.chunkRemoved(block);
+			blockCount--;
 		}
 	}
 	
 	public void clearAll() {
-		for(int x = 0; x < CHUNK_CUBE_WIDTH; x++) {
-			for(int y = 0; y < CHUNK_CUBE_HEIGHT; y++) {
-				for(int z = 0; z < CHUNK_CUBE_DEPTH; z++) {
+		for(int x = 0; x < CHUNK_BLOCK_WIDTH; x++) {
+			for(int y = 0; y < CHUNK_BLOCK_HEIGHT; y++) {
+				for(int z = 0; z < CHUNK_BLOCK_DEPTH; z++) {
 					set(BlockType.AIR, cornerX + x, cornerY + y, cornerZ + z);
 				}
 			}

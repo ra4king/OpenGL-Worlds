@@ -41,9 +41,9 @@ public class World implements CameraUpdate {
 	}
 	
 	public void generateRandomBlocks() {
-		NoiseGenerator generator = new NoiseGenerator(ChunkManager.CHUNKS_SIDE_X * Chunk.CHUNK_CUBE_WIDTH,
-				ChunkManager.CHUNKS_SIDE_Y * Chunk.CHUNK_CUBE_HEIGHT,
-				ChunkManager.CHUNKS_SIDE_Z * Chunk.CHUNK_CUBE_DEPTH);
+		NoiseGenerator generator = new NoiseGenerator(ChunkManager.CHUNKS_SIDE_X * Chunk.CHUNK_BLOCK_WIDTH,
+				ChunkManager.CHUNKS_SIDE_Y * Chunk.CHUNK_BLOCK_HEIGHT,
+				ChunkManager.CHUNKS_SIDE_Z * Chunk.CHUNK_BLOCK_DEPTH);
 		generator.generateBlocks();
 	}
 	

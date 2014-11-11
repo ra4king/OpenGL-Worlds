@@ -43,6 +43,7 @@ import com.ra4king.opengl.util.math.Matrix4;
 import com.ra4king.opengl.util.math.MatrixStack;
 import com.ra4king.opengl.util.math.Vector2;
 import com.ra4king.opengl.util.math.Vector3;
+import com.ra4king.opengl.util.math.Vector4;
 
 /**
  * @author Roi Atalla
@@ -64,6 +65,7 @@ public class WorldRenderer {
 	private FrustumCulling culling;
 	
 	private final int COMMANDS_BUFFER_SIZE;
+	private IntBuffer commandsBuffer;
 	
 	private int chunkVAO, cubeVBO, indicesVBO, commandsVBO;
 	private ChunkRenderer[] chunkRenderers;
@@ -71,6 +73,9 @@ public class WorldRenderer {
 	
 	private BulletRenderer bulletRenderer;
 	private LightSystem lightSystem;
+	
+	private PerformanceGraph performanceGraphRender;
+	private PerformanceGraph performanceGraphFPS;
 	
 	static {
 		if(GLUtils.GL_VERSION >= 31) {
@@ -106,11 +111,14 @@ public class WorldRenderer {
 		setupDeferredVAO();
 		
 		COMMANDS_BUFFER_SIZE = chunkRenderers.length * 5 * 4;
+		commandsBuffer = BufferUtils.createIntBuffer(COMMANDS_BUFFER_SIZE / 4);
 		
 		commandsVBO = glGenBuffers();
 		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandsVBO);
 		glBufferData(GL_DRAW_INDIRECT_BUFFER, COMMANDS_BUFFER_SIZE, GL_STREAM_DRAW);
 		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
+		
+		performanceGraphRender = new PerformanceGraph("Update Compact Array", 5, 100, 100, 100, 2, 100, new Vector4(1, 0, 0, 1));
 	}
 	
 	private void loadShaders() {
@@ -122,7 +130,7 @@ public class WorldRenderer {
 		normalMatrixUniform = blocksProgram.getUniformLocation("normalMatrix");
 		
 		blocksProgram.begin();
-		glUniform1f(blocksProgram.getUniformLocation("cubeSize"), Chunk.CUBE_SIZE);
+		glUniform1f(blocksProgram.getUniformLocation("cubeSize"), Chunk.BLOCK_SIZE);
 		blocksProgram.end();
 		
 		deferredProgram = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "shaders/deferred.vert")),
@@ -309,7 +317,7 @@ public class WorldRenderer {
 		
 		int texCoordsTexture = glGenTextures();
 		glBindTexture(GL_TEXTURE_2D, texCoordsTexture);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, GLUtils.getWidth(), GLUtils.getHeight(), 0, GL_RGB, GL_FLOAT, (ByteBuffer)null);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, GLUtils.getWidth(), GLUtils.getHeight(), 0, GL_RG, GL_FLOAT, (ByteBuffer)null);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -393,7 +401,7 @@ public class WorldRenderer {
 		
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 	}
-
+	
 	public void resized() {
 		setupDeferredFBO();
 	}
@@ -418,6 +426,8 @@ public class WorldRenderer {
 			
 			System.out.printf("Rendering %d chunks, %d cubes\n", lastChunksRendered, cubes);
 		}
+		
+		performanceGraphRender.update(deltaTime);
 	}
 	
 	private final Vector3 mainDiffuseColor = new Vector3(0.5f, 0.5f, 0.5f);
@@ -452,16 +462,6 @@ public class WorldRenderer {
 		// Setting up the 6 planes that define the edges of the frustum
 		culling.setupPlanes(cullingProjectionMatrix.set(camera.getProjectionMatrix()).mult(viewMatrix));
 		
-		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandsVBO);
-		ByteBuffer commandsMappedBuffer = glMapBufferRange(GL_DRAW_INDIRECT_BUFFER, 0, COMMANDS_BUFFER_SIZE,
-				GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_UNSYNCHRONIZED_BIT, null);
-		if(commandsMappedBuffer == null) {
-			Utils.checkGLError("commands mapped buffer");
-			throw new OpenGLException("commandsMappedBuffer == null ... no GL Error?");
-		}
-		
-		IntBuffer commandsBuffer = commandsMappedBuffer.asIntBuffer();
-		
 		Stopwatch.stop();
 		
 		Stopwatch.start("ChunkRenderers");
@@ -469,14 +469,16 @@ public class WorldRenderer {
 		int chunksRendered = 0;
 		float halfSpacing = Chunk.SPACING * 0.5f;
 		
+		commandsBuffer.clear();
+		
 		for(ChunkRenderer chunkRenderer : chunkRenderers) {
 			Chunk chunk = chunkRenderer.getChunk();
 			
 			if(culling.isRectPrismInsideFrustum(renderTemp.set(chunk.getCornerX(), chunk.getCornerY(), -chunk.getCornerZ())
 					.mult(Chunk.SPACING).sub(halfSpacing, halfSpacing, -halfSpacing),
-					Chunk.CHUNK_CUBE_WIDTH * Chunk.SPACING,
-					Chunk.CHUNK_CUBE_HEIGHT * Chunk.SPACING,
-					-Chunk.CHUNK_CUBE_DEPTH * Chunk.SPACING)) {
+					Chunk.CHUNK_BLOCK_WIDTH * Chunk.SPACING,
+					Chunk.CHUNK_BLOCK_HEIGHT * Chunk.SPACING,
+					-Chunk.CHUNK_BLOCK_DEPTH * Chunk.SPACING)) {
 				if(chunkRenderer.render(command, chunkRenderFence)) {
 					commandsBuffer.put(command.toBuffer());
 					
@@ -485,9 +487,12 @@ public class WorldRenderer {
 			}
 		}
 		
+		commandsBuffer.flip();
+		
 		lastChunksRendered = chunksRendered;
 		
-		glUnmapBuffer(GL_DRAW_INDIRECT_BUFFER);
+		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandsVBO);
+		glBufferSubData(GL_DRAW_INDIRECT_BUFFER, 0, commandsBuffer);
 		
 		{
 			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, deferredFBO);
@@ -496,7 +501,7 @@ public class WorldRenderer {
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			
 			glDisable(GL_BLEND);
-
+			
 			blocksProgram.begin();
 			
 			glUniformMatrix4(projectionMatrixUniform, false, camera.getProjectionMatrix().toBuffer());
@@ -543,6 +548,8 @@ public class WorldRenderer {
 		glEnable(GL_DEPTH_TEST);
 		
 		Stopwatch.stop();
+		
+		performanceGraphRender.render();
 	}
 	
 	public static class DrawElementsIndirectCommand {

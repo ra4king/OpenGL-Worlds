@@ -23,7 +23,7 @@ public class ChunkManager {
 		for(int x = 0; x < CHUNKS_SIDE_X; x++) {
 			for(int y = 0; y < CHUNKS_SIDE_Y; y++) {
 				for(int z = 0; z < CHUNKS_SIDE_Z; z++) {
-					chunks[posToArrayIndex(x, y, z)] = new Chunk(this, x * Chunk.CHUNK_CUBE_WIDTH, y * Chunk.CHUNK_CUBE_HEIGHT, z * Chunk.CHUNK_CUBE_DEPTH);
+					chunks[posToArrayIndex(x, y, z)] = new Chunk(this, x * Chunk.CHUNK_BLOCK_WIDTH, y * Chunk.CHUNK_BLOCK_HEIGHT, z * Chunk.CHUNK_BLOCK_DEPTH);
 				}
 			}
 		}
@@ -37,18 +37,18 @@ public class ChunkManager {
 	}
 	
 	private int posToArrayIndex(int x, int y, int z) {
+		if(x < 0 || x >= CHUNKS_SIDE_X ||
+				y < 0 || y >= CHUNKS_SIDE_Y ||
+				z < 0 || z >= CHUNKS_SIDE_Z)
+			return -1;
+		
 		return z * CHUNKS_SIDE_X * CHUNKS_SIDE_Y + y * CHUNKS_SIDE_X + x;
 	}
 	
-	private int cubePosToArrayIndex(int x, int y, int z) {
-		int ix = x / Chunk.CHUNK_CUBE_WIDTH;
-		int iy = y / Chunk.CHUNK_CUBE_HEIGHT;
-		int iz = z / Chunk.CHUNK_CUBE_DEPTH;
-		
-		if(ix < 0 || ix >= CHUNKS_SIDE_X ||
-				iy < 0 || iy >= CHUNKS_SIDE_Y ||
-				iz < 0 || iz >= CHUNKS_SIDE_Z)
-			return -1;
+	private int blockPosToArrayIndex(int x, int y, int z) {
+		int ix = x / Chunk.CHUNK_BLOCK_WIDTH;
+		int iy = y / Chunk.CHUNK_BLOCK_HEIGHT;
+		int iz = z / Chunk.CHUNK_BLOCK_DEPTH;
 		
 		return posToArrayIndex(ix, iy, iz);
 	}
@@ -57,9 +57,22 @@ public class ChunkManager {
 		return chunks;
 	}
 	
+	/**
+	 * In Chunk positions.
+	 */
 	public Chunk getChunk(int x, int y, int z) {
 		int pos = posToArrayIndex(x, y, z);
 		if(pos < 0 || pos >= chunks.length)
+			return null;
+		return chunks[pos];
+	}
+	
+	/**
+	 * In world block position.
+	 */
+	public Chunk getChunkContaining(int x, int y, int z) {
+		int pos = blockPosToArrayIndex(x, y, z);
+		if(pos == -1)
 			return null;
 		return chunks[pos];
 	}
@@ -97,7 +110,7 @@ public class ChunkManager {
 			}
 		}
 		
-		final float d = Chunk.CUBE_SIZE * 0.5f + radius;
+		final float d = Chunk.BLOCK_SIZE * 0.5f + radius;
 		
 		return lowestDistance <= d * d ? closestBlock : Struct.typedNull(Block.class);
 	}
@@ -115,10 +128,10 @@ public class ChunkManager {
 		final int count = (int)Math.ceil(radius / Chunk.SPACING);
 		
 		// (half cube + radius)^s = distSqr^2
-		float distSqr = Chunk.CUBE_SIZE * 0.5f + radius;
+		float distSqr = Chunk.BLOCK_SIZE * 0.5f + radius;
 		distSqr *= distSqr;
 		
-		Block[] blocks = Struct.emptyArray(Block.class, 100);
+		Block[] blocks = Struct.emptyArray(Block.class, 200);
 		int size = 0;
 		
 		// Test against -count.xyz to +count.xyz offset from the p.xyz index
@@ -158,7 +171,7 @@ public class ChunkManager {
 	
 	@TakeStruct
 	public Block getBlock(int x, int y, int z) {
-		int i = cubePosToArrayIndex(x, y, z);
+		int i = blockPosToArrayIndex(x, y, z);
 		if(i == -1)
 			return Struct.typedNull(Block.class);
 		
@@ -171,7 +184,7 @@ public class ChunkManager {
 	}
 	
 	public void setBlock(BlockType type, int x, int y, int z) {
-		int i = cubePosToArrayIndex(x, y, z);
+		int i = blockPosToArrayIndex(x, y, z);
 		if(i == -1)
 			throw new IllegalArgumentException("Invalid cube position (" + x + "," + y + "," + z + ").");
 		

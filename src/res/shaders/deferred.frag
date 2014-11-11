@@ -43,7 +43,7 @@ void main() {
 	vec2 tex = gl_FragCoord.xy / resolution;
 	
 	vec3 cameraSpacePosition = texture(cameraPositions, tex).xyz;
-	vec3 normal = (texture(normals, tex).xyz);
+	vec3 normal = normalize(texture(normals, tex).xyz);
 	vec2 texCoord = texture(texCoords, tex).st;
 	gl_FragDepth = texture(depth, tex).x;
 	
