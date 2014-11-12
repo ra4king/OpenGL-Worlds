@@ -52,9 +52,8 @@ public class ChunkRenderer implements ChunkModifiedCallback {
 		if(blockCount >= Chunk.TOTAL_BLOCKS) {
 			throw new IllegalArgumentException("Already initialized all Blocks.");
 		}
-		
-		Block b = compact[blockCount++].init(chunk, x, y, z, type);
-		return b;
+
+		return compact[blockCount++].init(chunk, x, y, z, type);
 	}
 	
 	@Override
@@ -65,111 +64,6 @@ public class ChunkRenderer implements ChunkModifiedCallback {
 	@Override
 	public void chunkModified(Block block) {
 		chunkModified = true;
-	}
-	
-	// private static Block[] updatedBlocks = Struct.emptyArray(Block.class, 100);
-	//
-	// private void updateBlocks(Block[] blocks, int count) {
-	// System.out.println("Update blocks: " + count);
-	//
-	// int updatedBlocksIndex = 0;
-	//
-	// int extras = 0;
-	//
-	// for(int a = 0; a < count; a++) {
-	// Block block = blocks[a];
-	//
-	// if(!arrayContains(updatedBlocks, updatedBlocksIndex, block)) {
-	// updateBlock(block);
-	// updatedBlocks = add(updatedBlocks, updatedBlocksIndex++, block);
-	// } else {
-	// extras++;
-	// }
-	//
-	// Block[] neighbors = chunk.getNeighbors(block);
-	// for(Block n : neighbors) {
-	// if(!arrayContains(updatedBlocks, updatedBlocksIndex, n)) {
-	// updateBlock(n);
-	// updatedBlocks = add(updatedBlocks, updatedBlocksIndex++, n);
-	// } else {
-	// extras++;
-	// }
-	// }
-	// }
-	//
-	// System.out.println("Updated changes: " + updatedBlocksIndex);
-	// System.out.println("Update extra blocks: " + extras);
-	// }
-	//
-	// private void updateBlock(Block b) {
-	// int idx = getBlockIndex(b);
-	//
-	// if(idx == -1) {
-	// throw new IllegalArgumentException(String.format("Invalid block: (%d,%d,%d) of type %s", b.getX(), b.getY(), b.getZ(), b.getType()));
-	// }
-	//
-	// if(idx >= blockCount && (b.getType() != BlockType.AIR && !b.isSurrounded(chunk))) {
-	// Block src = compact[blockCount++];
-	//
-	// if(src == b) {
-	// return;
-	// }
-	//
-	// Struct.swap(Block.class, src, b);
-	//
-	// Block[] chunkBlocks = chunk.getBlocks();
-	// chunkBlocks[chunk.posToArrayIndex(src.getX(), src.getY(), src.getZ())] = src;
-	// chunkBlocks[chunk.posToArrayIndex(b.getX(), b.getY(), b.getZ())] = b;
-	// } else if(idx < blockCount && (b.getType() == BlockType.AIR || b.isSurrounded(chunk))) {
-	// Block src = compact[--blockCount];
-	//
-	// if(src == b) {
-	// return;
-	// }
-	//
-	// Struct.swap(Block.class, src, b);
-	//
-	// Block[] chunkBlocks = chunk.getBlocks();
-	// chunkBlocks[chunk.posToArrayIndex(src.getX(), src.getY(), src.getZ())] = src;
-	// chunkBlocks[chunk.posToArrayIndex(b.getX(), b.getY(), b.getZ())] = b;
-	// }
-	// }
-	//
-	// private boolean arrayContains(Block[] blocks, int blockCount, Block block) {
-	// for(int a = 0; a < blockCount; a++) {
-	// if(blocks[a] == block)
-	// return true;
-	// }
-	//
-	// return false;
-	// }
-	//
-	// private Block[] add(Block[] blocks, int i, Block block) {
-	// if(i >= blocks.length) {
-	// Block[] temp = Struct.emptyArray(Block.class, blocks.length * 2);
-	// System.arraycopy(blocks, 0, temp, 0, blocks.length);
-	// blocks = temp;
-	// }
-	//
-	// blocks[i] = block;
-	//
-	// return blocks;
-	// }
-	//
-	// private int getBlockIndex(Block b) {
-	// for(int i = 0; i < compact.length; i++) {
-	// if(compact[i] == b) {
-	// return i;
-	// }
-	// }
-	//
-	// return -1;
-	// }
-	
-	private boolean isBlockOnChunkSurface(Block b) {
-		return b.getX() == chunk.getCornerX() || b.getX() == chunk.getCornerX() + Chunk.CHUNK_BLOCK_WIDTH - 1 ||
-				b.getY() == chunk.getCornerY() || b.getY() == chunk.getCornerY() + Chunk.CHUNK_BLOCK_HEIGHT - 1 ||
-				b.getZ() == chunk.getCornerZ() || b.getZ() == chunk.getCornerZ() + Chunk.CHUNK_BLOCK_DEPTH - 1;
 	}
 	
 	private void updateCompactArray() {
