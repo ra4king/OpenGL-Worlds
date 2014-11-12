@@ -1,11 +1,8 @@
 package com.ra4king.fps.renderers;
 
-import static org.lwjgl.opengl.GL32.*;
-
 import java.nio.ByteBuffer;
 
 import org.lwjgl.BufferUtils;
-import org.lwjgl.opengl.GLSync;
 
 import com.ra4king.fps.renderers.WorldRenderer.DrawElementsIndirectCommand;
 import com.ra4king.fps.world.Chunk;
@@ -13,7 +10,6 @@ import com.ra4king.fps.world.Chunk.Block;
 import com.ra4king.fps.world.Chunk.BlockType;
 import com.ra4king.fps.world.Chunk.ChunkModifiedCallback;
 import com.ra4king.opengl.util.Stopwatch;
-import com.ra4king.opengl.util.Utils;
 import com.ra4king.opengl.util.buffers.GLBuffer;
 
 import net.indiespot.struct.cp.Struct;
@@ -247,7 +243,7 @@ public class ChunkRenderer implements ChunkModifiedCallback {
 		}
 	}
 	
-	private void updateVBO(GLSync memoryFence) {
+	private void updateVBO() {
 		Stopwatch.start("Update Compact Array");
 		updateCompactArray();
 		Stopwatch.stop();
@@ -262,21 +258,6 @@ public class ChunkRenderer implements ChunkModifiedCallback {
 		
 		final int DATA_SIZE = blockCount * Struct.sizeof(Block.class);
 		
-		if(memoryFence != null) {
-			Stopwatch.start("ClientWaitSync");
-			int status = glClientWaitSync(memoryFence, GL_SYNC_FLUSH_COMMANDS_BIT, 0);
-			Stopwatch.stop();
-			
-			switch(status) {
-				case GL_ALREADY_SIGNALED:
-				case GL_TIMEOUT_EXPIRED:
-				case GL_CONDITION_SATISFIED:
-					break;
-				case GL_WAIT_FAILED:
-					Utils.checkGLError("ClientWaitSync");
-			}
-		}
-		
 		ByteBuffer uploadBuffer = glBuffer.bind(chunkNumOffset * CHUNK_DATA_SIZE, DATA_SIZE);
 		buffer.position(0).limit(DATA_SIZE);
 		uploadBuffer.put(buffer);
@@ -289,9 +270,9 @@ public class ChunkRenderer implements ChunkModifiedCallback {
 		return blockCount;
 	}
 	
-	public boolean render(DrawElementsIndirectCommand command, GLSync memoryFence) {
+	public boolean render(DrawElementsIndirectCommand command) {
 		if(chunkModified) {
-			updateVBO(memoryFence);
+			updateVBO();
 		}
 		
 		if(blockCount == 0) {

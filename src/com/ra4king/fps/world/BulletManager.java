@@ -41,6 +41,10 @@ public class BulletManager {
 		return blocksDestroyed;
 	}
 	
+	public boolean isMegaBullet(Bullet bullet) {
+		return bullet.getSize() >= 20;
+	}
+	
 	private ArrayList<Bullet> temp = new ArrayList<>();
 	
 	public void update(long deltaTime) {
@@ -53,7 +57,7 @@ public class BulletManager {
 				if(bullet.isSolid()) {
 					Vector3 pos = bullet.getPosition();
 					
-					boolean megaBullet = bullet.getSize() >= 20;
+					boolean megaBullet = isMegaBullet(bullet);
 					
 					Block block;
 					if(!megaBullet && (block = chunkManager.getBlock(pos, 0.5f * bullet.getSize())) != null && block.getType() != BlockType.AIR) {

@@ -87,7 +87,7 @@ public class BulletRenderer {
 	private HashMap<Bullet,Vector3> cameraWorldPositions = new HashMap<>();
 	
 	public int getBulletLightData(Matrix4 viewMatrix, FloatBuffer bulletData, int maxBulletCount) {
-		final float bulletK = 0.01f, nonSolidBulletK = 0.05f;
+		final float bulletK = 0.01f, hugeBulletK = 0.0001f, nonSolidBulletK = 0.05f;
 		
 		cameraWorldPositions.clear();
 		sort(viewMatrix);
@@ -106,7 +106,7 @@ public class BulletRenderer {
 			bulletData.put(v.toBuffer());
 			bulletData.put(b.getRange());
 			bulletData.put(b.getColor().toBuffer());
-			bulletData.put((b.isSolid() ? bulletK : nonSolidBulletK) / b.getAlpha());
+			bulletData.put((b.isSolid() ? (bulletManager.isMegaBullet(b) ? hugeBulletK : bulletK) : nonSolidBulletK) / b.getAlpha());
 			
 			count++;
 		}

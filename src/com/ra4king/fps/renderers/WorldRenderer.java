@@ -469,6 +469,21 @@ public class WorldRenderer {
 		int chunksRendered = 0;
 		float halfSpacing = Chunk.SPACING * 0.5f;
 		
+		if(chunkRenderFence != null) {
+			Stopwatch.start("ClientWaitSync");
+			int status = glClientWaitSync(chunkRenderFence, GL_SYNC_FLUSH_COMMANDS_BIT, 0);
+			Stopwatch.stop();
+			
+			switch(status) {
+				case GL_ALREADY_SIGNALED:
+				case GL_TIMEOUT_EXPIRED:
+				case GL_CONDITION_SATISFIED:
+					break;
+				case GL_WAIT_FAILED:
+					Utils.checkGLError("ClientWaitSync");
+			}
+		}
+		
 		commandsBuffer.clear();
 		
 		for(ChunkRenderer chunkRenderer : chunkRenderers) {
@@ -479,7 +494,7 @@ public class WorldRenderer {
 					Chunk.CHUNK_BLOCK_WIDTH * Chunk.SPACING,
 					Chunk.CHUNK_BLOCK_HEIGHT * Chunk.SPACING,
 					-Chunk.CHUNK_BLOCK_DEPTH * Chunk.SPACING)) {
-				if(chunkRenderer.render(command, chunkRenderFence)) {
+				if(chunkRenderer.render(command)) {
 					commandsBuffer.put(command.toBuffer());
 					
 					chunksRendered++;
