@@ -2,6 +2,8 @@
 
 uniform vec2 resolution;
 
+uniform bool tripBalls;
+
 uniform sampler2D cubeTexture;
 
 uniform sampler2D cameraPositions;
@@ -41,6 +43,11 @@ vec3 calculateLight(vec3 color, float k, vec3 normal, vec3 lightDistance) {
 
 void main() {
 	vec2 tex = gl_FragCoord.xy / resolution;
+	
+	if(tripBalls) {
+		tex.x += cos(tex.y * 50.0) / 100.0;
+		tex.y += sin(tex.x * 50.0) / 100.0;
+	}
 	
 	vec3 cameraSpacePosition = texture(cameraPositions, tex).xyz;
 	vec3 normal = normalize(texture(normals, tex).xyz);

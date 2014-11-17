@@ -33,10 +33,8 @@ public class Chunk {
 		this.cornerY = cornerY;
 		this.cornerZ = cornerZ;
 		
-		blocks = Struct.emptyArray(Block.class, CHUNK_BLOCK_WIDTH * CHUNK_BLOCK_HEIGHT * CHUNK_BLOCK_DEPTH);
-	}
-	
-	private void setupBlocks() {
+		blocks = Struct.malloc(Block.class, CHUNK_BLOCK_WIDTH * CHUNK_BLOCK_HEIGHT * CHUNK_BLOCK_DEPTH);
+		
 		blockCount = blocks.length;
 		
 		for(int i = 0; i < blockCount; i++) {
@@ -45,13 +43,12 @@ public class Chunk {
 			int y = rem / CHUNK_BLOCK_WIDTH;
 			int z = i / (CHUNK_BLOCK_WIDTH * CHUNK_BLOCK_HEIGHT);
 			
-			blocks[i] = callback.chunkInit(x, y, z, BlockType.AIR);
+			blocks[i].init(this, x, y, z, BlockType.AIR);
 		}
 	}
 	
 	public void setCallback(ChunkModifiedCallback callback) {
 		this.callback = callback;
-		setupBlocks();
 	}
 	
 	public ChunkModifiedCallback getCallback() {
@@ -176,6 +173,11 @@ public class Chunk {
 		
 		Block block = blocks[i];
 		
+		if(block.getX() != x || block.getY() != y || block.getZ() != z) {
+			throw new IllegalArgumentException(String.format("Invalid block found at (%d,%d,%d), its coords are (%d,%d,%d)",
+					x, y, z, block.getX(), block.getY(), block.getZ()));
+		}
+		
 		if(block.getType() == blockType) {
 			return;
 		}
@@ -195,7 +197,7 @@ public class Chunk {
 			callback.chunkModified(block);
 		} else if(blockType != block.getType()) { // Not Air -> Air
 			block.setType(blockType);
-			callback.chunkRemoved(block);
+			callback.chunkModified(block);
 			blockCount--;
 		}
 	}
@@ -211,10 +213,6 @@ public class Chunk {
 	}
 	
 	public static interface ChunkModifiedCallback {
-		Block chunkInit(int x, int y, int z, BlockType block);
-		
-		void chunkRemoved(Block block);
-		
 		void chunkModified(Block block);
 	}
 	

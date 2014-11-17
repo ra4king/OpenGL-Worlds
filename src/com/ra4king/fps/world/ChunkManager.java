@@ -13,7 +13,7 @@ import net.indiespot.struct.cp.TakeStruct;
 public class ChunkManager {
 	public static final int CHUNKS_SIDE_X = 5, CHUNKS_SIDE_Y = 5, CHUNKS_SIDE_Z = 5;
 	
-	// z * CHUNKS_SIDE * CHUNKS_SIDE + y * CHUNKS_SIDE + x
+	// z * CHUNKS_SIDE_X * CHUNKS_SIDE_Y + y * CHUNKS_SIDE_X + x
 	private Chunk[] chunks;
 	
 	public ChunkManager() {
@@ -77,6 +77,10 @@ public class ChunkManager {
 		return chunks[pos];
 	}
 	
+	public Chunk getChunkContaining(Block block) {
+		return getChunkContaining(block.getX(), block.getY(), block.getZ());
+	}
+	
 	private final Vector3 temp = new Vector3();
 	
 	@TakeStruct
@@ -131,7 +135,7 @@ public class ChunkManager {
 		float distSqr = Chunk.BLOCK_SIZE * 0.5f + radius;
 		distSqr *= distSqr;
 		
-		Block[] blocks = Struct.emptyArray(Block.class, 200);
+		Block[] blocks = Struct.emptyArray(Block.class, 300);
 		int size = 0;
 		
 		// Test against -count.xyz to +count.xyz offset from the p.xyz index
@@ -175,8 +179,7 @@ public class ChunkManager {
 		if(i == -1)
 			return Struct.typedNull(Block.class);
 		
-		Chunk chunk = chunks[i];
-		return chunk.get(x, y, z);
+		return chunks[i].get(x, y, z);
 	}
 	
 	public void setBlock(BlockType type, Block block) {
@@ -188,8 +191,7 @@ public class ChunkManager {
 		if(i == -1)
 			throw new IllegalArgumentException("Invalid cube position (" + x + "," + y + "," + z + ").");
 		
-		Chunk chunk = chunks[i];
-		chunk.set(type, x, y, z);
+		chunks[i].set(type, x, y, z);
 	}
 	
 	public void update(long deltaTime) {

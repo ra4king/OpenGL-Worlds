@@ -22,7 +22,6 @@ import java.nio.ShortBuffer;
 
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.EXTTextureFilterAnisotropic;
-import org.lwjgl.opengl.GLSync;
 import org.lwjgl.opengl.OpenGLException;
 
 import com.ra4king.fps.Camera;
@@ -37,13 +36,13 @@ import com.ra4king.opengl.util.ShaderProgram;
 import com.ra4king.opengl.util.Stopwatch;
 import com.ra4king.opengl.util.Utils;
 import com.ra4king.opengl.util.buffers.BufferStorage;
-import com.ra4king.opengl.util.buffers.GLBuffer;
 import com.ra4king.opengl.util.math.Matrix3;
 import com.ra4king.opengl.util.math.Matrix4;
 import com.ra4king.opengl.util.math.MatrixStack;
 import com.ra4king.opengl.util.math.Vector2;
 import com.ra4king.opengl.util.math.Vector3;
 import com.ra4king.opengl.util.math.Vector4;
+import com.ra4king.opengl.util.render.PerformanceGraph;
 
 /**
  * @author Roi Atalla
@@ -69,13 +68,12 @@ public class WorldRenderer {
 	
 	private int chunkVAO, cubeVBO, indicesVBO, commandsVBO;
 	private ChunkRenderer[] chunkRenderers;
-	private GLSync chunkRenderFence;
+	private BufferStorage chunkRendererStorage;
 	
 	private BulletRenderer bulletRenderer;
 	private LightSystem lightSystem;
 	
 	private PerformanceGraph performanceGraphRender;
-	private PerformanceGraph performanceGraphFPS;
 	
 	static {
 		if(GLUtils.GL_VERSION >= 31) {
@@ -271,7 +269,7 @@ public class WorldRenderer {
 		glEnableVertexAttribArray(2);
 		glVertexAttribPointer(2, 2, GL_FLOAT, false, (2 * 3 + 2) * 4, 2 * 3 * 4);
 		
-		GLBuffer chunkBuffer = new BufferStorage(GL_ARRAY_BUFFER, DATA_VBO_SIZE, true, 3);
+		chunkRendererStorage = new BufferStorage(GL_ARRAY_BUFFER, DATA_VBO_SIZE, true, 3);
 		
 		glEnableVertexAttribArray(3);
 		glVertexAttribPointer(3, 3, GL_UNSIGNED_INT, false, 4 * 4, 0);
@@ -289,7 +287,7 @@ public class WorldRenderer {
 		Chunk[] chunks = world.getChunkManager().getChunks();
 		chunkRenderers = new ChunkRenderer[chunks.length];
 		for(int i = 0; i < chunkRenderers.length; i++) {
-			chunkRenderers[i] = new ChunkRenderer(chunks[i], chunkBuffer, i);
+			chunkRenderers[i] = new ChunkRenderer(chunks[i], chunkRendererStorage, i);
 		}
 	}
 	
@@ -469,22 +467,14 @@ public class WorldRenderer {
 		int chunksRendered = 0;
 		float halfSpacing = Chunk.SPACING * 0.5f;
 		
-		if(chunkRenderFence != null) {
-			Stopwatch.start("ClientWaitSync");
-			int status = glClientWaitSync(chunkRenderFence, GL_SYNC_FLUSH_COMMANDS_BIT, 0);
-			Stopwatch.stop();
-			
-			switch(status) {
-				case GL_ALREADY_SIGNALED:
-				case GL_TIMEOUT_EXPIRED:
-				case GL_CONDITION_SATISFIED:
-					break;
-				case GL_WAIT_FAILED:
-					Utils.checkGLError("ClientWaitSync");
-			}
+		chunkRendererStorage.nextBuffer();
+		for(ChunkRenderer chunkRenderer : chunkRenderers) {
+			chunkRenderer.update();
 		}
 		
 		commandsBuffer.clear();
+		
+		int currentOffset = chunkRendererStorage.getBufferIndex() * chunkRenderers.length * Chunk.TOTAL_BLOCKS;
 		
 		for(ChunkRenderer chunkRenderer : chunkRenderers) {
 			Chunk chunk = chunkRenderer.getChunk();
@@ -494,7 +484,7 @@ public class WorldRenderer {
 					Chunk.CHUNK_BLOCK_WIDTH * Chunk.SPACING,
 					Chunk.CHUNK_BLOCK_HEIGHT * Chunk.SPACING,
 					-Chunk.CHUNK_BLOCK_DEPTH * Chunk.SPACING)) {
-				if(chunkRenderer.render(command)) {
+				if(chunkRenderer.render(command, currentOffset)) {
 					commandsBuffer.put(command.toBuffer());
 					
 					chunksRendered++;
@@ -527,8 +517,6 @@ public class WorldRenderer {
 			
 			GLUtils.glBindVertexArray(chunkVAO);
 			glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_SHORT, 0, chunksRendered, 0);
-			
-			chunkRenderFence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
 		}
 		
 		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);

@@ -13,7 +13,6 @@ import com.ra4king.opengl.util.Stopwatch;
 import com.ra4king.opengl.util.buffers.GLBuffer;
 
 import net.indiespot.struct.cp.Struct;
-import net.indiespot.struct.cp.TakeStruct;
 
 public class ChunkRenderer implements ChunkModifiedCallback {
 	private Chunk chunk;
@@ -45,67 +44,18 @@ public class ChunkRenderer implements ChunkModifiedCallback {
 	}
 	
 	@Override
-	@TakeStruct
-	public Block chunkInit(int x, int y, int z, BlockType type) {
-		chunkModified = true;
-		
-		if(blockCount >= Chunk.TOTAL_BLOCKS) {
-			throw new IllegalArgumentException("Already initialized all Blocks.");
-		}
-
-		return compact[blockCount++].init(chunk, x, y, z, type);
-	}
-	
-	@Override
-	public void chunkRemoved(Block block) {
-		chunkModified = true;
-	}
-	
-	@Override
 	public void chunkModified(Block block) {
-		chunkModified = true;
-	}
-	
-	private void updateCompactArray() {
-		Stopwatch.start("Loop 1");
-		for(int a = compact.length - 1; a >= blockCount; a--) {
-			if(compact[a].getType() != BlockType.AIR && !compact[a].isSurrounded(chunk)) {
-				if(a > blockCount) {
-					Block src = compact[blockCount++];
-					Block dest = compact[a++];
-					Struct.swap(Block.class, src, dest);
-					
-					Block[] blocks = chunk.getBlocks();
-					blocks[chunk.posToArrayIndex(src)] = src;
-					blocks[chunk.posToArrayIndex(dest)] = dest;
-					
-					testForSurface(dest);
-				} else {
-					blockCount++;
-				}
+		if(block != Struct.typedNull(Block.class)) {
+			if(!chunk.containsBlock(block)) {
+				throw new IllegalArgumentException(String.format("Invalid block: (%d,%d,%d) of type %s. Chunk corner: (%d,%d,%d)",
+						block.getX(), block.getY(), block.getZ(), block.getType().toString(),
+						chunk.getCornerX(), chunk.getCornerY(), chunk.getCornerZ()));
 			}
+			
+			testForSurface(block);
 		}
-		Stopwatch.stop();
 		
-		Stopwatch.start("Loop 2");
-		for(int a = blockCount - 1; a >= 0; a--) {
-			if(compact[a].getType() == BlockType.AIR || compact[a].isSurrounded(chunk)) {
-				if(a < blockCount - 1) {
-					Block src = compact[--blockCount];
-					Block dest = compact[a++];
-					Struct.swap(Block.class, src, dest);
-					
-					Block[] blocks = chunk.getBlocks();
-					blocks[chunk.posToArrayIndex(src.getX(), src.getY(), src.getZ())] = src;
-					blocks[chunk.posToArrayIndex(dest.getX(), dest.getY(), dest.getZ())] = dest;
-					
-					testForSurface(dest);
-				} else {
-					blockCount--;
-				}
-			}
-		}
-		Stopwatch.stop();
+		chunkModified = true;
 	}
 	
 	private void testForSurface(Block block) {
@@ -113,68 +63,69 @@ public class ChunkRenderer implements ChunkModifiedCallback {
 		if(block.getX() == chunk.getCornerX()) {
 			neighbor = chunk.getChunkManager().getChunkContaining(chunk.getCornerX() - 1, chunk.getCornerY(), chunk.getCornerZ());
 			if(neighbor != null)
-				neighbor.getCallback().chunkModified(block);
+				neighbor.getCallback().chunkModified(Struct.typedNull(Block.class));
 		} else if(block.getX() == chunk.getCornerX() + Chunk.CHUNK_BLOCK_WIDTH - 1) {
 			neighbor = chunk.getChunkManager().getChunkContaining(chunk.getCornerX() + 1, chunk.getCornerY(), chunk.getCornerZ());
 			if(neighbor != null)
-				neighbor.getCallback().chunkModified(block);
+				neighbor.getCallback().chunkModified(Struct.typedNull(Block.class));
 		} else if(block.getY() == chunk.getCornerY()) {
 			neighbor = chunk.getChunkManager().getChunkContaining(chunk.getCornerX(), chunk.getCornerY() - 1, chunk.getCornerZ());
 			if(neighbor != null)
-				neighbor.getCallback().chunkModified(block);
+				neighbor.getCallback().chunkModified(Struct.typedNull(Block.class));
 		} else if(block.getY() == chunk.getCornerY() + Chunk.CHUNK_BLOCK_HEIGHT - 1) {
 			neighbor = chunk.getChunkManager().getChunkContaining(chunk.getCornerX(), chunk.getCornerY() + 1, chunk.getCornerZ());
 			if(neighbor != null)
-				neighbor.getCallback().chunkModified(block);
+				neighbor.getCallback().chunkModified(Struct.typedNull(Block.class));
 		} else if(block.getZ() == chunk.getCornerZ()) {
 			neighbor = chunk.getChunkManager().getChunkContaining(chunk.getCornerX(), chunk.getCornerY(), chunk.getCornerZ() - 1);
 			if(neighbor != null)
-				neighbor.getCallback().chunkModified(block);
+				neighbor.getCallback().chunkModified(Struct.typedNull(Block.class));
 		} else if(block.getZ() == chunk.getCornerZ() + Chunk.CHUNK_BLOCK_DEPTH - 1) {
 			neighbor = chunk.getChunkManager().getChunkContaining(chunk.getCornerX(), chunk.getCornerY(), chunk.getCornerZ() + 1);
 			if(neighbor != null)
-				neighbor.getCallback().chunkModified(block);
+				neighbor.getCallback().chunkModified(Struct.typedNull(Block.class));
 		}
 	}
 	
-	private void updateVBO() {
-		Stopwatch.start("Update Compact Array");
-		updateCompactArray();
-		Stopwatch.stop();
-		
-		chunkModified = false;
-		
-		if(blockCount == 0) {
-			return;
+	public void update() {
+		if(chunkModified) {
+			Stopwatch.start("Update Compact Array");
+			
+			blockCount = 0;
+			
+			for(Block block : chunk.getBlocks()) {
+				if(block.getType() != BlockType.AIR && !block.isSurrounded(chunk)) {
+					Struct.copy(Block.class, block, compact[blockCount++]);
+				}
+			}
+			
+			Stopwatch.stop();
+			
+			chunkModified = false;
 		}
-		
-		Stopwatch.start("UpdateVBO");
-		
-		final int DATA_SIZE = blockCount * Struct.sizeof(Block.class);
-		
-		ByteBuffer uploadBuffer = glBuffer.bind(chunkNumOffset * CHUNK_DATA_SIZE, DATA_SIZE);
-		buffer.position(0).limit(DATA_SIZE);
-		uploadBuffer.put(buffer);
-		glBuffer.unbind();
-		
-		Stopwatch.stop();
 	}
 	
 	public int getLastCubeRenderCount() {
 		return blockCount;
 	}
 	
-	public boolean render(DrawElementsIndirectCommand command) {
-		if(chunkModified) {
-			updateVBO();
-		}
-		
-		if(blockCount == 0) {
+	public boolean render(DrawElementsIndirectCommand command, int baseInstance) {
+		if(blockCount == 0)
 			return false;
-		}
+		
+		Stopwatch.start("Upload VBO");
+		
+		final int DATA_SIZE = blockCount * Struct.sizeof(Block.class);
+		
+		ByteBuffer uploadBuffer = glBuffer.bind(chunkNumOffset * CHUNK_DATA_SIZE, DATA_SIZE);
+		buffer.limit(DATA_SIZE).position(0);
+		uploadBuffer.put(buffer);
+		glBuffer.unbind();
+		
+		Stopwatch.stop();
 		
 		command.instanceCount = blockCount;
-		command.baseInstance = chunkNumOffset * Chunk.TOTAL_BLOCKS;
+		command.baseInstance = baseInstance + chunkNumOffset * Chunk.TOTAL_BLOCKS;
 		
 		return true;
 	}
