@@ -16,10 +16,8 @@ uniform mat3 normalMatrix;
 
 uniform float cubeSize;
 
-const vec3 offset = vec3(0.5, 0.5, -0.5);
-
 void main() {
-	vec4 worldPosition = vec4(cubeSize * (vec3(cubePos.xy, -cubePos.z) + offset + position), 1);
+	vec4 worldPosition = vec4(cubeSize * (vec3(cubePos.xy, -cubePos.z) + position), 1);
 	
 	vec4 cameraPos = viewMatrix * worldPosition;
 	

@@ -92,8 +92,6 @@ public class ChunkManager {
 		float lowestDistance = Float.MAX_VALUE;
 		Block closestBlock = Struct.typedNull(Block.class);
 		
-		final float halfSpacing = Chunk.SPACING * 0.5f;
-		
 		final int count = (int)Math.ceil(radius / Chunk.SPACING);
 		
 		for(int a = -count; a <= count; a++) {
@@ -104,7 +102,7 @@ public class ChunkManager {
 					if(block == null || block.getType() == BlockType.AIR)
 						continue;
 					
-					float len = temp.set(px + a, py + b, -(pz + c)).mult(Chunk.SPACING).add(halfSpacing, halfSpacing, -halfSpacing).sub(v).lengthSquared();
+					float len = temp.set(px + a, py + b, -(pz + c)).mult(Chunk.SPACING).sub(v).lengthSquared();
 					
 					if(len < lowestDistance) {
 						lowestDistance = len;
@@ -126,8 +124,6 @@ public class ChunkManager {
 		int py = Math.round(v.y() / Chunk.SPACING);
 		int pz = Math.round(-v.z() / Chunk.SPACING);
 		
-		final float halfSpacing = Chunk.SPACING * 0.5f;
-		
 		// How many cubes fit in radius
 		final int count = (int)Math.ceil(radius / Chunk.SPACING);
 		
@@ -148,7 +144,7 @@ public class ChunkManager {
 						continue;
 					
 					// Length squared of ((px,py,pz)+(a,b,c) - v)
-					float lenSqr = temp.set(px + a, py + b, -(pz + c)).mult(Chunk.SPACING).add(halfSpacing, halfSpacing, -halfSpacing).sub(v).lengthSquared();
+					float lenSqr = temp.set(px + a, py + b, -(pz + c)).mult(Chunk.SPACING).sub(v).lengthSquared();
 					
 					if(lenSqr <= distSqr) {
 						if(size >= blocks.length) {

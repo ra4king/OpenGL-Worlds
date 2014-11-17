@@ -27,6 +27,7 @@ import org.lwjgl.opengl.OpenGLException;
 import com.ra4king.fps.Camera;
 import com.ra4king.fps.GLUtils;
 import com.ra4king.fps.GLUtils.FrustumCulling;
+import com.ra4king.fps.OpenGLWorlds;
 import com.ra4king.fps.actors.Bullet;
 import com.ra4king.fps.world.Chunk;
 import com.ra4king.fps.world.World;
@@ -74,6 +75,7 @@ public class WorldRenderer {
 	private LightSystem lightSystem;
 	
 	private PerformanceGraph performanceGraphRender;
+	private PerformanceGraph performanceGraphFPS;
 	
 	static {
 		if(GLUtils.GL_VERSION >= 31) {
@@ -83,7 +85,7 @@ public class WorldRenderer {
 		}
 	}
 	
-	public WorldRenderer(World world) {
+	public WorldRenderer(OpenGLWorlds game, World world) {
 		this.world = world;
 		
 		glEnable(GL_DEPTH_TEST);
@@ -116,7 +118,8 @@ public class WorldRenderer {
 		glBufferData(GL_DRAW_INDIRECT_BUFFER, COMMANDS_BUFFER_SIZE, GL_STREAM_DRAW);
 		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
 		
-		performanceGraphRender = new PerformanceGraph("Update Compact Array", 5, 100, 100, 100, 2, 100, new Vector4(1, 0, 0, 1));
+		performanceGraphRender = new PerformanceGraph(5, 100, 100, 100, 2, 100, new Vector4(1, 0, 0, 1), () -> Stopwatch.getTimePerFrame("Update Compact Array"));
+		performanceGraphFPS = new PerformanceGraph(200, 100, 220, 100, 2, 100, new Vector4(0, 1, 0, 1), game::getLastFps);
 	}
 	
 	private void loadShaders() {
@@ -161,40 +164,40 @@ public class WorldRenderer {
 		
 		final Vector3 unitCube[] = {
 				// front
-				new Vector3(-0.5f, 0.5f, 0.5f),
-				new Vector3(0.5f, 0.5f, 0.5f),
-				new Vector3(0.5f, -0.5f, 0.5f),
-				new Vector3(-0.5f, -0.5f, 0.5f),
+				new Vector3(0.0f, 1.0f, 1.0f),
+				new Vector3(1.0f, 1.0f, 1.0f),
+				new Vector3(1.0f, 0.0f, 1.0f),
+				new Vector3(0.0f, 0.0f, 1.0f),
 				
 				// back
-				new Vector3(0.5f, 0.5f, -0.5f),
-				new Vector3(-0.5f, 0.5f, -0.5f),
-				new Vector3(-0.5f, -0.5f, -0.5f),
-				new Vector3(0.5f, -0.5f, -0.5f),
+				new Vector3(1.0f, 1.0f, 0.0f),
+				new Vector3(0.0f, 1.0f, 0.0f),
+				new Vector3(0.0f, 0.0f, 0.0f),
+				new Vector3(1.0f, 0.0f, 0.0f),
 				
 				// top
-				new Vector3(-0.5f, 0.5f, -0.5f),
-				new Vector3(0.5f, 0.5f, -0.5f),
-				new Vector3(0.5f, 0.5f, 0.5f),
-				new Vector3(-0.5f, 0.5f, 0.5f),
+				new Vector3(0.0f, 1.0f, 0.0f),
+				new Vector3(1.0f, 1.0f, 0.0f),
+				new Vector3(1.0f, 1.0f, 1.0f),
+				new Vector3(0.0f, 1.0f, 1.0f),
 				
 				// bottom
-				new Vector3(-0.5f, -0.5f, 0.5f),
-				new Vector3(0.5f, -0.5f, 0.5f),
-				new Vector3(0.5f, -0.5f, -0.5f),
-				new Vector3(-0.5f, -0.5f, -0.5f),
+				new Vector3(0.0f, 0.0f, 1.0f),
+				new Vector3(1.0f, 0.0f, 1.0f),
+				new Vector3(1.0f, 0.0f, 0.0f),
+				new Vector3(0.0f, 0.0f, 0.0f),
 				
 				// right
-				new Vector3(0.5f, 0.5f, 0.5f),
-				new Vector3(0.5f, 0.5f, -0.5f),
-				new Vector3(0.5f, -0.5f, -0.5f),
-				new Vector3(0.5f, -0.5f, 0.5f),
+				new Vector3(1.0f, 1.0f, 1.0f),
+				new Vector3(1.0f, 1.0f, 0.0f),
+				new Vector3(1.0f, 0.0f, 0.0f),
+				new Vector3(1.0f, 0.0f, 1.0f),
 				
 				// left
-				new Vector3(-0.5f, 0.5f, -0.5f),
-				new Vector3(-0.5f, 0.5f, 0.5f),
-				new Vector3(-0.5f, -0.5f, 0.5f),
-				new Vector3(-0.5f, -0.5f, -0.5f)
+				new Vector3(0.0f, 1.0f, 0.0f),
+				new Vector3(0.0f, 1.0f, 1.0f),
+				new Vector3(0.0f, 0.0f, 1.0f),
+				new Vector3(0.0f, 0.0f, 0.0f)
 		};
 		
 		// 2 vec3s and 1 vec2
@@ -426,6 +429,7 @@ public class WorldRenderer {
 		}
 		
 		performanceGraphRender.update(deltaTime);
+		performanceGraphFPS.update(deltaTime);
 	}
 	
 	private final Vector3 mainDiffuseColor = new Vector3(0.5f, 0.5f, 0.5f);
@@ -553,6 +557,7 @@ public class WorldRenderer {
 		Stopwatch.stop();
 		
 		performanceGraphRender.render();
+		performanceGraphFPS.render();
 	}
 	
 	public static class DrawElementsIndirectCommand {

@@ -35,7 +35,7 @@ public class OpenGLWorlds extends GLProgram {
 		System.out.println(glGetString(GL_VERSION));
 		System.out.println(glGetString(GL_VENDOR));
 		System.out.println(glGetString(GL_RENDERER));
-
+		
 		setPrintDebug(true);
 		setFPS(200);
 		
@@ -54,7 +54,7 @@ public class OpenGLWorlds extends GLProgram {
 		// Mouse.setGrabbed(true);
 		
 		world = new World();
-		worldRenderer = new WorldRenderer(world);
+		worldRenderer = new WorldRenderer(this, world);
 		
 		world.generateRandomBlocks();
 		// world.getChunkManager().setupBlocks(false);
@@ -85,7 +85,7 @@ public class OpenGLWorlds extends GLProgram {
 		
 		if(key == Keyboard.KEY_C)
 			world.clearAll();
-
+		
 		world.keyPressed(key, c);
 	}
 	
