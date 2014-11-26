@@ -150,10 +150,12 @@ public class BulletRenderer {
 		glUniformMatrix4(projectionMatrixUniform, false, projectionMatrix.toBuffer());
 		glUniformMatrix4(modelViewMatrixUniform, false, modelViewMatrix.getTop().toBuffer());
 		
-		boolean bulletCountChanged = bullets.size() * (BULLET_SIZE >> 2) > bulletDataBuffer.capacity();
+		final int BULLET_COUNT = BULLET_SIZE / 2;
+		
+		boolean bulletCountChanged = bullets.size() * BULLET_COUNT > bulletDataBuffer.capacity();
 		
 		if(bulletCountChanged) {
-			while(bullets.size() * (BULLET_SIZE >> 2) > BULLET_BUFFER_SIZE >> 2) {
+			while(bullets.size() * BULLET_COUNT > BULLET_BUFFER_SIZE >> 2) {
 				BULLET_BUFFER_SIZE *= 2;
 			}
 			

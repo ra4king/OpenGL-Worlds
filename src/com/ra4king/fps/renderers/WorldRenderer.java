@@ -74,7 +74,11 @@ public class WorldRenderer {
 	private BulletRenderer bulletRenderer;
 	private LightSystem lightSystem;
 	
+	private PerformanceGraph performanceGraphUpdate;
 	private PerformanceGraph performanceGraphRender;
+	private PerformanceGraph performanceGraphUpdateCompactArray;
+	private PerformanceGraph performanceGraphBulletRender;
+	private PerformanceGraph performanceGraphDisplayUpdate;
 	private PerformanceGraph performanceGraphFPS;
 	
 	static {
@@ -118,8 +122,14 @@ public class WorldRenderer {
 		glBufferData(GL_DRAW_INDIRECT_BUFFER, COMMANDS_BUFFER_SIZE, GL_STREAM_DRAW);
 		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
 		
-		performanceGraphRender = new PerformanceGraph(5, 100, 100, 100, 2, 100, new Vector4(1, 0, 0, 1), () -> Stopwatch.getTimePerFrame("Update Compact Array"));
-		performanceGraphFPS = new PerformanceGraph(200, 100, 220, 100, 2, 100, new Vector4(0, 1, 0, 1), game::getLastFps);
+		final float maxValue = 10.0f;
+		final int graphHeight = 100, stepSize = 3;
+		performanceGraphUpdate = new PerformanceGraph(maxValue, 100, 100, graphHeight, stepSize, 200, new Vector4(0, 0, 1, 1), () -> Stopwatch.getTimePerFrame("Update")); // Blue
+		performanceGraphRender = new PerformanceGraph(maxValue, 100, 100, 100, 3, 200, new Vector4(0, 1, 1, 1), () -> Stopwatch.getTimePerFrame("Render")); // Cyan
+		performanceGraphUpdateCompactArray = new PerformanceGraph(maxValue, 100, 100, 100, 3, 200, new Vector4(1, 0, 0, 1), () -> Stopwatch.getTimePerFrame("Update Compact Array")); // Red
+		performanceGraphBulletRender = new PerformanceGraph(maxValue, 100, 100, 100, 3, 200, new Vector4(1, 1, 1, 1), () -> Stopwatch.getTimePerFrame("BulletRenderer")); // White
+		performanceGraphDisplayUpdate = new PerformanceGraph(maxValue, 100, 100, 100, 3, 200, new Vector4(1, 0, 1, 1), () -> Stopwatch.getTimePerFrame("Display.update()")); // Magenta
+		performanceGraphFPS = new PerformanceGraph(200, 100, 100, 100, 3, 200, new Vector4(0, 1, 0, 1), game::getLastFps); // Green
 	}
 	
 	private void loadShaders() {
@@ -428,7 +438,11 @@ public class WorldRenderer {
 			System.out.printf("Rendering %d chunks, %d cubes\n", lastChunksRendered, cubes);
 		}
 		
+		performanceGraphUpdate.update(deltaTime);
 		performanceGraphRender.update(deltaTime);
+		performanceGraphUpdateCompactArray.update(deltaTime);
+		performanceGraphDisplayUpdate.update(deltaTime);
+		performanceGraphBulletRender.update(deltaTime);
 		performanceGraphFPS.update(deltaTime);
 	}
 	
@@ -483,11 +497,11 @@ public class WorldRenderer {
 		for(ChunkRenderer chunkRenderer : chunkRenderers) {
 			Chunk chunk = chunkRenderer.getChunk();
 			
-			if(culling.isRectPrismInsideFrustum(renderTemp.set(chunk.getCornerX(), chunk.getCornerY(), -chunk.getCornerZ())
-					.mult(Chunk.SPACING).sub(halfSpacing, halfSpacing, -halfSpacing),
-					Chunk.CHUNK_BLOCK_WIDTH * Chunk.SPACING,
-					Chunk.CHUNK_BLOCK_HEIGHT * Chunk.SPACING,
-					-Chunk.CHUNK_BLOCK_DEPTH * Chunk.SPACING)) {
+			if(true) {// culling.isRectPrismInsideFrustum(renderTemp.set(chunk.getCornerX(), chunk.getCornerY(), -chunk.getCornerZ())
+						// .mult(Chunk.SPACING).sub(halfSpacing, halfSpacing, -halfSpacing),
+						// Chunk.CHUNK_BLOCK_WIDTH * Chunk.SPACING,
+						// Chunk.CHUNK_BLOCK_HEIGHT * Chunk.SPACING,
+						// -Chunk.CHUNK_BLOCK_DEPTH * Chunk.SPACING)) {
 				if(chunkRenderer.render(command, currentOffset)) {
 					commandsBuffer.put(command.toBuffer());
 					
@@ -506,7 +520,7 @@ public class WorldRenderer {
 		{
 			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, deferredFBO);
 			
-			glClearColor(0, 0, 0, 0);
+			glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			
 			glDisable(GL_BLEND);
@@ -548,7 +562,7 @@ public class WorldRenderer {
 		
 		Stopwatch.start("BulletRenderer");
 		
-		bulletRenderer.render(camera.getProjectionMatrix(), tempStack.clear().setTop(viewMatrix), culling);
+		bulletRenderer.render(camera.getProjectionMatrix(), tempStack.setTop(viewMatrix), culling);
 		
 		glDisable(GL_DEPTH_TEST);
 		bulletRenderer.render(new Matrix4().clearToOrtho(-GLUtils.getWidth() / 2, GLUtils.getWidth() / 2, -GLUtils.getHeight() / 2, GLUtils.getHeight() / 2, -1, 1), new MatrixStack(), null, aim);
@@ -556,8 +570,14 @@ public class WorldRenderer {
 		
 		Stopwatch.stop();
 		
+		Stopwatch.start("Performance Graphs Render");
+		performanceGraphUpdate.render();
 		performanceGraphRender.render();
+		performanceGraphUpdateCompactArray.render();
+		performanceGraphDisplayUpdate.render();
+		performanceGraphBulletRender.render();
 		performanceGraphFPS.render();
+		Stopwatch.stop();
 	}
 	
 	public static class DrawElementsIndirectCommand {

@@ -126,7 +126,7 @@ public class Chunk {
 			if(a == 0)
 				continue;
 			
-			Block block = get(x + a, y, z);
+			Block block = getChunkManager().getBlock(x + a, y, z);
 			if(block != Struct.typedNull(Block.class)) {
 				neighbors[idx++] = block;
 			}
@@ -136,7 +136,7 @@ public class Chunk {
 			if(b == 0)
 				continue;
 			
-			Block block = get(x, y + b, z);
+			Block block = getChunkManager().getBlock(x, y + b, z);
 			if(block != Struct.typedNull(Block.class)) {
 				neighbors[idx++] = block;
 			}
@@ -146,7 +146,7 @@ public class Chunk {
 			if(c == 0)
 				continue;
 			
-			Block block = get(x, y, z + c);
+			Block block = getChunkManager().getBlock(x, y, z + c);
 			if(block != Struct.typedNull(Block.class)) {
 				neighbors[idx++] = block;
 			}
