@@ -77,14 +77,12 @@ public class BulletManager {
 						if(blocks.length > 0) {
 							int destroyCount = 0;
 							
-							Vector3 v = new Vector3();
-							
 							for(Block b : blocks) {
 								chunkManager.setBlock(BlockType.AIR, b);
 								blocksDestroyed++;
 								destroyCount++;
 								
-								temp.add(new Bullet(v.set(b.getX(), b.getY(), -b.getZ()).mult(Chunk.SPACING), new Vector3((float)Math.random() * 2 - 1, (float)Math.random() * 2 - 1, (float)Math.random() * 2 - 1).normalize().mult(100), 1, 500, (long)2.5e8, false, new Vector3(1, 1, 1)));
+								temp.add(new Bullet(new Vector3(b.getX(), b.getY(), -b.getZ()).mult(Chunk.SPACING), new Vector3((float)Math.random() * 2 - 1, (float)Math.random() * 2 - 1, (float)Math.random() * 2 - 1).normalize().mult(100), 1, 500, (long)2.5e8, false, new Vector3(1, 1, 1)));
 							}
 							
 							Integer i = megaBulletDestroyCount.get(bullet);

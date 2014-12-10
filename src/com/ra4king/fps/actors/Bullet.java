@@ -2,6 +2,9 @@ package com.ra4king.fps.actors;
 
 import com.ra4king.opengl.util.math.Vector3;
 
+import net.indiespot.struct.cp.Struct;
+import net.indiespot.struct.cp.TakeStruct;
+
 /**
  * @author Roi Atalla
  */
@@ -33,15 +36,15 @@ public class Bullet {
 	}
 	
 	public Bullet(Vector3 position, Vector3 velocity, float size, float range, long lifeTime, boolean isSolid, Vector3 color) {
-		this.position = position.copy();
-		this.velocity = velocity.copy();
+		this.position = Struct.malloc(Vector3.class).set(position);
+		this.velocity = Struct.malloc(Vector3.class).set(velocity);
 		this.size = size;
 		this.range = range;
 		life = lifeTime;
 		
 		this.isSolid = isSolid;
 		
-		this.color = color.copy();
+		this.color = Struct.malloc(Vector3.class).set(color);
 	}
 	
 	public boolean isAlive() {
@@ -68,10 +71,12 @@ public class Bullet {
 		age += deltaTime;
 	}
 	
+	@TakeStruct
 	public Vector3 getPosition() {
 		return position;
 	}
 	
+	@TakeStruct
 	public Vector3 getVelocity() {
 		return velocity;
 	}
@@ -80,6 +85,7 @@ public class Bullet {
 		return size;
 	}
 	
+	@TakeStruct
 	public Vector3 getColor() {
 		return color;
 	}
@@ -88,12 +94,10 @@ public class Bullet {
 		return range;
 	}
 	
-	private final Vector3 temp = new Vector3();
-	
 	public void update(long deltaTime) {
 		age += deltaTime;
 		
-		position.add(temp.set(velocity).mult(deltaTime / (float)1e9));
+		position.add(new Vector3(velocity).mult(deltaTime / (float)1e9));
 	}
 	
 	@Override

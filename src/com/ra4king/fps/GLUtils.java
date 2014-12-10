@@ -15,6 +15,9 @@ import com.ra4king.opengl.util.math.Matrix4;
 import com.ra4king.opengl.util.math.Vector3;
 import com.ra4king.opengl.util.math.Vector4;
 
+import net.indiespot.struct.cp.CopyStruct;
+import net.indiespot.struct.cp.Struct;
+
 /**
  * @author Roi Atalla
  */
@@ -120,24 +123,26 @@ public final class GLUtils {
 	public static class FrustumCulling {
 		private enum Plane {
 			LEFT, RIGHT, BOTTOM, TOP, NEAR, FAR;
+			
 			public static final Plane[] values = values();
-			private static final Vector3 temp = new Vector3();
-			private Vector4 plane;
+			
+			private Vector4 plane = Struct.malloc(Vector4.class);
 			
 			public float distanceFromPoint(Vector3 point) {
-				return temp.set(plane).dot(point) + plane.w();
+				return new Vector3().set4(plane).dot(point) + plane.w();
 			}
 		}
 		
 		public void setupPlanes(Matrix4 matrix) {
-			Plane.LEFT.plane = getPlane(matrix, 1);
-			Plane.RIGHT.plane = getPlane(matrix, -1);
-			Plane.BOTTOM.plane = getPlane(matrix, 2);
-			Plane.TOP.plane = getPlane(matrix, -2);
-			Plane.NEAR.plane = getPlane(matrix, 3);
-			Plane.FAR.plane = getPlane(matrix, -3);
+			Plane.LEFT.plane.set(getPlane(matrix, 1));
+			Plane.RIGHT.plane.set(getPlane(matrix, -1));
+			Plane.BOTTOM.plane.set(getPlane(matrix, 2));
+			Plane.TOP.plane.set(getPlane(matrix, -2));
+			Plane.NEAR.plane.set(getPlane(matrix, 3));
+			Plane.FAR.plane.set(getPlane(matrix, -3));
 		}
 		
+		@CopyStruct
 		private Vector4 getPlane(Matrix4 matrix, int row) {
 			int scale = row < 0 ? -1 : 1;
 			row = Math.abs(row) - 1;
@@ -149,32 +154,28 @@ public final class GLUtils {
 					matrix.get(15) + scale * matrix.get(row + 12)).normalize();
 		}
 		
-		private final Vector3 cubeTemp = new Vector3();
-		
 		public boolean isCubeInsideFrustum(Vector3 center, float sideLength) {
 			float half = sideLength * 0.5f;
-			return isRectPrismInsideFrustum(cubeTemp.set(center).sub(half, half, half), sideLength, sideLength, sideLength);
+			return isRectPrismInsideFrustum(new Vector3(center).sub(half, half, half), sideLength, sideLength, sideLength);
 		}
-		
-		private final Vector3 temp = new Vector3();
 		
 		public boolean isRectPrismInsideFrustum(Vector3 corner, float width, float height, float depth) {
 			for(Plane p : Plane.values) {
-				if(p.distanceFromPoint(temp.set(corner)) >= 0)
+				if(p.distanceFromPoint(corner) >= 0)
 					continue;
-				if(p.distanceFromPoint(temp.set(corner).add(width, 0, 0)) >= 0)
+				if(p.distanceFromPoint(new Vector3(corner).add(width, 0, 0)) >= 0)
 					continue;
-				if(p.distanceFromPoint(temp.set(corner).add(0, height, 0)) >= 0)
+				if(p.distanceFromPoint(new Vector3(corner).add(0, height, 0)) >= 0)
 					continue;
-				if(p.distanceFromPoint(temp.set(corner).add(0, 0, depth)) >= 0)
+				if(p.distanceFromPoint(new Vector3(corner).add(0, 0, depth)) >= 0)
 					continue;
-				if(p.distanceFromPoint(temp.set(corner).add(width, height, 0)) >= 0)
+				if(p.distanceFromPoint(new Vector3(corner).add(width, height, 0)) >= 0)
 					continue;
-				if(p.distanceFromPoint(temp.set(corner).add(width, 0, depth)) >= 0)
+				if(p.distanceFromPoint(new Vector3(corner).add(width, 0, depth)) >= 0)
 					continue;
-				if(p.distanceFromPoint(temp.set(corner).add(0, height, depth)) >= 0)
+				if(p.distanceFromPoint(new Vector3(corner).add(0, height, depth)) >= 0)
 					continue;
-				if(p.distanceFromPoint(temp.set(corner).add(width, height, depth)) >= 0)
+				if(p.distanceFromPoint(new Vector3(corner).add(width, height, depth)) >= 0)
 					continue;
 				
 				return false;

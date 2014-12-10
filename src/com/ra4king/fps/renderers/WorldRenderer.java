@@ -156,7 +156,7 @@ public class WorldRenderer {
 	private void loadCube() {
 		final short[] indices = { 0, 1, 2, 2, 3, 0 };
 		
-		final Vector3 normals[] = {
+		final Vector3[] normals = {
 				new Vector3(0, 0, 1),
 				new Vector3(0, 0, -1),
 				new Vector3(0, 1, 0),
@@ -165,14 +165,14 @@ public class WorldRenderer {
 				new Vector3(-1, 0, 0)
 		};
 		
-		final Vector2 texCoords[] = {
+		final Vector2[] texCoords = {
 				new Vector2(0, 1),
 				new Vector2(1, 1),
 				new Vector2(1, 0),
 				new Vector2(0, 0)
 		};
 		
-		final Vector3 unitCube[] = {
+		final Vector3[] unitCube = {
 				// front
 				new Vector3(0.0f, 1.0f, 1.0f),
 				new Vector3(1.0f, 1.0f, 1.0f),
@@ -446,18 +446,12 @@ public class WorldRenderer {
 		performanceGraphFPS.update(deltaTime);
 	}
 	
-	private final Vector3 mainDiffuseColor = new Vector3(0.5f, 0.5f, 0.5f);
-	private final Vector3 mainAmbientColor = new Vector3(0.01f, 0.01f, 0.01f);
-	
 	private final Bullet aim = new Bullet(new Vector3(), new Vector3(), 4, 0, Long.MAX_VALUE, false, new Vector3(1));
 	
 	private final MatrixStack tempStack = new MatrixStack();
 	
 	private final Matrix4 viewMatrix = new Matrix4(), cullingProjectionMatrix = new Matrix4();
 	private final Matrix3 normalMatrix = new Matrix3();
-	
-	private final Vector3 cameraPosTemp = new Vector3();
-	private final Vector3 renderTemp = new Vector3();
 	
 	private final DrawElementsIndirectCommand command = new DrawElementsIndirectCommand();
 	
@@ -473,7 +467,7 @@ public class WorldRenderer {
 		Camera camera = world.getCamera();
 		
 		// Convert Camera's Quaternion to a Matrix4 and translate it by the camera's position
-		camera.getOrientation().toMatrix(viewMatrix).translate(cameraPosTemp.set(camera.getPosition()).mult(-1));
+		camera.getOrientation().toMatrix(viewMatrix).translate(new Vector3(camera.getPosition()).mult(-1));
 		
 		// Setting up the 6 planes that define the edges of the frustum
 		culling.setupPlanes(cullingProjectionMatrix.set(camera.getProjectionMatrix()).mult(viewMatrix));
@@ -497,11 +491,11 @@ public class WorldRenderer {
 		for(ChunkRenderer chunkRenderer : chunkRenderers) {
 			Chunk chunk = chunkRenderer.getChunk();
 			
-			if(true) {// culling.isRectPrismInsideFrustum(renderTemp.set(chunk.getCornerX(), chunk.getCornerY(), -chunk.getCornerZ())
-						// .mult(Chunk.SPACING).sub(halfSpacing, halfSpacing, -halfSpacing),
-						// Chunk.CHUNK_BLOCK_WIDTH * Chunk.SPACING,
-						// Chunk.CHUNK_BLOCK_HEIGHT * Chunk.SPACING,
-						// -Chunk.CHUNK_BLOCK_DEPTH * Chunk.SPACING)) {
+			if(culling.isRectPrismInsideFrustum(new Vector3(chunk.getCornerX(), chunk.getCornerY(), -chunk.getCornerZ())
+					.mult(Chunk.SPACING).sub(halfSpacing, halfSpacing, -halfSpacing),
+					Chunk.CHUNK_BLOCK_WIDTH * Chunk.SPACING,
+					Chunk.CHUNK_BLOCK_HEIGHT * Chunk.SPACING,
+					-Chunk.CHUNK_BLOCK_DEPTH * Chunk.SPACING)) {
 				if(chunkRenderer.render(command, currentOffset)) {
 					commandsBuffer.put(command.toBuffer());
 					
@@ -552,7 +546,7 @@ public class WorldRenderer {
 			glUniform2f(resolutionUniform, GLUtils.getWidth(), GLUtils.getHeight());
 			
 			final float mainK = 0.00001f;
-			lightSystem.renderLights(mainDiffuseColor, mainK, mainAmbientColor, viewMatrix, bulletRenderer);
+			lightSystem.renderLights(new Vector3(0.5f, 0.5f, 0.5f), mainK, new Vector3(0.01f, 0.01f, 0.01f), viewMatrix, bulletRenderer);
 			
 			GLUtils.glBindVertexArray(deferredVAO);
 			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);

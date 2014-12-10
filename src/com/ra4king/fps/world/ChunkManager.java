@@ -81,8 +81,6 @@ public class ChunkManager {
 		return getChunkContaining(block.getX(), block.getY(), block.getZ());
 	}
 	
-	private final Vector3 temp = new Vector3();
-	
 	@TakeStruct
 	public Block getBlock(Vector3 v, float radius) {
 		int px = Math.round(v.x() / Chunk.SPACING);
@@ -102,7 +100,7 @@ public class ChunkManager {
 					if(block == null || block.getType() == BlockType.AIR)
 						continue;
 					
-					float len = temp.set(px + a, py + b, -(pz + c)).mult(Chunk.SPACING).sub(v).lengthSquared();
+					float len = new Vector3(px + a, py + b, -(pz + c)).mult(Chunk.SPACING).sub(v).lengthSquared();
 					
 					if(len < lowestDistance) {
 						lowestDistance = len;
@@ -144,7 +142,7 @@ public class ChunkManager {
 						continue;
 					
 					// Length squared of ((px,py,pz)+(a,b,c) - v)
-					float lenSqr = temp.set(px + a, py + b, -(pz + c)).mult(Chunk.SPACING).sub(v).lengthSquared();
+					float lenSqr = new Vector3(px + a, py + b, -(pz + c)).mult(Chunk.SPACING).sub(v).lengthSquared();
 					
 					if(lenSqr <= distSqr) {
 						if(size >= blocks.length) {

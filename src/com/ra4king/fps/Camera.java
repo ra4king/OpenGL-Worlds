@@ -4,6 +4,9 @@ import com.ra4king.opengl.util.math.Matrix4;
 import com.ra4king.opengl.util.math.Quaternion;
 import com.ra4king.opengl.util.math.Vector3;
 
+import net.indiespot.struct.cp.Struct;
+import net.indiespot.struct.cp.TakeStruct;
+
 /**
  * @author Roi Atalla
  */
@@ -22,8 +25,8 @@ public class Camera {
 		this.far = far;
 		
 		projectionMatrix = new Matrix4();
-		position = new Vector3();
-		orientation = new Quaternion();
+		position = Struct.malloc(Vector3.class).set(0f);
+		orientation = Struct.malloc(Quaternion.class).reset();
 	}
 	
 	public void setWindowSize(float width, float height) {
@@ -43,6 +46,7 @@ public class Camera {
 		this.cameraUpdate = cameraUpdate;
 	}
 	
+	@TakeStruct
 	public Vector3 getPosition() {
 		return position;
 	}
@@ -51,6 +55,7 @@ public class Camera {
 		this.position.set(position);
 	}
 	
+	@TakeStruct
 	public Quaternion getOrientation() {
 		return orientation;
 	}

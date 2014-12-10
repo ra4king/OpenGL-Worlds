@@ -23,6 +23,8 @@ import com.ra4king.opengl.util.math.Matrix4;
 import com.ra4king.opengl.util.math.MatrixStack;
 import com.ra4king.opengl.util.math.Vector3;
 
+import net.indiespot.struct.cp.Struct;
+
 /**
  * @author Roi Atalla
  */
@@ -89,7 +91,9 @@ public class BulletRenderer {
 	public int getBulletLightData(Matrix4 viewMatrix, FloatBuffer bulletData, int maxBulletCount) {
 		final float bulletK = 0.01f, hugeBulletK = 0.0001f, nonSolidBulletK = 0.05f;
 		
+		cameraWorldPositions.forEach((b, v) -> Struct.free(v));
 		cameraWorldPositions.clear();
+		
 		sort(viewMatrix);
 		
 		ArrayList<Bullet> bullets = bulletManager.getBullets();
@@ -121,7 +125,7 @@ public class BulletRenderer {
 	private void sort(Matrix4 viewMatrix, List<Bullet> bullets, final HashMap<Bullet,Vector3> bulletPositions) {
 		if(bulletPositions.isEmpty())
 			for(Bullet b : bullets)
-				bulletPositions.put(b, viewMatrix.mult(b.getPosition()));
+				bulletPositions.put(b, Struct.malloc(Vector3.class).set(viewMatrix.mult3(b.getPosition())));
 		
 		Collections.sort(bullets, (Bullet o1, Bullet o2) ->
 				(int)Math.signum(bulletPositions.get(o1).z() - bulletPositions.get(o2).z())
@@ -136,7 +140,11 @@ public class BulletRenderer {
 	
 	public void render(Matrix4 projectionMatrix, MatrixStack modelViewMatrix, FrustumCulling culling, Bullet ... bullets) {
 		List<Bullet> bulletList = Arrays.asList(bullets);
-		sort(modelViewMatrix.getTop(), bulletList, new HashMap<>());
+		HashMap<Bullet,Vector3> positions = new HashMap<>();
+		sort(modelViewMatrix.getTop(), bulletList, positions);
+		
+		positions.forEach((b, v) -> Struct.free(v));
+		positions.clear();
 		
 		render(projectionMatrix, modelViewMatrix, bulletList, culling);
 	}
