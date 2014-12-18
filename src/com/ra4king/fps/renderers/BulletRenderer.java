@@ -91,7 +91,12 @@ public class BulletRenderer {
 	public int getBulletLightData(Matrix4 viewMatrix, FloatBuffer bulletData, int maxBulletCount) {
 		final float bulletK = 0.01f, hugeBulletK = 0.0001f, nonSolidBulletK = 0.05f;
 		
-		cameraWorldPositions.forEach((b, v) -> Struct.free(v));
+		// cameraWorldPositions.forEach((b, v) -> Struct.free(v));
+		
+		for(Bullet b : cameraWorldPositions.keySet()) {
+			Struct.free(cameraWorldPositions.get(b));
+		}
+
 		cameraWorldPositions.clear();
 		
 		sort(viewMatrix);
