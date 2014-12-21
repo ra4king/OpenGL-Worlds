@@ -50,7 +50,6 @@ public class Bullet {
 	@Override
 	protected void finalize() throws Throwable {
 		try {
-			System.out.println("Freeing (" + this + ")'s structs!");
 			Struct.free(position);
 			Struct.free(velocity);
 			Struct.free(color);

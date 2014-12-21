@@ -60,7 +60,7 @@ void main() {
 	
 	vec3 totalLight = ambientLight;
 	
-	for(int a = int(numberOfLights - 1); a < numberOfLights; a++) {
+	for(int a = 0; a < numberOfLights; a++) {
 		PointLight light = lights[a];
 		
 		vec3 lightDistance = light.position - cameraSpacePosition;
