@@ -29,6 +29,16 @@ public class Camera {
 		orientation = Struct.malloc(Quaternion.class).reset();
 	}
 	
+	@Override
+	protected void finalize() throws Throwable {
+		try {
+			Struct.free(position);
+			Struct.free(orientation);
+		} finally {
+			super.finalize();
+		}
+	}
+	
 	public void setWindowSize(float width, float height) {
 		getProjectionMatrix().clearToPerspectiveDeg(fov, width, height, near, far);
 	}

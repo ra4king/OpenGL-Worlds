@@ -47,6 +47,18 @@ public class Bullet {
 		this.color = Struct.malloc(Vector3.class).set(color);
 	}
 	
+	@Override
+	protected void finalize() throws Throwable {
+		try {
+			System.out.println("Freeing (" + this + ")'s structs!");
+			Struct.free(position);
+			Struct.free(velocity);
+			Struct.free(color);
+		} finally {
+			super.finalize();
+		}
+	}
+
 	public boolean isAlive() {
 		return age < life;
 	}

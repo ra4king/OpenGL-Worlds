@@ -1,7 +1,7 @@
 package com.ra4king.fps.world;
 
-import com.ra4king.fps.world.Chunk.Block;
-import com.ra4king.fps.world.Chunk.BlockType;
+import com.ra4king.fps.actors.Block;
+import com.ra4king.fps.actors.Block.BlockType;
 import com.ra4king.opengl.util.math.Vector3;
 
 import net.indiespot.struct.cp.Struct;

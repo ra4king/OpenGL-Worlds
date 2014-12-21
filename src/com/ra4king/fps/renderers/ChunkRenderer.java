@@ -4,10 +4,10 @@ import java.nio.ByteBuffer;
 
 import org.lwjgl.BufferUtils;
 
+import com.ra4king.fps.actors.Block;
+import com.ra4king.fps.actors.Block.BlockType;
 import com.ra4king.fps.renderers.WorldRenderer.DrawElementsIndirectCommand;
 import com.ra4king.fps.world.Chunk;
-import com.ra4king.fps.world.Chunk.Block;
-import com.ra4king.fps.world.Chunk.BlockType;
 import com.ra4king.fps.world.Chunk.ChunkModifiedCallback;
 import com.ra4king.opengl.util.Stopwatch;
 import com.ra4king.opengl.util.buffers.GLBuffer;

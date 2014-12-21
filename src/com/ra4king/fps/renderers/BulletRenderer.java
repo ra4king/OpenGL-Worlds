@@ -5,10 +5,7 @@ import static org.lwjgl.opengl.GL15.*;
 import static org.lwjgl.opengl.GL20.*;
 
 import java.nio.FloatBuffer;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 
 import org.lwjgl.BufferUtils;
@@ -22,8 +19,6 @@ import com.ra4king.opengl.util.Utils;
 import com.ra4king.opengl.util.math.Matrix4;
 import com.ra4king.opengl.util.math.MatrixStack;
 import com.ra4king.opengl.util.math.Vector3;
-
-import net.indiespot.struct.cp.Struct;
 
 /**
  * @author Roi Atalla
@@ -86,28 +81,19 @@ public class BulletRenderer {
 		GLUtils.glBindVertexArray(0);
 	}
 	
-	private HashMap<Bullet,Vector3> cameraWorldPositions = new HashMap<>();
-	
 	public int getBulletLightData(Matrix4 viewMatrix, FloatBuffer bulletData, int maxBulletCount) {
 		final float bulletK = 0.01f, hugeBulletK = 0.0001f, nonSolidBulletK = 0.05f;
 		
-		// cameraWorldPositions.forEach((b, v) -> Struct.free(v));
-		
-		for(Bullet b : cameraWorldPositions.keySet()) {
-			Struct.free(cameraWorldPositions.get(b));
-		}
-
-		cameraWorldPositions.clear();
-		
-		sort(viewMatrix);
-		
-		ArrayList<Bullet> bullets = bulletManager.getBullets();
+		BulletVectorPair[] bulletVectorPairs = new BulletVectorPair[bulletManager.getBullets().size()];
+		for(int a = 0; a < bulletVectorPairs.length; a++)
+			bulletVectorPairs[a] = new BulletVectorPair(null, new Vector3());
+		sort(bulletManager.getBullets(), viewMatrix, bulletVectorPairs);
 		
 		int count = 0;
 		
-		for(int a = bullets.size() - 1; a >= 0 && count < maxBulletCount; a--) {
-			Bullet b = bullets.get(a);
-			Vector3 v = cameraWorldPositions.get(b);
+		for(int a = bulletVectorPairs.length - 1; a >= 0 && count < maxBulletCount; a--) {
+			Bullet b = bulletVectorPairs[a].bullet;
+			Vector3 v = bulletVectorPairs[a].vector;
 			
 			if(v.z() >= 0)
 				continue;
@@ -123,39 +109,43 @@ public class BulletRenderer {
 		return count;
 	}
 	
-	private void sort(Matrix4 viewMatrix) {
-		sort(viewMatrix, bulletManager.getBullets(), cameraWorldPositions);
-	}
-	
-	private void sort(Matrix4 viewMatrix, List<Bullet> bullets, final HashMap<Bullet,Vector3> bulletPositions) {
-		if(bulletPositions.isEmpty())
-			for(Bullet b : bullets)
-				bulletPositions.put(b, Struct.malloc(Vector3.class).set(viewMatrix.mult3(b.getPosition())));
+	private static void sort(List<Bullet> bullets, Matrix4 viewMatrix, BulletVectorPair[] sortedBullets) {
+		if(bullets.size() != sortedBullets.length)
+			throw new IllegalArgumentException("sortedBullets array is invalid length!");
 		
-		Collections.sort(bullets, (Bullet o1, Bullet o2) ->
-				(int)Math.signum(bulletPositions.get(o1).z() - bulletPositions.get(o2).z())
-				);
+		for(int a = 0; a < bullets.size(); a++) {
+			Bullet b = bullets.get(a);
+			sortedBullets[a].bullet = bullets.get(a);
+			sortedBullets[a].vector.set(viewMatrix.mult3(b.getPosition()));
+		}
+		
+		Arrays.sort(sortedBullets);
 	}
 	
 	public void render(Matrix4 projectionMatrix, MatrixStack modelViewMatrix, FrustumCulling culling) {
-		sort(modelViewMatrix.getTop());
+		BulletVectorPair[] bulletVectorPairs = new BulletVectorPair[bulletManager.getBullets().size()];
+		for(int a = 0; a < bulletVectorPairs.length; a++)
+			bulletVectorPairs[a] = new BulletVectorPair(null, new Vector3());
 		
-		render(projectionMatrix, modelViewMatrix, bulletManager.getBullets(), culling);
+		sort(bulletManager.getBullets(), modelViewMatrix.getTop(), bulletVectorPairs);
+		
+		render(projectionMatrix, modelViewMatrix, bulletVectorPairs, culling);
 	}
 	
 	public void render(Matrix4 projectionMatrix, MatrixStack modelViewMatrix, FrustumCulling culling, Bullet ... bullets) {
 		List<Bullet> bulletList = Arrays.asList(bullets);
-		HashMap<Bullet,Vector3> positions = new HashMap<>();
-		sort(modelViewMatrix.getTop(), bulletList, positions);
 		
-		positions.forEach((b, v) -> Struct.free(v));
-		positions.clear();
+		BulletVectorPair[] bulletVectorPairs = new BulletVectorPair[bulletList.size()];
+		for(int a = 0; a < bulletVectorPairs.length; a++)
+			bulletVectorPairs[a] = new BulletVectorPair(null, new Vector3());
 		
-		render(projectionMatrix, modelViewMatrix, bulletList, culling);
+		sort(bulletList, modelViewMatrix.getTop(), bulletVectorPairs);
+		
+		render(projectionMatrix, modelViewMatrix, bulletVectorPairs, culling);
 	}
 	
-	private void render(Matrix4 projectionMatrix, MatrixStack modelViewMatrix, List<Bullet> bullets, FrustumCulling culling) {
-		if(bullets.size() == 0)
+	private void render(Matrix4 projectionMatrix, MatrixStack modelViewMatrix, BulletVectorPair[] bullets, FrustumCulling culling) {
+		if(bullets.length == 0)
 			return;
 		
 		bulletProgram.begin();
@@ -165,10 +155,10 @@ public class BulletRenderer {
 		
 		final int BULLET_COUNT = BULLET_SIZE / 2;
 		
-		boolean bulletCountChanged = bullets.size() * BULLET_COUNT > bulletDataBuffer.capacity();
+		boolean bulletCountChanged = bullets.length * BULLET_COUNT > bulletDataBuffer.capacity();
 		
 		if(bulletCountChanged) {
-			while(bullets.size() * BULLET_COUNT > BULLET_BUFFER_SIZE >> 2) {
+			while(bullets.length * BULLET_COUNT > BULLET_BUFFER_SIZE >> 2) {
 				BULLET_BUFFER_SIZE *= 2;
 			}
 			
@@ -180,14 +170,14 @@ public class BulletRenderer {
 		
 		int bulletDrawnCount = 0;
 		
-		for(Bullet b : bullets) {
-			if(culling != null && !culling.isCubeInsideFrustum(b.getPosition(), b.getSize()))
+		for(BulletVectorPair bvp : bullets) {
+			if(culling != null && !culling.isCubeInsideFrustum(bvp.bullet.getPosition(), bvp.bullet.getSize()))
 				continue;
 			
 			bulletDrawnCount++;
 			
-			bulletDataBuffer.put(b.getPosition().toBuffer()).put(b.getSize());
-			bulletDataBuffer.put(b.getColor().toBuffer()).put(b.getAlpha());
+			bulletDataBuffer.put(bvp.bullet.getPosition().toBuffer()).put(bvp.bullet.getSize());
+			bulletDataBuffer.put(bvp.bullet.getColor().toBuffer()).put(bvp.bullet.getAlpha());
 		}
 		
 		bulletDataBuffer.flip();
@@ -209,5 +199,24 @@ public class BulletRenderer {
 		glDepthMask(false);
 		GLUtils.glDrawArraysInstanced(GL_TRIANGLES, 0, 6, bulletDrawnCount);
 		glDepthMask(true);
+	}
+	
+	private static class BulletVectorPair implements Comparable {
+		Bullet bullet;
+		Vector3 vector;
+		
+		BulletVectorPair(Bullet bullet, Vector3 vector) {
+			this.bullet = bullet;
+			this.vector = vector;
+		}
+		
+		@Override
+		public int compareTo(Object o) {
+			if(o instanceof BulletVectorPair) {
+				BulletVectorPair bvp = (BulletVectorPair)o;
+				return (int)Math.signum(this.vector.z() - bvp.vector.z());
+			}
+			return 0;
+		}
 	}
 }

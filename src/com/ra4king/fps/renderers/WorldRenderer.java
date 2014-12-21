@@ -19,6 +19,7 @@ import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
+import java.util.function.Supplier;
 
 import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.EXTTextureFilterAnisotropic;
@@ -42,6 +43,8 @@ import com.ra4king.opengl.util.math.Matrix4;
 import com.ra4king.opengl.util.math.MatrixStack;
 import com.ra4king.opengl.util.math.Vector2;
 import com.ra4king.opengl.util.math.Vector3;
+import com.ra4king.opengl.util.math.Vector4;
+import com.ra4king.opengl.util.render.PerformanceGraph;
 
 /**
  * @author Roi Atalla
@@ -72,12 +75,12 @@ public class WorldRenderer {
 	private BulletRenderer bulletRenderer;
 	private LightSystem lightSystem;
 	
-	// private PerformanceGraph performanceGraphUpdate;
-	// private PerformanceGraph performanceGraphRender;
-	// private PerformanceGraph performanceGraphUpdateCompactArray;
-	// private PerformanceGraph performanceGraphBulletRender;
-	// private PerformanceGraph performanceGraphDisplayUpdate;
-	// private PerformanceGraph performanceGraphFPS;
+	private PerformanceGraph performanceGraphUpdate;
+	private PerformanceGraph performanceGraphRender;
+	private PerformanceGraph performanceGraphUpdateCompactArray;
+	private PerformanceGraph performanceGraphBulletRender;
+	private PerformanceGraph performanceGraphDisplayUpdate;
+	private PerformanceGraph performanceGraphFPS;
 	
 	static {
 		if(GLUtils.GL_VERSION >= 31) {
@@ -122,12 +125,42 @@ public class WorldRenderer {
 		
 		final float maxValue = 10.0f;
 		final int graphHeight = 100, stepSize = 3;
-		// performanceGraphUpdate = new PerformanceGraph(maxValue, 100, 100, graphHeight, stepSize, 200, new Vector4(0, 0, 1, 1), () -> Stopwatch.getTimePerFrame("Update")); // Blue
-		// performanceGraphRender = new PerformanceGraph(maxValue, 100, 100, 100, 3, 200, new Vector4(0, 1, 1, 1), () -> Stopwatch.getTimePerFrame("Render")); // Cyan
-		// performanceGraphUpdateCompactArray = new PerformanceGraph(maxValue, 100, 100, 100, 3, 200, new Vector4(1, 0, 0, 1), () -> Stopwatch.getTimePerFrame("Update Compact Array")); // Red
-		// performanceGraphBulletRender = new PerformanceGraph(maxValue, 100, 100, 100, 3, 200, new Vector4(1, 1, 1, 1), () -> Stopwatch.getTimePerFrame("BulletRenderer")); // White
-		// performanceGraphDisplayUpdate = new PerformanceGraph(maxValue, 100, 100, 100, 3, 200, new Vector4(1, 0, 1, 1), () -> Stopwatch.getTimePerFrame("Display.update()")); // Magenta
-		// performanceGraphFPS = new PerformanceGraph(200, 100, 100, 100, 3, 200, new Vector4(0, 1, 0, 1), game::getLastFps); // Green
+		performanceGraphUpdate = new PerformanceGraph(maxValue, 100, 100, graphHeight, stepSize, 200, new Vector4(0, 0, 1, 1), new Supplier<Number>() {
+			@Override
+			public Number get() {
+				return Stopwatch.getTimePerFrame("Update");
+			}
+		}); // Blue
+		performanceGraphRender = new PerformanceGraph(maxValue, 100, 100, 100, 3, 200, new Vector4(0, 1, 1, 1), new Supplier<Number>() {
+			@Override
+			public Number get() {
+				return Stopwatch.getTimePerFrame("Render");
+			}
+		}); // Cyan
+		performanceGraphUpdateCompactArray = new PerformanceGraph(maxValue, 100, 100, 100, 3, 200, new Vector4(1, 0, 0, 1), new Supplier<Number>() {
+			@Override
+			public Number get() {
+				return Stopwatch.getTimePerFrame("Update Compact Array");
+			}
+		}); // Red
+		performanceGraphBulletRender = new PerformanceGraph(maxValue, 100, 100, 100, 3, 200, new Vector4(1, 1, 1, 1), new Supplier<Number>() {
+			@Override
+			public Number get() {
+				return Stopwatch.getTimePerFrame("BulletRenderer");
+			}
+		}); // White
+		performanceGraphDisplayUpdate = new PerformanceGraph(maxValue, 100, 100, 100, 3, 200, new Vector4(1, 0, 1, 1), new Supplier<Number>() {
+			@Override
+			public Number get() {
+				return Stopwatch.getTimePerFrame("Display.update()");
+			}
+		}); // Magenta
+		performanceGraphFPS = new PerformanceGraph(200, 100, 100, 100, 3, 200, new Vector4(0, 1, 0, 1), new Supplier<Number>() {
+			@Override
+			public Number get() {
+				return game.getLastFps();
+			}
+		}); // Green
 	}
 	
 	private void loadShaders() {
@@ -436,12 +469,12 @@ public class WorldRenderer {
 			System.out.printf("Rendering %d chunks, %d cubes\n", lastChunksRendered, cubes);
 		}
 		
-		// performanceGraphUpdate.update(deltaTime);
-		// performanceGraphRender.update(deltaTime);
-		// performanceGraphUpdateCompactArray.update(deltaTime);
-		// performanceGraphDisplayUpdate.update(deltaTime);
-		// performanceGraphBulletRender.update(deltaTime);
-		// performanceGraphFPS.update(deltaTime);
+		performanceGraphUpdate.update(deltaTime);
+		performanceGraphRender.update(deltaTime);
+		performanceGraphUpdateCompactArray.update(deltaTime);
+		performanceGraphDisplayUpdate.update(deltaTime);
+		performanceGraphBulletRender.update(deltaTime);
+		performanceGraphFPS.update(deltaTime);
 	}
 	
 	private final Bullet aim = new Bullet(new Vector3(), new Vector3(), 4, 0, Long.MAX_VALUE, false, new Vector3(1));
@@ -563,12 +596,12 @@ public class WorldRenderer {
 		Stopwatch.stop();
 		
 		Stopwatch.start("Performance Graphs Render");
-		// performanceGraphUpdate.render();
-		// performanceGraphRender.render();
-		// performanceGraphUpdateCompactArray.render();
-		// performanceGraphDisplayUpdate.render();
-		// performanceGraphBulletRender.render();
-		// performanceGraphFPS.render();
+		performanceGraphUpdate.render();
+		performanceGraphRender.render();
+		performanceGraphUpdateCompactArray.render();
+		performanceGraphDisplayUpdate.render();
+		performanceGraphBulletRender.render();
+		performanceGraphFPS.render();
 		Stopwatch.stop();
 	}
 	

@@ -2,9 +2,6 @@ package com.ra4king.fps;
 
 import static org.lwjgl.opengl.GL11.*;
 
-import java.io.FileOutputStream;
-import java.io.PrintStream;
-
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
 import org.lwjgl.opengl.PixelFormat;
@@ -21,9 +18,11 @@ public class OpenGLWorlds extends GLProgram {
 	public static void main(String[] args) throws Exception {
 		// System.setProperty("org.lwjgl.util.Debug", "true");
 		
-		PrintStream logs = new PrintStream(new FileOutputStream("libstruct-log.txt"));
-		System.setOut(logs);
-		System.setErr(logs);
+		// -Dnet.indiespot.struct.transform.StructEnv.PRINT_LOG=true
+		
+		// PrintStream logs = new PrintStream(new FileOutputStream("libstruct-log.txt"));
+		// System.setOut(logs);
+		// System.setErr(logs);
 		
 		new OpenGLWorlds().run(true, new PixelFormat(16, 0, 8, 0, 4));// , new ContextAttribs(4, 4).withDebug(true).withProfileCore(true));
 	}

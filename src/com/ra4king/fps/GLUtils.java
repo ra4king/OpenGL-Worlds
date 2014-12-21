@@ -121,34 +121,40 @@ public final class GLUtils {
 	}
 	
 	public static class FrustumCulling {
-		private enum Plane {
+		private static enum Plane {
 			LEFT, RIGHT, BOTTOM, TOP, NEAR, FAR;
 			
 			public static final Plane[] values = values();
 			
-			private Vector4 plane = Struct.malloc(Vector4.class);
+			// private Vector4 plane = Struct.malloc(Vector4.class);
 			
-			public float distanceFromPoint(Vector3 point) {
-				return new Vector3().set4(plane).dot(point) + plane.w();
-			}
+			// public float distanceFromPoint(Vector3 point) {
+			// return new Vector3().set4(plane).dot(point) + plane.w();
+			// }
 		}
 		
+		public float distanceFromPoint(Plane p, Vector3 point) {
+			Vector4 plane = planes[p.ordinal()];
+			return new Vector3().set4(plane).dot(point) + plane.w();
+		}
+		
+		private Vector4[] planes = Struct.malloc(Vector4.class, Plane.values.length);
+		
 		public void setupPlanes(Matrix4 matrix) {
-			Plane.LEFT.plane.set(getPlane(matrix, 1));
-			Plane.RIGHT.plane.set(getPlane(matrix, -1));
-			Plane.BOTTOM.plane.set(getPlane(matrix, 2));
-			Plane.TOP.plane.set(getPlane(matrix, -2));
-			Plane.NEAR.plane.set(getPlane(matrix, 3));
-			Plane.FAR.plane.set(getPlane(matrix, -3));
+			getPlane(matrix, 1, planes[Plane.LEFT.ordinal()]);
+			getPlane(matrix, -1, planes[Plane.RIGHT.ordinal()]);
+			getPlane(matrix, 2, planes[Plane.BOTTOM.ordinal()]);
+			getPlane(matrix, -2, planes[Plane.TOP.ordinal()]);
+			getPlane(matrix, 3, planes[Plane.NEAR.ordinal()]);
+			getPlane(matrix, -3, planes[Plane.FAR.ordinal()]);
 		}
 		
 		@CopyStruct
-		private Vector4 getPlane(Matrix4 matrix, int row) {
+		private void getPlane(Matrix4 matrix, int row, Vector4 plane) {
 			int scale = row < 0 ? -1 : 1;
 			row = Math.abs(row) - 1;
 			
-			return new Vector4(
-					matrix.get(3) + scale * matrix.get(row),
+			plane.set(matrix.get(3) + scale * matrix.get(row),
 					matrix.get(7) + scale * matrix.get(row + 4),
 					matrix.get(11) + scale * matrix.get(row + 8),
 					matrix.get(15) + scale * matrix.get(row + 12)).normalize();
@@ -161,21 +167,21 @@ public final class GLUtils {
 		
 		public boolean isRectPrismInsideFrustum(Vector3 corner, float width, float height, float depth) {
 			for(Plane p : Plane.values) {
-				if(p.distanceFromPoint(corner) >= 0)
+				if(distanceFromPoint(p, corner) >= 0)
 					continue;
-				if(p.distanceFromPoint(new Vector3(corner).add(width, 0, 0)) >= 0)
+				if(distanceFromPoint(p, new Vector3(corner).add(width, 0, 0)) >= 0)
 					continue;
-				if(p.distanceFromPoint(new Vector3(corner).add(0, height, 0)) >= 0)
+				if(distanceFromPoint(p, new Vector3(corner).add(0, height, 0)) >= 0)
 					continue;
-				if(p.distanceFromPoint(new Vector3(corner).add(0, 0, depth)) >= 0)
+				if(distanceFromPoint(p, new Vector3(corner).add(0, 0, depth)) >= 0)
 					continue;
-				if(p.distanceFromPoint(new Vector3(corner).add(width, height, 0)) >= 0)
+				if(distanceFromPoint(p, new Vector3(corner).add(width, height, 0)) >= 0)
 					continue;
-				if(p.distanceFromPoint(new Vector3(corner).add(width, 0, depth)) >= 0)
+				if(distanceFromPoint(p, new Vector3(corner).add(width, 0, depth)) >= 0)
 					continue;
-				if(p.distanceFromPoint(new Vector3(corner).add(0, height, depth)) >= 0)
+				if(distanceFromPoint(p, new Vector3(corner).add(0, height, depth)) >= 0)
 					continue;
-				if(p.distanceFromPoint(new Vector3(corner).add(width, height, depth)) >= 0)
+				if(distanceFromPoint(p, new Vector3(corner).add(width, height, depth)) >= 0)
 					continue;
 				
 				return false;
@@ -188,7 +194,7 @@ public final class GLUtils {
 			boolean isIn = true;
 			
 			for(Plane p : Plane.values)
-				isIn &= p.distanceFromPoint(point) >= 0;
+				isIn &= distanceFromPoint(p, point) >= 0;
 			
 			return isIn;
 		}
