@@ -124,21 +124,15 @@ public final class GLUtils {
 		private static enum Plane {
 			LEFT, RIGHT, BOTTOM, TOP, NEAR, FAR;
 			
-			public static final Plane[] values = values();
-			
-			// private Vector4 plane = Struct.malloc(Vector4.class);
-			
-			// public float distanceFromPoint(Vector3 point) {
-			// return new Vector3().set4(plane).dot(point) + plane.w();
-			// }
+			static Plane[] values = values();
 		}
+		
+		private Vector4[] planes = Struct.malloc(Vector4.class, Plane.values.length);
 		
 		public float distanceFromPoint(Plane p, Vector3 point) {
 			Vector4 plane = planes[p.ordinal()];
 			return new Vector3().set4(plane).dot(point) + plane.w();
 		}
-		
-		private Vector4[] planes = Struct.malloc(Vector4.class, Plane.values.length);
 		
 		public void setupPlanes(Matrix4 matrix) {
 			getPlane(matrix, 1, planes[Plane.LEFT.ordinal()]);
