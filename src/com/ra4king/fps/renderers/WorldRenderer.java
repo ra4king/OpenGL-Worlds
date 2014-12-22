@@ -125,44 +125,44 @@ public class WorldRenderer {
 		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
 		
 		final float maxValue = 10.0f;
-		final int graphHeight = 100, stepSize = 3;
-		performanceGraphUpdate = new PerformanceGraph(maxValue, 100, 100, graphHeight, stepSize, 200, new Vector4(0, 0, 1, 1), new Supplier<Number>() {
+		final int graphX = 100, graphY = 100, maxSteps = 100, stepSize = 3, graphHeight = 200;
+		performanceGraphUpdate = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(0, 0, 1, 1), new Supplier<Number>() {
 			@Override
 			public Number get() {
 				return Stopwatch.getTimePerFrame("Update");
 			}
 		}); // Blue
-		performanceGraphRender = new PerformanceGraph(maxValue, 100, 100, 100, 3, 200, new Vector4(0, 1, 1, 1), new Supplier<Number>() {
+		performanceGraphRender = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(0, 1, 1, 1), new Supplier<Number>() {
 			@Override
 			public Number get() {
 				return Stopwatch.getTimePerFrame("Render");
 			}
 		}); // Cyan
-		performanceGraphUpdateCompactArray = new PerformanceGraph(maxValue, 100, 100, 100, 3, 200, new Vector4(1, 0, 0, 1), new Supplier<Number>() {
+		performanceGraphUpdateCompactArray = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(1, 0, 0, 1), new Supplier<Number>() {
 			@Override
 			public Number get() {
 				return Stopwatch.getTimePerFrame("Update Compact Array");
 			}
 		}); // Red
-		performanceGraphLightSystemRender = new PerformanceGraph(maxValue, 100, 100, 100, 3, 200, new Vector4(1, 1, 0, 1), new Supplier<Number>() {
+		performanceGraphLightSystemRender = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(1, 1, 0, 1), new Supplier<Number>() {
 			@Override
 			public Number get() {
 				return Stopwatch.getTimePerFrame("LightSystem render UBO");
 			}
-		}); // orange
-		performanceGraphBulletRender = new PerformanceGraph(maxValue, 100, 100, 100, 3, 200, new Vector4(1, 1, 1, 1), new Supplier<Number>() {
+		}); // Orange
+		performanceGraphBulletRender = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(1, 1, 1, 1), new Supplier<Number>() {
 			@Override
 			public Number get() {
 				return Stopwatch.getTimePerFrame("BulletRenderer");
 			}
 		}); // White
-		performanceGraphDisplayUpdate = new PerformanceGraph(maxValue, 100, 100, 100, 3, 200, new Vector4(1, 0, 1, 1), new Supplier<Number>() {
+		performanceGraphDisplayUpdate = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(1, 0, 1, 1), new Supplier<Number>() {
 			@Override
 			public Number get() {
 				return Stopwatch.getTimePerFrame("Display.update()");
 			}
 		}); // Magenta
-		performanceGraphFPS = new PerformanceGraph(200, 100, 100, 100, 3, 200, new Vector4(0, 1, 0, 1), new Supplier<Number>() {
+		performanceGraphFPS = new PerformanceGraph(200, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(0, 1, 0, 1), new Supplier<Number>() {
 			@Override
 			public Number get() {
 				return game.getLastFps();
