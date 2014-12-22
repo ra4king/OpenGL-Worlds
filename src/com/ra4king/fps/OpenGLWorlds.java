@@ -56,8 +56,8 @@ public class OpenGLWorlds extends GLProgram {
 		world = new World();
 		worldRenderer = new WorldRenderer(this, world);
 		
-		world.generateRandomBlocks();
-		// world.getChunkManager().setupBlocks(false);
+		world.fillAll();
+		// world.generateRandomBlocks();
 	}
 	
 	@Override

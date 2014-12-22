@@ -77,6 +77,7 @@ public class WorldRenderer {
 	private PerformanceGraph performanceGraphUpdate;
 	private PerformanceGraph performanceGraphRender;
 	private PerformanceGraph performanceGraphUpdateCompactArray;
+	private PerformanceGraph performanceGraphLightSystemRender;
 	private PerformanceGraph performanceGraphBulletRender;
 	private PerformanceGraph performanceGraphDisplayUpdate;
 	private PerformanceGraph performanceGraphFPS;
@@ -123,13 +124,14 @@ public class WorldRenderer {
 		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
 		
 		final float maxValue = 10.0f;
-		final int graphHeight = 100, stepSize = 3;
-		performanceGraphUpdate = new PerformanceGraph(maxValue, 100, 100, graphHeight, stepSize, 200, new Vector4(0, 0, 1, 1), () -> Stopwatch.getTimePerFrame("Update")); // Blue
-		performanceGraphRender = new PerformanceGraph(maxValue, 100, 100, 100, 3, 200, new Vector4(0, 1, 1, 1), () -> Stopwatch.getTimePerFrame("Render")); // Cyan
-		performanceGraphUpdateCompactArray = new PerformanceGraph(maxValue, 100, 100, 100, 3, 200, new Vector4(1, 0, 0, 1), () -> Stopwatch.getTimePerFrame("Update Compact Array")); // Red
-		performanceGraphBulletRender = new PerformanceGraph(maxValue, 100, 100, 100, 3, 200, new Vector4(1, 1, 1, 1), () -> Stopwatch.getTimePerFrame("BulletRenderer")); // White
-		performanceGraphDisplayUpdate = new PerformanceGraph(maxValue, 100, 100, 100, 3, 200, new Vector4(1, 0, 1, 1), () -> Stopwatch.getTimePerFrame("Display.update()")); // Magenta
-		performanceGraphFPS = new PerformanceGraph(200, 100, 100, 100, 3, 200, new Vector4(0, 1, 0, 1), game::getLastFps); // Green
+		final int graphX = 100, graphY = 100, maxSteps = 100, stepSize = 3, graphHeight = 200;
+		performanceGraphUpdate = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(0, 0, 1, 1), () -> Stopwatch.getTimePerFrame("Update")); // Blue
+		performanceGraphRender = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(0, 1, 1, 1), () -> Stopwatch.getTimePerFrame("Render")); // Cyan
+		performanceGraphUpdateCompactArray = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(1, 0, 0, 1), () -> Stopwatch.getTimePerFrame("Update Compact Array")); // Red
+		performanceGraphLightSystemRender = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(1, 1, 0, 1), () -> Stopwatch.getTimePerFrame("LightSystem render UBO")); // Orange
+		performanceGraphBulletRender = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(1, 1, 1, 1), () -> Stopwatch.getTimePerFrame("BulletRenderer")); // White
+		performanceGraphDisplayUpdate = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(1, 0, 1, 1), () -> Stopwatch.getTimePerFrame("Display.update()")); // Magenta
+		performanceGraphFPS = new PerformanceGraph(200, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(0, 1, 0, 1), game::getLastFps); // Green
 	}
 	
 	private void loadShaders() {
@@ -441,6 +443,7 @@ public class WorldRenderer {
 		performanceGraphUpdate.update(deltaTime);
 		performanceGraphRender.update(deltaTime);
 		performanceGraphUpdateCompactArray.update(deltaTime);
+		performanceGraphLightSystemRender.update(deltaTime);
 		performanceGraphDisplayUpdate.update(deltaTime);
 		performanceGraphBulletRender.update(deltaTime);
 		performanceGraphFPS.update(deltaTime);
@@ -574,6 +577,7 @@ public class WorldRenderer {
 		performanceGraphUpdate.render();
 		performanceGraphRender.render();
 		performanceGraphUpdateCompactArray.render();
+		performanceGraphLightSystemRender.render();
 		performanceGraphDisplayUpdate.render();
 		performanceGraphBulletRender.render();
 		performanceGraphFPS.render();

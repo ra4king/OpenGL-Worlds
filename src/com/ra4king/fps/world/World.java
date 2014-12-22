@@ -40,6 +40,19 @@ public class World implements CameraUpdate {
 		chunkManager.clearAll();
 	}
 	
+	public void fillAll() {
+		final int width = ChunkManager.CHUNKS_SIDE_X * Chunk.CHUNK_BLOCK_WIDTH;
+		final int height = ChunkManager.CHUNKS_SIDE_Y * Chunk.CHUNK_BLOCK_HEIGHT;
+		final int depth = ChunkManager.CHUNKS_SIDE_Z * Chunk.CHUNK_BLOCK_DEPTH;
+		for(int x = 0; x < width; x++) {
+			for(int y = 0; y < height; y++) {
+				for(int z = 0; z < depth; z++) {
+					chunkManager.setBlock(BlockType.SOLID, x, y, z);
+				}
+			}
+		}
+	}
+	
 	public void generateRandomBlocks() {
 		NoiseGenerator generator = new NoiseGenerator(ChunkManager.CHUNKS_SIDE_X * Chunk.CHUNK_BLOCK_WIDTH,
 				ChunkManager.CHUNKS_SIDE_Y * Chunk.CHUNK_BLOCK_HEIGHT,
