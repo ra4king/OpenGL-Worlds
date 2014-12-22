@@ -77,6 +77,7 @@ public class WorldRenderer {
 	
 	private PerformanceGraph performanceGraphUpdate;
 	private PerformanceGraph performanceGraphRender;
+	private PerformanceGraph performanceGraphChunkRenderers;
 	private PerformanceGraph performanceGraphUpdateCompactArray;
 	private PerformanceGraph performanceGraphLightSystemRender;
 	private PerformanceGraph performanceGraphBulletRender;
@@ -138,6 +139,12 @@ public class WorldRenderer {
 				return Stopwatch.getTimePerFrame("Render");
 			}
 		}); // Cyan
+		performanceGraphChunkRenderers = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(0.5f, 0.5f, 0.5f, 1), new Supplier<Number>() {
+			@Override
+			public Number get() {
+				return Stopwatch.getTimePerFrame("ChunkRenderers");
+			}
+		}); // gray
 		performanceGraphUpdateCompactArray = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(1, 0, 0, 1), new Supplier<Number>() {
 			@Override
 			public Number get() {
@@ -478,6 +485,7 @@ public class WorldRenderer {
 		
 		performanceGraphUpdate.update(deltaTime);
 		performanceGraphRender.update(deltaTime);
+		performanceGraphChunkRenderers.update(deltaTime);
 		performanceGraphUpdateCompactArray.update(deltaTime);
 		performanceGraphLightSystemRender.update(deltaTime);
 		performanceGraphDisplayUpdate.update(deltaTime);
@@ -606,6 +614,7 @@ public class WorldRenderer {
 		Stopwatch.start("Performance Graphs Render");
 		performanceGraphUpdate.render();
 		performanceGraphRender.render();
+		performanceGraphChunkRenderers.render();
 		performanceGraphUpdateCompactArray.render();
 		performanceGraphLightSystemRender.render();
 		performanceGraphDisplayUpdate.render();

@@ -6,7 +6,7 @@ import net.indiespot.struct.cp.StructField;
 import net.indiespot.struct.cp.StructType;
 import net.indiespot.struct.cp.TakeStruct;
 
-@StructType(sizeof = 16)
+@StructType
 public class Block {
 	public static enum BlockType {
 		AIR, SOLID;
@@ -14,13 +14,13 @@ public class Block {
 		public static BlockType[] values = values();
 	}
 	
-	@StructField(offset = 0)
+	@StructField
 	private int x;
-	@StructField(offset = 4)
+	@StructField
 	private int y;
-	@StructField(offset = 8)
+	@StructField
 	private int z;
-	@StructField(offset = 12)
+	@StructField
 	private int type;
 	
 	@TakeStruct
