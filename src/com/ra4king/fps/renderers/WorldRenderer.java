@@ -78,6 +78,7 @@ public class WorldRenderer {
 	private PerformanceGraph performanceGraphUpdate;
 	private PerformanceGraph performanceGraphRender;
 	private PerformanceGraph performanceGraphUpdateCompactArray;
+	private PerformanceGraph performanceGraphLightSystemRender;
 	private PerformanceGraph performanceGraphBulletRender;
 	private PerformanceGraph performanceGraphDisplayUpdate;
 	private PerformanceGraph performanceGraphFPS;
@@ -143,6 +144,12 @@ public class WorldRenderer {
 				return Stopwatch.getTimePerFrame("Update Compact Array");
 			}
 		}); // Red
+		performanceGraphLightSystemRender = new PerformanceGraph(maxValue, 100, 100, 100, 3, 200, new Vector4(1, 1, 0, 1), new Supplier<Number>() {
+			@Override
+			public Number get() {
+				return Stopwatch.getTimePerFrame("LightSystem render UBO");
+			}
+		}); // orange
 		performanceGraphBulletRender = new PerformanceGraph(maxValue, 100, 100, 100, 3, 200, new Vector4(1, 1, 1, 1), new Supplier<Number>() {
 			@Override
 			public Number get() {
@@ -205,40 +212,40 @@ public class WorldRenderer {
 		
 		final Vector3[] unitCube = {
 				// front
-				new Vector3(0.0f, 1.0f, 1.0f),
-				new Vector3(1.0f, 1.0f, 1.0f),
-				new Vector3(1.0f, 0.0f, 1.0f),
-				new Vector3(0.0f, 0.0f, 1.0f),
+				new Vector3(0.0f, 1.0f, 0.0f),
+				new Vector3(1.0f, 1.0f, 0.0f),
+				new Vector3(1.0f, 0.0f, 0.0f),
+				new Vector3(0.0f, 0.0f, 0.0f),
 				
 				// back
-				new Vector3(1.0f, 1.0f, 0.0f),
-				new Vector3(0.0f, 1.0f, 0.0f),
-				new Vector3(0.0f, 0.0f, 0.0f),
-				new Vector3(1.0f, 0.0f, 0.0f),
+				new Vector3(1.0f, 1.0f, -1.0f),
+				new Vector3(0.0f, 1.0f, -1.0f),
+				new Vector3(0.0f, 0.0f, -1.0f),
+				new Vector3(1.0f, 0.0f, -1.0f),
 				
 				// top
-				new Vector3(0.0f, 1.0f, 0.0f),
+				new Vector3(0.0f, 1.0f, -1.0f),
+				new Vector3(1.0f, 1.0f, -1.0f),
 				new Vector3(1.0f, 1.0f, 0.0f),
-				new Vector3(1.0f, 1.0f, 1.0f),
-				new Vector3(0.0f, 1.0f, 1.0f),
+				new Vector3(0.0f, 1.0f, 0.0f),
 				
 				// bottom
-				new Vector3(0.0f, 0.0f, 1.0f),
-				new Vector3(1.0f, 0.0f, 1.0f),
-				new Vector3(1.0f, 0.0f, 0.0f),
 				new Vector3(0.0f, 0.0f, 0.0f),
+				new Vector3(1.0f, 0.0f, 0.0f),
+				new Vector3(1.0f, 0.0f, -1.0f),
+				new Vector3(0.0f, 0.0f, -1.0f),
 				
 				// right
-				new Vector3(1.0f, 1.0f, 1.0f),
 				new Vector3(1.0f, 1.0f, 0.0f),
+				new Vector3(1.0f, 1.0f, -1.0f),
+				new Vector3(1.0f, 0.0f, -1.0f),
 				new Vector3(1.0f, 0.0f, 0.0f),
-				new Vector3(1.0f, 0.0f, 1.0f),
 				
 				// left
+				new Vector3(0.0f, 1.0f, -1.0f),
 				new Vector3(0.0f, 1.0f, 0.0f),
-				new Vector3(0.0f, 1.0f, 1.0f),
-				new Vector3(0.0f, 0.0f, 1.0f),
-				new Vector3(0.0f, 0.0f, 0.0f)
+				new Vector3(0.0f, 0.0f, 0.0f),
+				new Vector3(0.0f, 0.0f, -1.0f)
 		};
 		
 		// 2 vec3s and 1 vec2
@@ -472,6 +479,7 @@ public class WorldRenderer {
 		performanceGraphUpdate.update(deltaTime);
 		performanceGraphRender.update(deltaTime);
 		performanceGraphUpdateCompactArray.update(deltaTime);
+		performanceGraphLightSystemRender.update(deltaTime);
 		performanceGraphDisplayUpdate.update(deltaTime);
 		performanceGraphBulletRender.update(deltaTime);
 		performanceGraphFPS.update(deltaTime);
@@ -599,6 +607,7 @@ public class WorldRenderer {
 		performanceGraphUpdate.render();
 		performanceGraphRender.render();
 		performanceGraphUpdateCompactArray.render();
+		performanceGraphLightSystemRender.render();
 		performanceGraphDisplayUpdate.render();
 		performanceGraphBulletRender.render();
 		performanceGraphFPS.render();

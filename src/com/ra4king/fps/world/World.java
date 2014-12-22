@@ -56,7 +56,7 @@ public class World implements CameraUpdate {
 			}
 		}
 	}
-
+	
 	public void generateRandomBlocks() {
 		NoiseGenerator generator = new NoiseGenerator(ChunkManager.CHUNKS_SIDE_X * Chunk.CHUNK_BLOCK_WIDTH,
 				ChunkManager.CHUNKS_SIDE_Y * Chunk.CHUNK_BLOCK_HEIGHT,
@@ -77,7 +77,7 @@ public class World implements CameraUpdate {
 	}
 	
 	private void reset() {
-		camera.setPosition(new Vector3(-10f, -10f, 10f));
+		camera.setPosition(new Vector3(-Chunk.BLOCK_SIZE, -Chunk.BLOCK_SIZE, Chunk.BLOCK_SIZE).mult(5));
 		camera.setOrientation(Utils.lookAt(camera.getPosition(), Vector3.ZERO, Vector3.UP).toQuaternion().normalize());
 	}
 	
