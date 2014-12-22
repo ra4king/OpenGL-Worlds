@@ -115,7 +115,6 @@ public class ChunkManager {
 		return lowestDistance <= d * d ? closestBlock : Struct.typedNull(Block.class);
 	}
 	
-	@TakeStruct
 	public Block[] getBlocks(Vector3 v, float radius) {
 		// Get approximate index (x,y,z) coordinate
 		int px = Math.round(v.x() / Chunk.SPACING);

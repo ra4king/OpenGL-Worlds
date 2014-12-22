@@ -127,7 +127,6 @@ public class Chunk {
 		return blocks[posToArrayIndex(x, y, z)];
 	}
 	
-	@TakeStruct
 	public Block[] getNeighbors(int x, int y, int z) {
 		Block[] neighbors = new Block[6];
 		int idx = 0;
@@ -165,7 +164,6 @@ public class Chunk {
 		return neighbors;
 	}
 	
-	@TakeStruct
 	public Block[] getNeighbors(Block b) {
 		return getNeighbors(b.getX() % Chunk.CHUNK_BLOCK_WIDTH, b.getY() % Chunk.CHUNK_BLOCK_HEIGHT, b.getZ() % Chunk.CHUNK_BLOCK_DEPTH);
 	}

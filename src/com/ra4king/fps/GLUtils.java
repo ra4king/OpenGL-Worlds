@@ -15,7 +15,6 @@ import com.ra4king.opengl.util.math.Matrix4;
 import com.ra4king.opengl.util.math.Vector3;
 import com.ra4king.opengl.util.math.Vector4;
 
-import net.indiespot.struct.cp.CopyStruct;
 import net.indiespot.struct.cp.Struct;
 
 /**
@@ -143,7 +142,6 @@ public final class GLUtils {
 			getPlane(matrix, -3, planes[Plane.FAR.ordinal()]);
 		}
 		
-		@CopyStruct
 		private void getPlane(Matrix4 matrix, int row, Vector4 plane) {
 			int scale = row < 0 ? -1 : 1;
 			row = Math.abs(row) - 1;
