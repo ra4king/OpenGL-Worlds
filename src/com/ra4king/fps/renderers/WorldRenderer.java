@@ -126,7 +126,7 @@ public class WorldRenderer {
 		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
 		
 		final float maxValue = 10.0f;
-		final int graphX = 100, graphY = 100, maxSteps = 100, stepSize = 3, graphHeight = 200;
+		final int graphX = 100, graphY = 100, maxSteps = 100, stepSize = 5, graphHeight = 300;
 		performanceGraphUpdate = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(0, 0, 1, 1), new Supplier<Number>() {
 			@Override
 			public Number get() {
@@ -497,9 +497,6 @@ public class WorldRenderer {
 	
 	private final MatrixStack tempStack = new MatrixStack();
 	
-	private final Matrix4 viewMatrix = new Matrix4(), cullingProjectionMatrix = new Matrix4();
-	private final Matrix3 normalMatrix = new Matrix3();
-	
 	private final DrawElementsIndirectCommand command = new DrawElementsIndirectCommand();
 	
 	{
@@ -514,10 +511,12 @@ public class WorldRenderer {
 		Camera camera = world.getCamera();
 		
 		// Convert Camera's Quaternion to a Matrix4 and translate it by the camera's position
-		camera.getOrientation().toMatrix(viewMatrix).translate(new Vector3(camera.getPosition()).mult(-1));
+		Matrix4 viewMatrix = new Matrix4();
+		camera.getOrientation().toMatrix(viewMatrix);
+		viewMatrix.translate(new Vector3(camera.getPosition()).mult(-1));
 		
 		// Setting up the 6 planes that define the edges of the frustum
-		culling.setupPlanes(cullingProjectionMatrix.set(camera.getProjectionMatrix()).mult(viewMatrix));
+		culling.setupPlanes(new Matrix4(camera.getProjectionMatrix()).mult(viewMatrix));
 		
 		Stopwatch.stop();
 		
@@ -571,8 +570,7 @@ public class WorldRenderer {
 			glUniformMatrix4(projectionMatrixUniform, false, camera.getProjectionMatrix().toBuffer());
 			glUniformMatrix4(viewMatrixUniform, false, viewMatrix.toBuffer());
 			
-			normalMatrix.set(viewMatrix).inverse().transpose();
-			glUniformMatrix3(normalMatrixUniform, false, normalMatrix.toBuffer());
+			glUniformMatrix3(normalMatrixUniform, false, new Matrix3().set4x4(viewMatrix).inverse().transpose().toBuffer());
 			
 			GLUtils.glBindVertexArray(chunkVAO);
 			glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_SHORT, 0, chunksRendered, 0);
