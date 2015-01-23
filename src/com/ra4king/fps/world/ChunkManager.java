@@ -11,7 +11,7 @@ import net.indiespot.struct.cp.TakeStruct;
  * @author Roi Atalla
  */
 public class ChunkManager {
-	public static final int CHUNKS_SIDE_X = 5, CHUNKS_SIDE_Y = 5, CHUNKS_SIDE_Z = 5;
+	public static final int CHUNKS_SIDE_X = 3, CHUNKS_SIDE_Y = 3, CHUNKS_SIDE_Z = 3;
 	
 	// z * CHUNKS_SIDE_X * CHUNKS_SIDE_Y + y * CHUNKS_SIDE_X + x
 	private Chunk[] chunks;

@@ -19,9 +19,11 @@ import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
+import java.util.ArrayList;
 import java.util.function.Supplier;
 
 import org.lwjgl.BufferUtils;
+import org.lwjgl.input.Keyboard;
 import org.lwjgl.opengl.EXTTextureFilterAnisotropic;
 import org.lwjgl.opengl.OpenGLException;
 
@@ -30,6 +32,7 @@ import com.ra4king.fps.GLUtils;
 import com.ra4king.fps.GLUtils.FrustumCulling;
 import com.ra4king.fps.OpenGLWorlds;
 import com.ra4king.fps.actors.Bullet;
+import com.ra4king.fps.actors.Portal;
 import com.ra4king.fps.world.Chunk;
 import com.ra4king.fps.world.World;
 import com.ra4king.opengl.util.PNGDecoder;
@@ -63,6 +66,15 @@ public class WorldRenderer {
 	private int resolutionUniform;
 	private int deferredFBO, deferredVAO;
 	
+	private static final int CUBE_TEXTURE_BINDING = 0;
+	private static final int CAMERA_POSITIONS_TEXTURE_BINDING = 1;
+	private static final int NORMALS_TEXTURE_BINDING = 2;
+	private static final int TEX_COORDS_TEXTURE_BINDING = 3;
+	private static final int DEPTH_TEXTURE_BINDING = 4;
+	
+	private static int cubeTexture;
+	private int cameraPositionsTexture, normalsTexture, texCoordsTexture, depthTexture;
+	
 	private FrustumCulling culling;
 	
 	private final int COMMANDS_BUFFER_SIZE;
@@ -74,6 +86,8 @@ public class WorldRenderer {
 	
 	private BulletRenderer bulletRenderer;
 	private LightSystem lightSystem;
+	
+	private ArrayList<PortalRenderer> portalRenderers;
 	
 	private PerformanceGraph performanceGraphUpdate;
 	private PerformanceGraph performanceGraphRender;
@@ -90,16 +104,12 @@ public class WorldRenderer {
 		} else {
 			MAX_NUM_LIGHTS = 50;
 		}
+		
+		cubeTexture = loadTexture("crate.png");
 	}
 	
 	public WorldRenderer(OpenGLWorlds game, World world) {
 		this.world = world;
-		
-		glEnable(GL_DEPTH_TEST);
-		
-		glEnable(GL_CULL_FACE);
-		glCullFace(GL_BACK);
-		glFrontFace(GL_CW);
 		
 		if(GLUtils.GL_VERSION >= 32) {
 			glEnable(GL_DEPTH_CLAMP);
@@ -124,6 +134,11 @@ public class WorldRenderer {
 		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandsVBO);
 		glBufferData(GL_DRAW_INDIRECT_BUFFER, COMMANDS_BUFFER_SIZE, GL_STREAM_DRAW);
 		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
+		
+		portalRenderers = new ArrayList<>();
+		for(Portal portal : world.getPortals()) {
+			portalRenderers.add(new PortalRenderer(portal, game.getRenderer(portal.getDestWorld())));
+		}
 		
 		final float maxValue = 10.0f;
 		final int graphX = 100, graphY = 100, maxSteps = 100, stepSize = 5, graphHeight = 300;
@@ -281,8 +296,8 @@ public class WorldRenderer {
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	}
 	
-	private int loadCubeTexture(String texName) {
-		try(InputStream in = getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "textures/" + texName)) {
+	private static int loadTexture(String texName) {
+		try(InputStream in = WorldRenderer.class.getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "textures/" + texName)) {
 			PNGDecoder decoder = new PNGDecoder(in);
 			
 			int width = decoder.getWidth();
@@ -353,7 +368,7 @@ public class WorldRenderer {
 		deferredFBO = glGenFramebuffers();
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, deferredFBO);
 		
-		int cameraPositionsTexture = glGenTextures();
+		cameraPositionsTexture = glGenTextures();
 		glBindTexture(GL_TEXTURE_2D, cameraPositionsTexture);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, GLUtils.getWidth(), GLUtils.getHeight(), 0, GL_RGB, GL_FLOAT, (ByteBuffer)null);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -362,7 +377,7 @@ public class WorldRenderer {
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 		glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, cameraPositionsTexture, 0);
 		
-		int normalsTexture = glGenTextures();
+		normalsTexture = glGenTextures();
 		glBindTexture(GL_TEXTURE_2D, normalsTexture);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, GLUtils.getWidth(), GLUtils.getHeight(), 0, GL_RGB, GL_FLOAT, (ByteBuffer)null);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -371,7 +386,7 @@ public class WorldRenderer {
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 		glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, normalsTexture, 0);
 		
-		int texCoordsTexture = glGenTextures();
+		texCoordsTexture = glGenTextures();
 		glBindTexture(GL_TEXTURE_2D, texCoordsTexture);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, GLUtils.getWidth(), GLUtils.getHeight(), 0, GL_RG, GL_FLOAT, (ByteBuffer)null);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -380,7 +395,7 @@ public class WorldRenderer {
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 		glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, texCoordsTexture, 0);
 		
-		int depthTexture = glGenTextures();
+		depthTexture = glGenTextures();
 		glBindTexture(GL_TEXTURE_2D, depthTexture);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, GLUtils.getWidth(), GLUtils.getHeight(), 0, GL_DEPTH_COMPONENT, GL_FLOAT, (ByteBuffer)null);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -405,27 +420,6 @@ public class WorldRenderer {
 		}
 		
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-		
-		final int CUBE_TEXTURE_BINDING = 0;
-		final int CAMERA_POSITIONS_TEXTURE_BINDING = 1;
-		final int NORMALS_TEXTURE_BINDING = 2;
-		final int TEX_COORDS_TEXTURE_BINDING = 3;
-		final int DEPTH_TEXTURE_BINDING = 4;
-		
-		glActiveTexture(GL_TEXTURE0 + CUBE_TEXTURE_BINDING);
-		glBindTexture(GL_TEXTURE_2D, loadCubeTexture("crate.png"));
-		
-		glActiveTexture(GL_TEXTURE0 + CAMERA_POSITIONS_TEXTURE_BINDING);
-		glBindTexture(GL_TEXTURE_2D, cameraPositionsTexture);
-		
-		glActiveTexture(GL_TEXTURE0 + NORMALS_TEXTURE_BINDING);
-		glBindTexture(GL_TEXTURE_2D, normalsTexture);
-		
-		glActiveTexture(GL_TEXTURE0 + TEX_COORDS_TEXTURE_BINDING);
-		glBindTexture(GL_TEXTURE_2D, texCoordsTexture);
-		
-		glActiveTexture(GL_TEXTURE0 + DEPTH_TEXTURE_BINDING);
-		glBindTexture(GL_TEXTURE_2D, depthTexture);
 		
 		deferredProgram.begin();
 		glUniform1i(deferredProgram.getUniformLocation("cubeTexture"), CUBE_TEXTURE_BINDING);
@@ -465,6 +459,14 @@ public class WorldRenderer {
 	private long timePassed;
 	private int lastChunksRendered;
 	
+	private boolean showPerformanceGraphs = true;
+	
+	public void keyPressed(int key, char c) {
+		if(key == Keyboard.KEY_O) {
+			showPerformanceGraphs = !showPerformanceGraphs;
+		}
+	}
+	
 	public void update(long deltaTime) {
 		timePassed += deltaTime;
 		
@@ -482,6 +484,9 @@ public class WorldRenderer {
 			
 			System.out.printf("Rendering %d chunks, %d cubes\n", lastChunksRendered, cubes);
 		}
+		
+		for(PortalRenderer portalRenderer : portalRenderers)
+			portalRenderer.update(deltaTime);
 		
 		performanceGraphUpdate.update(deltaTime);
 		performanceGraphRender.update(deltaTime);
@@ -581,11 +586,22 @@ public class WorldRenderer {
 		{
 			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 			
-			glClearColor(0.4f, 0.6f, 0.9f, 0f);
-			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			glActiveTexture(GL_TEXTURE0 + CUBE_TEXTURE_BINDING);
+			glBindTexture(GL_TEXTURE_2D, cubeTexture);
+			
+			glActiveTexture(GL_TEXTURE0 + CAMERA_POSITIONS_TEXTURE_BINDING);
+			glBindTexture(GL_TEXTURE_2D, cameraPositionsTexture);
+			
+			glActiveTexture(GL_TEXTURE0 + NORMALS_TEXTURE_BINDING);
+			glBindTexture(GL_TEXTURE_2D, normalsTexture);
+			
+			glActiveTexture(GL_TEXTURE0 + TEX_COORDS_TEXTURE_BINDING);
+			glBindTexture(GL_TEXTURE_2D, texCoordsTexture);
+			
+			glActiveTexture(GL_TEXTURE0 + DEPTH_TEXTURE_BINDING);
+			glBindTexture(GL_TEXTURE_2D, depthTexture);
 			
 			glEnable(GL_BLEND);
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 			
 			deferredProgram.begin();
 			glUniform2f(resolutionUniform, GLUtils.getWidth(), GLUtils.getHeight());
@@ -609,16 +625,21 @@ public class WorldRenderer {
 		
 		Stopwatch.stop();
 		
-		Stopwatch.start("Performance Graphs Render");
-		performanceGraphUpdate.render();
-		performanceGraphRender.render();
-		performanceGraphChunkRenderers.render();
-		performanceGraphUpdateCompactArray.render();
-		performanceGraphLightSystemRender.render();
-		performanceGraphDisplayUpdate.render();
-		performanceGraphBulletRender.render();
-		performanceGraphFPS.render();
-		Stopwatch.stop();
+		for(PortalRenderer portalRenderer : portalRenderers)
+			portalRenderer.render(camera.getProjectionMatrix(), viewMatrix);
+		
+		if(showPerformanceGraphs) {
+			Stopwatch.start("Performance Graphs Render");
+			performanceGraphUpdate.render();
+			performanceGraphRender.render();
+			performanceGraphChunkRenderers.render();
+			performanceGraphUpdateCompactArray.render();
+			performanceGraphLightSystemRender.render();
+			performanceGraphDisplayUpdate.render();
+			performanceGraphBulletRender.render();
+			performanceGraphFPS.render();
+			Stopwatch.stop();
+		}
 	}
 	
 	public static class DrawElementsIndirectCommand {
@@ -645,17 +666,22 @@ public class WorldRenderer {
 	
 	private static class UniformBufferLightSystem implements LightSystem {
 		private static final int LIGHTS_UNIFORM_BUFFER_SIZE = 4 * (MAX_NUM_LIGHTS * 2 * 4 + 4);
+		private static int BUFFER_BLOCK_BINDING_INIT = 1;
+		
+		private final int BUFFER_BLOCK_BINDING;
 		
 		private FloatBuffer bulletsBuffer;
 		private int lightsUniformBufferVBO;
 		
 		private int lastBulletCount = -1;
 		
+		public UniformBufferLightSystem() {
+			BUFFER_BLOCK_BINDING = BUFFER_BLOCK_BINDING_INIT++;
+		}
+		
 		@Override
 		public void setupLights(ShaderProgram program) {
 			bulletsBuffer = BufferUtils.createFloatBuffer(MAX_NUM_LIGHTS * 2 * 4);
-			
-			final int BUFFER_BLOCK_BINDING = 1;
 			
 			int lightsBlockIndex = program.getUniformBlockIndex("Lights");
 			
@@ -669,8 +695,6 @@ public class WorldRenderer {
 			glBindBuffer(GL_UNIFORM_BUFFER, lightsUniformBufferVBO);
 			glBufferData(GL_UNIFORM_BUFFER, LIGHTS_UNIFORM_BUFFER_SIZE, GL_STREAM_DRAW);
 			glBindBuffer(GL_UNIFORM_BUFFER, 0);
-			
-			glBindBufferBase(GL_UNIFORM_BUFFER, BUFFER_BLOCK_BINDING, lightsUniformBufferVBO);
 		}
 		
 		@Override
@@ -689,8 +713,9 @@ public class WorldRenderer {
 				
 				lastBulletCount = bulletCount;
 				
-				glBindBuffer(GL_UNIFORM_BUFFER, lightsUniformBufferVBO);
+				glBindBufferBase(GL_UNIFORM_BUFFER, BUFFER_BLOCK_BINDING, lightsUniformBufferVBO);
 				
+				glBindBuffer(GL_UNIFORM_BUFFER, lightsUniformBufferVBO);
 				ByteBuffer lightsMappedBuffer = glMapBufferRange(GL_UNIFORM_BUFFER, 0, LIGHTS_UNIFORM_BUFFER_SIZE,
 						GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_UNSYNCHRONIZED_BIT, null);
 				

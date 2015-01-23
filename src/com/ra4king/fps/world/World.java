@@ -1,5 +1,7 @@
 package com.ra4king.fps.world;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 import org.lwjgl.input.Keyboard;
@@ -10,10 +12,12 @@ import com.ra4king.fps.Camera.CameraUpdate;
 import com.ra4king.fps.GLUtils;
 import com.ra4king.fps.actors.Block.BlockType;
 import com.ra4king.fps.actors.Bullet;
+import com.ra4king.fps.actors.Portal;
 import com.ra4king.opengl.util.Stopwatch;
 import com.ra4king.opengl.util.Utils;
 import com.ra4king.opengl.util.math.Matrix4;
 import com.ra4king.opengl.util.math.Quaternion;
+import com.ra4king.opengl.util.math.Vector2;
 import com.ra4king.opengl.util.math.Vector3;
 
 /**
@@ -23,6 +27,8 @@ public class World implements CameraUpdate {
 	private Camera camera;
 	private ChunkManager chunkManager;
 	private BulletManager bulletManager;
+	
+	private ArrayList<Portal> portals;
 	
 	private boolean isPaused;
 	
@@ -37,7 +43,17 @@ public class World implements CameraUpdate {
 		chunkManager = new ChunkManager();
 		bulletManager = new BulletManager(chunkManager);
 		
+		portals = new ArrayList<>();
+		
 		reset();
+	}
+	
+	public void addPortal(Vector3 position, Vector2 size, World otherWorld) {
+		portals.add(new Portal(this, position, size, otherWorld, new Vector3(50, 50, 100)));
+	}
+	
+	public List<Portal> getPortals() {
+		return portals;
 	}
 	
 	public void clearAll() {
@@ -98,6 +114,9 @@ public class World implements CameraUpdate {
 		Stopwatch.start("ChunkManager Update");
 		chunkManager.update(deltaTime);
 		Stopwatch.stop();
+		
+		for(Portal portal : portals)
+			portal.update(deltaTime);
 		
 		if(!isPaused) {
 			Stopwatch.start("BulletManager Update");
