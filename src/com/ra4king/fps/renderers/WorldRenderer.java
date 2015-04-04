@@ -14,7 +14,9 @@ import static org.lwjgl.opengl.GL32.*;
 import static org.lwjgl.opengl.GL40.*;
 import static org.lwjgl.opengl.GL43.*;
 
+import java.io.BufferedReader;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
@@ -47,14 +49,16 @@ import com.ra4king.opengl.util.math.MatrixStack;
 import com.ra4king.opengl.util.math.Vector2;
 import com.ra4king.opengl.util.math.Vector3;
 import com.ra4king.opengl.util.math.Vector4;
+import com.ra4king.opengl.util.render.MonospaceFont;
 import com.ra4king.opengl.util.render.PerformanceGraph;
 
 /**
  * @author Roi Atalla
  */
 public class WorldRenderer {
-	private static final int MAX_NUM_LIGHTS;
+	private static final int MAX_NUM_LIGHTS = 100;
 	
+	private OpenGLWorlds game;
 	private World world;
 	
 	private ShaderProgram blocksProgram;
@@ -87,6 +91,8 @@ public class WorldRenderer {
 	private BulletRenderer bulletRenderer;
 	private LightSystem lightSystem;
 	
+	private MonospaceFont font;
+	
 	private ArrayList<PortalRenderer> portalRenderers;
 	
 	private PerformanceGraph performanceGraphUpdate;
@@ -99,16 +105,11 @@ public class WorldRenderer {
 	private PerformanceGraph performanceGraphFPS;
 	
 	static {
-		if(GLUtils.GL_VERSION >= 31) {
-			MAX_NUM_LIGHTS = 200;
-		} else {
-			MAX_NUM_LIGHTS = 50;
-		}
-		
 		cubeTexture = loadTexture("crate.png");
 	}
 	
 	public WorldRenderer(OpenGLWorlds game, World world) {
+		this.game = game;
 		this.world = world;
 		
 		if(GLUtils.GL_VERSION >= 32) {
@@ -118,6 +119,8 @@ public class WorldRenderer {
 		culling = new FrustumCulling();
 		
 		loadShaders();
+		
+		loadFont();
 		
 		bulletRenderer = new BulletRenderer(world.getBulletManager());
 		
@@ -194,7 +197,7 @@ public class WorldRenderer {
 	
 	private void loadShaders() {
 		blocksProgram = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "shaders/blocks.vert")),
-				Utils.readFully(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "shaders/blocks.frag")));
+		                                   Utils.readFully(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "shaders/blocks.frag")));
 		
 		projectionMatrixUniform = blocksProgram.getUniformLocation("projectionMatrix");
 		viewMatrixUniform = blocksProgram.getUniformLocation("viewMatrix");
@@ -205,7 +208,7 @@ public class WorldRenderer {
 		blocksProgram.end();
 		
 		deferredProgram = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "shaders/deferred.vert")),
-				Utils.readFully(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "shaders/deferred.frag")));
+		                                     Utils.readFully(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "shaders/deferred.frag")));
 		
 		lightSystem = new UniformBufferLightSystem();
 		lightSystem.setupLights(deferredProgram);
@@ -213,61 +216,90 @@ public class WorldRenderer {
 		resolutionUniform = deferredProgram.getUniformLocation("resolution");
 	}
 	
+	private void loadFont() {
+		String file;
+		int charWidth;
+		String characters;
+		
+		try(BufferedReader reader = new BufferedReader(new InputStreamReader(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "textures/font.fnt")))) {
+			file = reader.readLine().trim();
+			charWidth = Integer.parseInt(reader.readLine().trim());
+			characters = reader.readLine().trim();
+		} catch(Exception exc) {
+			throw new RuntimeException(exc);
+		}
+		
+		ByteBuffer data;
+		int imageWidth, imageHeight;
+		try {
+			PNGDecoder imageDecoder = new PNGDecoder(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "textures/" + file));
+			imageWidth = imageDecoder.getWidth();
+			imageHeight = imageDecoder.getHeight();
+			data = BufferUtils.createByteBuffer(imageWidth * imageHeight * 4);
+			imageDecoder.decode(data, imageWidth * 4, Format.RGBA);
+			data.flip();
+		} catch(Exception exc) {
+			throw new RuntimeException(exc);
+		}
+		
+		font = MonospaceFont.init("DejaVu-Sans-Mono", charWidth, imageWidth, imageHeight, data, characters);
+	}
+	
 	private void loadCube() {
 		final short[] indices = { 0, 1, 2, 2, 3, 0 };
 		
 		final Vector3[] normals = {
-				new Vector3(0, 0, 1),
-				new Vector3(0, 0, -1),
-				new Vector3(0, 1, 0),
-				new Vector3(0, -1, 0),
-				new Vector3(1, 0, 0),
-				new Vector3(-1, 0, 0)
+		                            new Vector3(0, 0, 1),
+		                            new Vector3(0, 0, -1),
+		                            new Vector3(0, 1, 0),
+		                            new Vector3(0, -1, 0),
+		                            new Vector3(1, 0, 0),
+		                            new Vector3(-1, 0, 0)
 		};
 		
 		final Vector2[] texCoords = {
-				new Vector2(0, 1),
-				new Vector2(1, 1),
-				new Vector2(1, 0),
-				new Vector2(0, 0)
+		                              new Vector2(0, 1),
+		                              new Vector2(1, 1),
+		                              new Vector2(1, 0),
+		                              new Vector2(0, 0)
 		};
 		
 		final Vector3[] unitCube = {
-				// front
-				new Vector3(0.0f, 1.0f, 0.0f),
-				new Vector3(1.0f, 1.0f, 0.0f),
-				new Vector3(1.0f, 0.0f, 0.0f),
-				new Vector3(0.0f, 0.0f, 0.0f),
-				
-				// back
-				new Vector3(1.0f, 1.0f, -1.0f),
-				new Vector3(0.0f, 1.0f, -1.0f),
-				new Vector3(0.0f, 0.0f, -1.0f),
-				new Vector3(1.0f, 0.0f, -1.0f),
-				
-				// top
-				new Vector3(0.0f, 1.0f, -1.0f),
-				new Vector3(1.0f, 1.0f, -1.0f),
-				new Vector3(1.0f, 1.0f, 0.0f),
-				new Vector3(0.0f, 1.0f, 0.0f),
-				
-				// bottom
-				new Vector3(0.0f, 0.0f, 0.0f),
-				new Vector3(1.0f, 0.0f, 0.0f),
-				new Vector3(1.0f, 0.0f, -1.0f),
-				new Vector3(0.0f, 0.0f, -1.0f),
-				
-				// right
-				new Vector3(1.0f, 1.0f, 0.0f),
-				new Vector3(1.0f, 1.0f, -1.0f),
-				new Vector3(1.0f, 0.0f, -1.0f),
-				new Vector3(1.0f, 0.0f, 0.0f),
-				
-				// left
-				new Vector3(0.0f, 1.0f, -1.0f),
-				new Vector3(0.0f, 1.0f, 0.0f),
-				new Vector3(0.0f, 0.0f, 0.0f),
-				new Vector3(0.0f, 0.0f, -1.0f)
+		                             // front
+		                             new Vector3(0.0f, 1.0f, 0.0f),
+		                             new Vector3(1.0f, 1.0f, 0.0f),
+		                             new Vector3(1.0f, 0.0f, 0.0f),
+		                             new Vector3(0.0f, 0.0f, 0.0f),
+		  
+		                             // back
+		                             new Vector3(1.0f, 1.0f, -1.0f),
+		                             new Vector3(0.0f, 1.0f, -1.0f),
+		                             new Vector3(0.0f, 0.0f, -1.0f),
+		                             new Vector3(1.0f, 0.0f, -1.0f),
+		  
+		                             // top
+		                             new Vector3(0.0f, 1.0f, -1.0f),
+		                             new Vector3(1.0f, 1.0f, -1.0f),
+		                             new Vector3(1.0f, 1.0f, 0.0f),
+		                             new Vector3(0.0f, 1.0f, 0.0f),
+		  
+		                             // bottom
+		                             new Vector3(0.0f, 0.0f, 0.0f),
+		                             new Vector3(1.0f, 0.0f, 0.0f),
+		                             new Vector3(1.0f, 0.0f, -1.0f),
+		                             new Vector3(0.0f, 0.0f, -1.0f),
+		  
+		                             // right
+		                             new Vector3(1.0f, 1.0f, 0.0f),
+		                             new Vector3(1.0f, 1.0f, -1.0f),
+		                             new Vector3(1.0f, 0.0f, -1.0f),
+		                             new Vector3(1.0f, 0.0f, 0.0f),
+		  
+		                             // left
+		                             new Vector3(0.0f, 1.0f, -1.0f),
+		                             new Vector3(0.0f, 1.0f, 0.0f),
+		                             new Vector3(0.0f, 0.0f, 0.0f),
+		                             new Vector3(0.0f, 0.0f, -1.0f)
 		};
 		
 		// 2 vec3s and 1 vec2
@@ -319,7 +351,8 @@ public class WorldRenderer {
 			glBindTexture(GL_TEXTURE_2D, 0);
 			
 			return tex;
-		} catch(Exception exc) {
+		}
+		catch(Exception exc) {
 			throw new RuntimeException("Failed to load " + texName, exc);
 		}
 	}
@@ -407,9 +440,9 @@ public class WorldRenderer {
 		glBindTexture(GL_TEXTURE_2D, 0);
 		
 		IntBuffer drawBuffers = BufferUtils.createIntBuffer(3).put(new int[] {
-				GL_COLOR_ATTACHMENT0,
-				GL_COLOR_ATTACHMENT1,
-				GL_COLOR_ATTACHMENT2,
+		                                                                       GL_COLOR_ATTACHMENT0,
+		                                                                       GL_COLOR_ATTACHMENT1,
+		                                                                       GL_COLOR_ATTACHMENT2,
 		});
 		drawBuffers.flip();
 		glDrawBuffers(drawBuffers);
@@ -432,10 +465,10 @@ public class WorldRenderer {
 	
 	private void setupDeferredVAO() {
 		FloatBuffer verts = BufferUtils.createFloatBuffer(8).put(new float[] {
-				1, 1,
-				1, -1,
-				-1, 1,
-				-1, -1
+		                                                                       1, 1,
+		                                                                       1, -1,
+		                                                                       -1, 1,
+		                                                                       -1, -1
 		});
 		verts.flip();
 		
@@ -543,10 +576,10 @@ public class WorldRenderer {
 			Chunk chunk = chunkRenderer.getChunk();
 			
 			if(culling.isRectPrismInsideFrustum(new Vector3(chunk.getCornerX(), chunk.getCornerY(), -chunk.getCornerZ())
-					.mult(Chunk.SPACING).sub(halfSpacing, halfSpacing, -halfSpacing),
-					Chunk.CHUNK_BLOCK_WIDTH * Chunk.SPACING,
-					Chunk.CHUNK_BLOCK_HEIGHT * Chunk.SPACING,
-					-Chunk.CHUNK_BLOCK_DEPTH * Chunk.SPACING)) {
+			                                      .mult(Chunk.SPACING).sub(halfSpacing, halfSpacing, -halfSpacing),
+			                                     Chunk.CHUNK_BLOCK_WIDTH * Chunk.SPACING,
+			                                     Chunk.CHUNK_BLOCK_HEIGHT * Chunk.SPACING,
+			                                     -Chunk.CHUNK_BLOCK_DEPTH * Chunk.SPACING)) {
 				if(chunkRenderer.render(command, currentOffset)) {
 					commandsBuffer.put(command.toBuffer());
 					
@@ -640,6 +673,9 @@ public class WorldRenderer {
 			performanceGraphFPS.render();
 			Stopwatch.stop();
 		}
+		
+		font.render(game.getLastFps() + " FPS", 10, 10, 40, new Vector4(1f, 0f, 0f, 1f));
+		font.render("I like pie!", 10, 50, 15, new Vector4(1f, 0f, 0f, 1f));
 	}
 	
 	public static class DrawElementsIndirectCommand {
@@ -717,7 +753,7 @@ public class WorldRenderer {
 				
 				glBindBuffer(GL_UNIFORM_BUFFER, lightsUniformBufferVBO);
 				ByteBuffer lightsMappedBuffer = glMapBufferRange(GL_UNIFORM_BUFFER, 0, LIGHTS_UNIFORM_BUFFER_SIZE,
-						GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_UNSYNCHRONIZED_BIT, null);
+				                                                  GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_UNSYNCHRONIZED_BIT, null);
 				
 				if(lightsMappedBuffer == null) {
 					Utils.checkGLError("lights map buffer");
@@ -740,7 +776,8 @@ public class WorldRenderer {
 				glUnmapBuffer(GL_UNIFORM_BUFFER);
 				
 				glBindBuffer(GL_UNIFORM_BUFFER, 0);
-			} finally {
+			}
+			finally {
 				Stopwatch.stop();
 			}
 		}

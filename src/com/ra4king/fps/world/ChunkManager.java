@@ -145,7 +145,6 @@ public class ChunkManager {
 					
 					if(lenSqr <= distSqr) {
 						if(size >= blocks.length) {
-							System.out.println("Resized " + size + "!");
 							Block[] temp = Struct.emptyArray(Block.class, blocks.length * 2);
 							System.arraycopy(blocks, 0, temp, 0, blocks.length);
 							blocks = temp;

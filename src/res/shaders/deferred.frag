@@ -19,7 +19,7 @@ struct PointLight {
 	float k;
 };
 
-#define MAX_LIGHTS 200
+#define MAX_LIGHTS 100
 
 layout(std140) uniform Lights {
 	vec3 ambientLight;
