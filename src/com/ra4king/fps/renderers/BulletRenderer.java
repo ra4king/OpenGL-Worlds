@@ -116,7 +116,7 @@ public class BulletRenderer {
 		for(int a = 0; a < bullets.size(); a++) {
 			Bullet b = bullets.get(a);
 			sortedBullets[a].bullet = bullets.get(a);
-			sortedBullets[a].vector.set(viewMatrix.mult3(b.getPosition()));
+			viewMatrix.mult3(b.getPosition(), 1.0f, sortedBullets[a].vector);
 		}
 		
 		Arrays.sort(sortedBullets);

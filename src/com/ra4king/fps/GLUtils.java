@@ -120,13 +120,13 @@ public final class GLUtils {
 	}
 	
 	public static class FrustumCulling {
-		private static enum Plane {
+		private enum Plane {
 			LEFT, RIGHT, BOTTOM, TOP, NEAR, FAR;
 			
 			static Plane[] values = values();
 		}
 		
-		private Vector4[] planes = Struct.malloc(Vector4.class, Plane.values.length);
+		private Vector4[] planes = Struct.mallocArray(Vector4.class, Plane.values.length);
 		
 		public float distanceFromPoint(Plane p, Vector3 point) {
 			Vector4 plane = planes[p.ordinal()];

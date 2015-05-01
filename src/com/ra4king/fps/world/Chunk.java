@@ -34,7 +34,7 @@ public class Chunk {
 		this.cornerY = cornerY;
 		this.cornerZ = cornerZ;
 		
-		blocks = Struct.malloc(Block.class, CHUNK_BLOCK_WIDTH * CHUNK_BLOCK_HEIGHT * CHUNK_BLOCK_DEPTH);
+		blocks = Struct.mallocArray(Block.class, CHUNK_BLOCK_WIDTH * CHUNK_BLOCK_HEIGHT * CHUNK_BLOCK_DEPTH);
 		
 		blockCount = blocks.length;
 		
@@ -121,7 +121,7 @@ public class Chunk {
 	@TakeStruct
 	public Block get(int x, int y, int z) {
 		if(!isValidPos(x, y, z)) {
-			return Struct.typedNull(Block.class);
+			return Struct.nullStruct(Block.class);
 		}
 		
 		return blocks[posToArrayIndex(x, y, z)];
@@ -136,7 +136,7 @@ public class Chunk {
 				continue;
 			
 			Block block = getChunkManager().getBlock(x + a, y, z);
-			if(block != Struct.typedNull(Block.class)) {
+			if(block != Struct.nullStruct(Block.class)) {
 				neighbors[idx++] = block;
 			}
 		}
@@ -146,7 +146,7 @@ public class Chunk {
 				continue;
 			
 			Block block = getChunkManager().getBlock(x, y + b, z);
-			if(block != Struct.typedNull(Block.class)) {
+			if(block != Struct.nullStruct(Block.class)) {
 				neighbors[idx++] = block;
 			}
 		}
@@ -156,7 +156,7 @@ public class Chunk {
 				continue;
 			
 			Block block = getChunkManager().getBlock(x, y, z + c);
-			if(block != Struct.typedNull(Block.class)) {
+			if(block != Struct.nullStruct(Block.class)) {
 				neighbors[idx++] = block;
 			}
 		}
@@ -190,7 +190,7 @@ public class Chunk {
 			return;
 		}
 		
-		if(block == Struct.typedNull(Block.class)) {
+		if(block == Struct.nullStruct(Block.class)) {
 			// blocks[i] = callback.chunkInit(x, y, z, blockType);
 			// All blocks must be initialized, this shouldn't happen
 			throw new IllegalStateException(String.format("Block at (%d,%d,%d) is null!", x, y, z));
@@ -220,7 +220,7 @@ public class Chunk {
 		}
 	}
 	
-	public static interface ChunkModifiedCallback {
+	public interface ChunkModifiedCallback {
 		void chunkModified(Block block);
 	}
 }

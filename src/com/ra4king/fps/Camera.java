@@ -84,7 +84,7 @@ public class Camera {
 		this.projectionMatrix.set(projectionMatrix);
 	}
 	
-	public static interface CameraUpdate {
-		public void updateCamera(long deltaTime, Camera camera, Matrix4 projectionMatrix, Vector3 position, Quaternion orientation);
+	public interface CameraUpdate {
+		void updateCamera(long deltaTime, Camera camera, Matrix4 projectionMatrix, Vector3 position, Quaternion orientation);
 	}
 }

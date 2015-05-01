@@ -88,7 +88,7 @@ public class ChunkManager {
 		int pz = Math.round(-v.z() / Chunk.SPACING);
 		
 		float lowestDistance = Float.MAX_VALUE;
-		Block closestBlock = Struct.typedNull(Block.class);
+		Block closestBlock = Struct.nullStruct(Block.class);
 		
 		final int count = (int)Math.ceil(radius / Chunk.SPACING);
 		
@@ -112,7 +112,7 @@ public class ChunkManager {
 		
 		final float d = Chunk.BLOCK_SIZE * 0.5f + radius;
 		
-		return lowestDistance <= d * d ? closestBlock : Struct.typedNull(Block.class);
+		return lowestDistance <= d * d ? closestBlock : Struct.nullStruct(Block.class);
 	}
 	
 	public Block[] getBlocks(Vector3 v, float radius) {
@@ -128,7 +128,7 @@ public class ChunkManager {
 		float distSqr = Chunk.BLOCK_SIZE * 0.5f + radius;
 		distSqr *= distSqr;
 		
-		Block[] blocks = Struct.emptyArray(Block.class, 300);
+		Block[] blocks = Struct.nullArray(Block.class, 300);
 		int size = 0;
 		
 		// Test against -count.xyz to +count.xyz offset from the p.xyz index
@@ -145,7 +145,7 @@ public class ChunkManager {
 					
 					if(lenSqr <= distSqr) {
 						if(size >= blocks.length) {
-							Block[] temp = Struct.emptyArray(Block.class, blocks.length * 2);
+							Block[] temp = Struct.nullArray(Block.class, blocks.length * 2);
 							System.arraycopy(blocks, 0, temp, 0, blocks.length);
 							blocks = temp;
 						}
@@ -157,7 +157,7 @@ public class ChunkManager {
 		}
 		
 		if(size != blocks.length) {
-			Block[] temp = Struct.emptyArray(Block.class, size);
+			Block[] temp = Struct.nullArray(Block.class, size);
 			System.arraycopy(blocks, 0, temp, 0, size);
 			blocks = temp;
 		}
@@ -168,8 +168,9 @@ public class ChunkManager {
 	@TakeStruct
 	public Block getBlock(int x, int y, int z) {
 		int i = blockPosToArrayIndex(x, y, z);
-		if(i == -1)
-			return Struct.typedNull(Block.class);
+		if(i == -1) {
+			return Struct.nullStruct(Block.class);
+		}
 		
 		return chunks[i].get(x, y, z);
 	}
