@@ -113,6 +113,6 @@ public class Bullet {
 	
 	@Override
 	public String toString() {
-		return "Bullet @ " + position;
+		return "Bullet @ " + position.toString();
 	}
 }

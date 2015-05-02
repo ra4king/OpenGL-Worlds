@@ -94,7 +94,7 @@ public class World implements CameraUpdate {
 	
 	private void reset() {
 		camera.setPosition(new Vector3(-Chunk.BLOCK_SIZE, -Chunk.BLOCK_SIZE, Chunk.BLOCK_SIZE).mult(5));
-		camera.setOrientation(Utils.lookAt(camera.getPosition(), Vector3.ZERO, Vector3.UP).toQuaternion().normalize());
+		Utils.lookAt(camera.getPosition(), Vector3.ZERO, Vector3.UP).toQuaternion(camera.getOrientation()).normalize();
 	}
 	
 	public void resized() {

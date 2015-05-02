@@ -8,7 +8,7 @@ import net.indiespot.struct.cp.TakeStruct;
 
 @StructType
 public class Block {
-	public static enum BlockType {
+	public enum BlockType {
 		AIR, SOLID;
 		
 		public static BlockType[] values = values();

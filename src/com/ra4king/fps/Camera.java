@@ -24,7 +24,7 @@ public class Camera {
 		this.near = near;
 		this.far = far;
 		
-		projectionMatrix = Struct.malloc(Matrix4.class);
+		projectionMatrix = new Matrix4();
 		position = Struct.malloc(Vector3.class).set(0f);
 		orientation = Struct.malloc(Quaternion.class).reset();
 	}
@@ -32,7 +32,6 @@ public class Camera {
 	@Override
 	protected void finalize() throws Throwable {
 		try {
-			Struct.free(projectionMatrix);
 			Struct.free(position);
 			Struct.free(orientation);
 		} finally {
@@ -75,7 +74,6 @@ public class Camera {
 		this.orientation.set(orientation);
 	}
 	
-	@TakeStruct
 	public Matrix4 getProjectionMatrix() {
 		return projectionMatrix;
 	}
