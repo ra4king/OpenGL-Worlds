@@ -11,12 +11,16 @@ import net.indiespot.struct.cp.TakeStruct;
  * @author Roi Atalla
  */
 public class ChunkManager {
-	public static final int CHUNKS_SIDE_X = 3, CHUNKS_SIDE_Y = 3, CHUNKS_SIDE_Z = 3;
+	public final int CHUNKS_SIDE_X, CHUNKS_SIDE_Y, CHUNKS_SIDE_Z;
 	
 	// z * CHUNKS_SIDE_X * CHUNKS_SIDE_Y + y * CHUNKS_SIDE_X + x
 	private Chunk[] chunks;
 	
-	public ChunkManager() {
+	public ChunkManager(int chunksX, int chunksY, int chunksZ) {
+		this.CHUNKS_SIDE_X = chunksX;
+		this.CHUNKS_SIDE_Y = chunksY;
+		this.CHUNKS_SIDE_Z = chunksZ;
+		
 		chunks = new Chunk[CHUNKS_SIDE_X * CHUNKS_SIDE_Y * CHUNKS_SIDE_Z];
 		
 		long t0 = System.nanoTime();

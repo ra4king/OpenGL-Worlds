@@ -36,11 +36,11 @@ public class World implements CameraUpdate {
 	
 	private long bulletCooldown, blastCoolDown;
 	
-	public World() {
+	public World(int chunksX, int chunksY, int chunksZ) {
 		camera = new Camera(60, 1, 5000);
 		camera.setCameraUpdate(this);
 		
-		chunkManager = new ChunkManager();
+		chunkManager = new ChunkManager(chunksX, chunksY, chunksZ);
 		bulletManager = new BulletManager(chunkManager);
 		
 		portals = new ArrayList<>();
@@ -60,10 +60,10 @@ public class World implements CameraUpdate {
 		chunkManager.clearAll();
 	}
 	
-	public void fillAll() {
-		final int width = ChunkManager.CHUNKS_SIDE_X * Chunk.CHUNK_BLOCK_WIDTH;
-		final int height = ChunkManager.CHUNKS_SIDE_Y * Chunk.CHUNK_BLOCK_HEIGHT;
-		final int depth = ChunkManager.CHUNKS_SIDE_Z * Chunk.CHUNK_BLOCK_DEPTH;
+	public void generateAllBlocks() {
+		final int width = chunkManager.CHUNKS_SIDE_X * Chunk.CHUNK_BLOCK_WIDTH;
+		final int height = chunkManager.CHUNKS_SIDE_Y * Chunk.CHUNK_BLOCK_HEIGHT;
+		final int depth = chunkManager.CHUNKS_SIDE_Z * Chunk.CHUNK_BLOCK_DEPTH;
 		for(int x = 0; x < width; x++) {
 			for(int y = 0; y < height; y++) {
 				for(int z = 0; z < depth; z++) {
@@ -74,9 +74,9 @@ public class World implements CameraUpdate {
 	}
 	
 	public void generateRandomBlocks() {
-		NoiseGenerator generator = new NoiseGenerator(ChunkManager.CHUNKS_SIDE_X * Chunk.CHUNK_BLOCK_WIDTH,
-				ChunkManager.CHUNKS_SIDE_Y * Chunk.CHUNK_BLOCK_HEIGHT,
-				ChunkManager.CHUNKS_SIDE_Z * Chunk.CHUNK_BLOCK_DEPTH);
+		NoiseGenerator generator = new NoiseGenerator(chunkManager.CHUNKS_SIDE_X * Chunk.CHUNK_BLOCK_WIDTH,
+		                                               chunkManager.CHUNKS_SIDE_Y * Chunk.CHUNK_BLOCK_HEIGHT,
+		                                               chunkManager.CHUNKS_SIDE_Z * Chunk.CHUNK_BLOCK_DEPTH);
 		generator.generateBlocks();
 	}
 	
@@ -102,8 +102,9 @@ public class World implements CameraUpdate {
 	}
 	
 	public void keyPressed(int key, char c) {
-		if(key == Keyboard.KEY_P)
+		if(key == Keyboard.KEY_P) {
 			isPaused = !isPaused;
+		}
 	}
 	
 	public void update(long deltaTime) {
@@ -127,8 +128,9 @@ public class World implements CameraUpdate {
 	
 	@Override
 	public void updateCamera(long deltaTime, Camera camera, Matrix4 projectionMatrix, Vector3 position, Quaternion orientation) {
-		if(Keyboard.isKeyDown(Keyboard.KEY_R))
+		if(Keyboard.isKeyDown(Keyboard.KEY_R)) {
 			reset();
+		}
 		
 		deltaTimeBuffer += deltaTime;
 		
@@ -142,12 +144,14 @@ public class World implements CameraUpdate {
 			
 			if(Mouse.isGrabbed()) {
 				int dy = Mouse.getDY();
-				if(dy != 0)
+				if(dy != 0) {
 					orientation.set(Utils.angleAxisDeg(-dy * rotSpeed, Vector3.RIGHT).mult(orientation));
+				}
 				
 				int dx = Mouse.getDX();
-				if(dx != 0)
+				if(dx != 0) {
 					orientation.set(Utils.angleAxisDeg(dx * rotSpeed, Vector3.UP).mult(orientation));
+				}
 			}
 			
 			if(Keyboard.isKeyDown(Keyboard.KEY_E)) {
@@ -163,23 +167,30 @@ public class World implements CameraUpdate {
 			
 			Vector3 delta = new Vector3(0f, 0f, 0f);
 			
-			if(Keyboard.isKeyDown(Keyboard.KEY_W))
+			if(Keyboard.isKeyDown(Keyboard.KEY_W)) {
 				delta.z(-speed);
-			if(Keyboard.isKeyDown(Keyboard.KEY_S))
+			}
+			if(Keyboard.isKeyDown(Keyboard.KEY_S)) {
 				delta.z(delta.z() + speed);
+			}
 			
-			if(Keyboard.isKeyDown(Keyboard.KEY_D))
+			if(Keyboard.isKeyDown(Keyboard.KEY_D)) {
 				delta.x(speed);
-			if(Keyboard.isKeyDown(Keyboard.KEY_A))
+			}
+			if(Keyboard.isKeyDown(Keyboard.KEY_A)) {
 				delta.x(delta.x() - speed);
+			}
 			
-			if(Keyboard.isKeyDown(Keyboard.KEY_SPACE))
+			if(Keyboard.isKeyDown(Keyboard.KEY_SPACE)) {
 				delta.y(speed);
-			if(Keyboard.isKeyDown(Keyboard.KEY_LCONTROL))
+			}
+			if(Keyboard.isKeyDown(Keyboard.KEY_LCONTROL)) {
 				delta.y(delta.y() - speed);
+			}
 			
-			if(delta.x() != 0f || delta.y() != 0f || delta.z() != 0f)
+			if(delta.x() != 0f || delta.y() != 0f || delta.z() != 0f) {
 				position.add(inverse.mult3(delta));
+			}
 		} else {
 			inverse = new Quaternion(orientation).inverse();
 		}
@@ -221,8 +232,9 @@ public class World implements CameraUpdate {
 					for(int z = 0; z < depth; z++) {
 						float value = (float)turbulence(x, y, z, 64);
 						
-						if(value >= 0.55f)
+						if(value >= 0.55f) {
 							chunkManager.setBlock(BlockType.SOLID, x, y, z);
+						}
 					}
 				}
 			}

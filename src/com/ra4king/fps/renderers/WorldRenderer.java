@@ -225,7 +225,8 @@ public class WorldRenderer {
 			file = reader.readLine().trim();
 			charWidth = Integer.parseInt(reader.readLine().trim());
 			characters = reader.readLine().trim();
-		} catch(Exception exc) {
+		}
+		catch(Exception exc) {
 			throw new RuntimeException(exc);
 		}
 		
@@ -238,7 +239,8 @@ public class WorldRenderer {
 			data = BufferUtils.createByteBuffer(imageWidth * imageHeight * 4);
 			imageDecoder.decode(data, imageWidth * 4, Format.RGBA);
 			data.flip();
-		} catch(Exception exc) {
+		}
+		catch(Exception exc) {
 			throw new RuntimeException(exc);
 		}
 		
@@ -520,14 +522,14 @@ public class WorldRenderer {
 		
 		for(PortalRenderer portalRenderer : portalRenderers)
 			portalRenderer.update(deltaTime);
-		
+
 		performanceGraphUpdate.update(deltaTime);
 		performanceGraphRender.update(deltaTime);
 		performanceGraphChunkRenderers.update(deltaTime);
 		performanceGraphUpdateCompactArray.update(deltaTime);
 		performanceGraphLightSystemRender.update(deltaTime);
-		performanceGraphDisplayUpdate.update(deltaTime);
 		performanceGraphBulletRender.update(deltaTime);
+		performanceGraphDisplayUpdate.update(deltaTime);
 		performanceGraphFPS.update(deltaTime);
 	}
 	
@@ -668,8 +670,8 @@ public class WorldRenderer {
 			performanceGraphChunkRenderers.render();
 			performanceGraphUpdateCompactArray.render();
 			performanceGraphLightSystemRender.render();
-			performanceGraphDisplayUpdate.render();
 			performanceGraphBulletRender.render();
+			performanceGraphDisplayUpdate.render();
 			performanceGraphFPS.render();
 			Stopwatch.stop();
 		}

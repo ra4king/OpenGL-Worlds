@@ -61,32 +61,32 @@ public class ChunkRenderer implements ChunkModifiedCallback {
 	private void testForSurface(Block block) {
 		Chunk neighbor;
 		if(block.getX() == chunk.getCornerX()) {
-			neighbor = chunk.getChunkManager().getChunkContaining(chunk.getCornerX() - 1, chunk.getCornerY(), chunk.getCornerZ());
+			neighbor = chunk.getChunkManager().getChunkContaining(chunk.getCornerX() - Chunk.CHUNK_BLOCK_WIDTH, chunk.getCornerY(), chunk.getCornerZ());
 			if(neighbor != null) {
 				neighbor.getCallback().chunkModified(Struct.nullStruct(Block.class));
 			}
 		} else if(block.getX() == chunk.getCornerX() + Chunk.CHUNK_BLOCK_WIDTH - 1) {
-			neighbor = chunk.getChunkManager().getChunkContaining(chunk.getCornerX() + 1, chunk.getCornerY(), chunk.getCornerZ());
+			neighbor = chunk.getChunkManager().getChunkContaining(chunk.getCornerX() + Chunk.CHUNK_BLOCK_WIDTH, chunk.getCornerY(), chunk.getCornerZ());
 			if(neighbor != null) {
 				neighbor.getCallback().chunkModified(Struct.nullStruct(Block.class));
 			}
 		} else if(block.getY() == chunk.getCornerY()) {
-			neighbor = chunk.getChunkManager().getChunkContaining(chunk.getCornerX(), chunk.getCornerY() - 1, chunk.getCornerZ());
+			neighbor = chunk.getChunkManager().getChunkContaining(chunk.getCornerX(), chunk.getCornerY() - Chunk.CHUNK_BLOCK_HEIGHT, chunk.getCornerZ());
 			if(neighbor != null) {
 				neighbor.getCallback().chunkModified(Struct.nullStruct(Block.class));
 			}
 		} else if(block.getY() == chunk.getCornerY() + Chunk.CHUNK_BLOCK_HEIGHT - 1) {
-			neighbor = chunk.getChunkManager().getChunkContaining(chunk.getCornerX(), chunk.getCornerY() + 1, chunk.getCornerZ());
+			neighbor = chunk.getChunkManager().getChunkContaining(chunk.getCornerX(), chunk.getCornerY() + Chunk.CHUNK_BLOCK_HEIGHT, chunk.getCornerZ());
 			if(neighbor != null) {
 				neighbor.getCallback().chunkModified(Struct.nullStruct(Block.class));
 			}
 		} else if(block.getZ() == chunk.getCornerZ()) {
-			neighbor = chunk.getChunkManager().getChunkContaining(chunk.getCornerX(), chunk.getCornerY(), chunk.getCornerZ() - 1);
+			neighbor = chunk.getChunkManager().getChunkContaining(chunk.getCornerX(), chunk.getCornerY(), chunk.getCornerZ() - Chunk.CHUNK_BLOCK_DEPTH);
 			if(neighbor != null) {
 				neighbor.getCallback().chunkModified(Struct.nullStruct(Block.class));
 			}
 		} else if(block.getZ() == chunk.getCornerZ() + Chunk.CHUNK_BLOCK_DEPTH - 1) {
-			neighbor = chunk.getChunkManager().getChunkContaining(chunk.getCornerX(), chunk.getCornerY(), chunk.getCornerZ() + 1);
+			neighbor = chunk.getChunkManager().getChunkContaining(chunk.getCornerX(), chunk.getCornerY(), chunk.getCornerZ() + Chunk.CHUNK_BLOCK_DEPTH);
 			if(neighbor != null) {
 				neighbor.getCallback().chunkModified(Struct.nullStruct(Block.class));
 			}

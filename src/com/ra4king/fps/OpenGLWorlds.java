@@ -77,7 +77,7 @@ public class OpenGLWorlds extends GLProgram {
 		worldRenderers = new WorldRenderer[WORLD_COUNT];
 		
 		for(int a = 0; a < WORLD_COUNT; a++) {
-			worlds[a] = new World();
+			worlds[a] = new World(3, 3, 3);
 			
 			if(a == 1)
 				worlds[a].addPortal(new Vector3(0, 0, 0), new Vector2(3, 5), worlds[0]);
