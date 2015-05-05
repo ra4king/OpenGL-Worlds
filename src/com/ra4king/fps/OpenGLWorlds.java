@@ -8,10 +8,13 @@ import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
 import org.lwjgl.opengl.PixelFormat;
 
+import com.ra4king.fps.actors.Portal;
 import com.ra4king.fps.renderers.WorldRenderer;
+import com.ra4king.fps.world.Chunk;
 import com.ra4king.fps.world.World;
 import com.ra4king.opengl.util.GLProgram;
 import com.ra4king.opengl.util.Stopwatch;
+import com.ra4king.opengl.util.Utils;
 import com.ra4king.opengl.util.math.Vector2;
 import com.ra4king.opengl.util.math.Vector3;
 
@@ -33,6 +36,8 @@ public class OpenGLWorlds extends GLProgram {
 	
 	private final int WORLD_COUNT = 2;
 	
+	private Camera camera;
+	
 	private HashMap<World,WorldRenderer> worldsMap;
 	
 	private World[] worlds;
@@ -43,6 +48,10 @@ public class OpenGLWorlds extends GLProgram {
 	
 	public OpenGLWorlds() {
 		super("OpenGLWorlds", 800, 600, true);
+	}
+	
+	public Camera getCamera() {
+		return camera;
 	}
 	
 	@Override
@@ -76,20 +85,25 @@ public class OpenGLWorlds extends GLProgram {
 		worlds = new World[WORLD_COUNT];
 		worldRenderers = new WorldRenderer[WORLD_COUNT];
 		
+		camera = new Camera(60, 1, 5000);
+		resetCamera();
+		
 		for(int a = 0; a < WORLD_COUNT; a++) {
 			worlds[a] = new World(3, 3, 3);
-			
-			if(a == 1)
-				worlds[a].addPortal(new Vector3(0, 0, 0), new Vector2(3, 5), worlds[0]);
-			
 			worldRenderers[a] = new WorldRenderer(this, worlds[a]);
 			worlds[a].generateRandomBlocks();
-			
 			worldsMap.put(worlds[a], worldRenderers[a]);
 		}
 		
+		//worlds[0].addActor(new Portal(this, worlds[0], new Vector3(50, 50, 100), new Vector2(3, 5), worlds[1], new Vector3(0, 0, 0)));
+		worlds[1].addActor(new Portal(this, worlds[1], new Vector3(0, 0, 0), new Vector2(3, 5), worlds[0], new Vector3(50, 50, 100)));
+		
+		for(int a = 0; a < WORLD_COUNT; a++) {
+			worldRenderers[a].loadActors();
+		}
+		
 		currentWorld = 0;
-		// worlds[currentWorld].setActive(true);
+		camera.setCameraUpdate(worlds[currentWorld]);
 	}
 	
 	public WorldRenderer getRenderer(World world) {
@@ -100,8 +114,9 @@ public class OpenGLWorlds extends GLProgram {
 	public void resized() {
 		super.resized();
 		
+		camera.setWindowSize(GLUtils.getWidth(), GLUtils.getHeight());
+		
 		for(int a = 0; a < WORLD_COUNT; a++) {
-			worlds[a].resized();
 			worldRenderers[a].resized();
 		}
 	}
@@ -128,24 +143,44 @@ public class OpenGLWorlds extends GLProgram {
 		worldRenderers[currentWorld].keyPressed(key, c);
 		
 		if(key == Keyboard.KEY_1) {
-			// worlds[currentWorld].setActive(false);
 			currentWorld = 0;
-			// worlds[currentWorld].setActive(true);
+			camera.setCameraUpdate(worlds[currentWorld]);
 		}
 		if(key == Keyboard.KEY_2) {
-			// worlds[currentWorld].setActive(false);
 			currentWorld = 1;
-			// worlds[currentWorld].setActive(true);
+			camera.setCameraUpdate(worlds[currentWorld]);
 		}
 		if(key == Keyboard.KEY_3) {
-			// worlds[currentWorld].setActive(false);
 			currentWorld = 2;
-			// worlds[currentWorld].setActive(true);
+			camera.setCameraUpdate(worlds[currentWorld]);
+		}
+		
+		if(Keyboard.isKeyDown(Keyboard.KEY_R)) {
+			resetCamera();
+		}
+	}
+	
+	public void resetCamera() {
+		camera.setPosition(new Vector3(-Chunk.BLOCK_SIZE, -Chunk.BLOCK_SIZE, Chunk.BLOCK_SIZE).mult(5));
+		Utils.lookAt(camera.getPosition(), Vector3.ZERO, Vector3.UP).toQuaternion(camera.getOrientation()).normalize();
+	}
+	
+	public void setWorld(World world) {
+		for(int i = 0; i < worlds.length; i++) {
+			if(world == worlds[i]) {
+				currentWorld = i;
+				camera.setCameraUpdate(worlds[currentWorld]);
+				break;
+			}
 		}
 	}
 	
 	@Override
 	public void update(long deltaTime) {
+		Stopwatch.start("Camera Update");
+		camera.update(deltaTime);
+		Stopwatch.stop();
+		
 		Stopwatch.start("World Update");
 		worlds[currentWorld].update(deltaTime);
 		Stopwatch.stop();
@@ -158,10 +193,10 @@ public class OpenGLWorlds extends GLProgram {
 	@Override
 	public void render() {
 		glClearColor(0.4f, 0.6f, 0.9f, 0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		
 		Stopwatch.start("World Render");
-		worldRenderers[currentWorld].render();
+		worldRenderers[currentWorld].render(camera);
 		Stopwatch.stop();
 	}
 }

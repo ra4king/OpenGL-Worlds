@@ -33,6 +33,7 @@ import com.ra4king.fps.Camera;
 import com.ra4king.fps.GLUtils;
 import com.ra4king.fps.GLUtils.FrustumCulling;
 import com.ra4king.fps.OpenGLWorlds;
+import com.ra4king.fps.actors.Actor;
 import com.ra4king.fps.actors.Bullet;
 import com.ra4king.fps.actors.Portal;
 import com.ra4king.fps.world.Chunk;
@@ -81,7 +82,6 @@ public class WorldRenderer {
 	
 	private FrustumCulling culling;
 	
-	private final int COMMANDS_BUFFER_SIZE;
 	private IntBuffer commandsBuffer;
 	
 	private int chunkVAO, cubeVBO, indicesVBO, commandsVBO;
@@ -130,18 +130,13 @@ public class WorldRenderer {
 		setupDeferredFBO();
 		setupDeferredVAO();
 		
-		COMMANDS_BUFFER_SIZE = chunkRenderers.length * 5 * 4;
+		final int COMMANDS_BUFFER_SIZE = chunkRenderers.length * 5 * 4;
 		commandsBuffer = BufferUtils.createIntBuffer(COMMANDS_BUFFER_SIZE / 4);
 		
 		commandsVBO = glGenBuffers();
 		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandsVBO);
 		glBufferData(GL_DRAW_INDIRECT_BUFFER, COMMANDS_BUFFER_SIZE, GL_STREAM_DRAW);
 		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
-		
-		portalRenderers = new ArrayList<>();
-		for(Portal portal : world.getPortals()) {
-			portalRenderers.add(new PortalRenderer(portal, game.getRenderer(portal.getDestWorld())));
-		}
 		
 		final float maxValue = 10.0f;
 		final int graphX = 100, graphY = 100, maxSteps = 100, stepSize = 5, graphHeight = 300;
@@ -193,6 +188,16 @@ public class WorldRenderer {
 				return game.getLastFps();
 			}
 		}); // Green
+	}
+	
+	public void loadActors() {
+		portalRenderers = new ArrayList<>();
+		for(Actor actor : world.getActors()) {
+			if(actor instanceof Portal) {
+				Portal portal = (Portal)actor;
+				portalRenderers.add(new PortalRenderer(portal, game.getRenderer(portal.getDestWorld())));
+			}
+		}
 	}
 	
 	private void loadShaders() {
@@ -522,7 +527,7 @@ public class WorldRenderer {
 		
 		for(PortalRenderer portalRenderer : portalRenderers)
 			portalRenderer.update(deltaTime);
-
+		
 		performanceGraphUpdate.update(deltaTime);
 		performanceGraphRender.update(deltaTime);
 		performanceGraphChunkRenderers.update(deltaTime);
@@ -545,14 +550,11 @@ public class WorldRenderer {
 		command.baseVertex = 0;
 	}
 	
-	public void render() {
+	public void render(Camera camera) {
 		Stopwatch.start("WorldRender Setup");
 		
-		Camera camera = world.getCamera();
-		
 		// Convert Camera's Quaternion to a Matrix4 and translate it by the camera's position
-		Matrix4 viewMatrix = new Matrix4();
-		camera.getOrientation().toMatrix(viewMatrix);
+		Matrix4 viewMatrix = camera.getOrientation().toMatrix(new Matrix4());
 		viewMatrix.translate(new Vector3(camera.getPosition()).mult(-1));
 		
 		// Setting up the 6 planes that define the edges of the frustum
@@ -696,7 +698,7 @@ public class WorldRenderer {
 		}
 	}
 	
-	private static interface LightSystem {
+	private interface LightSystem {
 		void setupLights(ShaderProgram program);
 		
 		void renderLights(Vector3 diffuseColor, float mainK, Vector3 ambientColor, Matrix4 viewMatrix, BulletRenderer bulletRenderer);

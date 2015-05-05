@@ -12,21 +12,33 @@ import net.indiespot.struct.cp.TakeStruct;
  */
 public class Camera {
 	private final Matrix4 projectionMatrix;
-	private float fov, width, height, near, far;
+	private float fov, near, far;
 	
 	private final Vector3 position;
+	private final Vector3 delta;
 	private final Quaternion orientation;
 	
 	private CameraUpdate cameraUpdate;
 	
+	public Camera() {
+		projectionMatrix = Struct.malloc(Matrix4.class).clearToIdentity();
+		position = Struct.malloc(Vector3.class).set(0f);
+		delta = Struct.malloc(Vector3.class).set(0f);
+		orientation = Struct.malloc(Quaternion.class).reset();
+	}
+	
 	public Camera(float fov, float near, float far) {
+		this();
+		
 		this.fov = fov;
 		this.near = near;
 		this.far = far;
+	}
+	
+	public Camera(Camera other) {
+		this();
 		
-		projectionMatrix = Struct.malloc(Matrix4.class).clearToIdentity();
-		position = Struct.malloc(Vector3.class).set(0f);
-		orientation = Struct.malloc(Quaternion.class).reset();
+		setCamera(other);
 	}
 	
 	@Override
@@ -40,13 +52,26 @@ public class Camera {
 		}
 	}
 	
+	public void setCamera(Camera camera) {
+		this.fov = camera.fov;
+		this.near = camera.near;
+		this.far = camera.far;
+		
+		projectionMatrix.set(camera.projectionMatrix);
+		position.set(camera.position);
+		orientation.set(camera.orientation);
+	}
+	
 	public void setWindowSize(float width, float height) {
-		getProjectionMatrix().clearToPerspectiveDeg(fov, width, height, near, far);
+		projectionMatrix.clearToPerspectiveDeg(fov, width, height, near, far);
 	}
 	
 	public void update(long deltaTime) {
-		if(cameraUpdate != null)
-			cameraUpdate.updateCamera(deltaTime, this, projectionMatrix, position, orientation);
+		if(cameraUpdate != null) {
+			Vector3 lastPos = new Vector3(position);
+			cameraUpdate.updateCamera(this, deltaTime, projectionMatrix, position, orientation);
+			delta.set(position).sub(lastPos);
+		}
 	}
 	
 	public CameraUpdate getCameraUpdate() {
@@ -64,6 +89,11 @@ public class Camera {
 	
 	public void setPosition(Vector3 position) {
 		this.position.set(position);
+	}
+	
+	@TakeStruct
+	public Vector3 getDelta() {
+		return delta;
 	}
 	
 	@TakeStruct
@@ -85,6 +115,6 @@ public class Camera {
 	}
 	
 	public interface CameraUpdate {
-		void updateCamera(long deltaTime, Camera camera, Matrix4 projectionMatrix, Vector3 position, Quaternion orientation);
+		void updateCamera(Camera camera, long deltaTime, Matrix4 projectionMatrix, Vector3 position, Quaternion orientation);
 	}
 }

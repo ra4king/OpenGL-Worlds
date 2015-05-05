@@ -8,7 +8,7 @@ import net.indiespot.struct.cp.TakeStruct;
 /**
  * @author Roi Atalla
  */
-public class Bullet {
+public class Bullet implements Actor {
 	private final Vector3 position, velocity;
 	private float range;
 	private float size;
@@ -105,6 +105,7 @@ public class Bullet {
 		return range;
 	}
 	
+	@Override
 	public void update(long deltaTime) {
 		age += deltaTime;
 		

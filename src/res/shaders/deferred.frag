@@ -45,8 +45,8 @@ void main() {
 	vec2 tex = gl_FragCoord.xy / resolution;
 	
 	if(tripBalls) {
-		tex.x += cos(tex.y * 50.0) / 100.0;
-		tex.y += sin(tex.x * 50.0) / 100.0;
+		tex.x += cos(tex.y * 30.0) / 100.0;
+		tex.y += sin(tex.x * 30.0) / 100.0;
 	}
 	
 	vec3 cameraSpacePosition = texture(cameraPositions, tex).xyz;
@@ -72,23 +72,7 @@ void main() {
 	
 	float fog = clamp(1.0 - cameraSpacePosition.z * fogRange, 0.1, 1.0);
 	
-	#ifdef RGB_WAVE
-	float redWave = clamp(2.0 * sin(cameraSpacePosition.x + cameraSpacePosition.y) - 1.0, 0.0, 1.0);
-	float greenWave = clamp(2.0 * sin(cameraSpacePosition.x + cameraSpacePosition.z) - 1.0, 0.0, 1.0);
-	float blueWave = clamp(2.0 * sin(cameraSpacePosition.y + cameraSpacePosition.z) - 1.0, 0.0, 1.0);
-	#endif
-	#ifdef SINE_WAVE
-	float sineWave = clamp(2.0 * sin(cameraSpacePosition.x + cameraSpacePosition.y) - 1.0, 0.0, 1.0);
-	#endif
-	
 	vec4 gamma = vec4(1.0 / 2.2);
 	gamma.w = 1;
-	fragColor = pow(vec4(texture(cubeTexture, texCoord).rgb * totalLight * fog
-		#ifdef RGB_WAVE
-		* vec3(redWave, greenWave, blueWave)
-		#endif
-		#ifdef SINE_WAVE
-		vec3(sineWave, sineWave, sineWave)
-		#endif
-		, 1), gamma);
+	fragColor = pow(vec4(texture(cubeTexture, texCoord).rgb * totalLight * fog, 1), gamma);
 }

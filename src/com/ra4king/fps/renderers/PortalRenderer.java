@@ -9,6 +9,7 @@ import java.util.Arrays;
 
 import org.lwjgl.BufferUtils;
 
+import com.ra4king.fps.Camera;
 import com.ra4king.fps.GLUtils;
 import com.ra4king.fps.actors.Portal;
 import com.ra4king.opengl.util.ShaderProgram;
@@ -22,6 +23,7 @@ import com.ra4king.opengl.util.math.Vector3;
  */
 public class PortalRenderer {
 	private Portal portal;
+	private Camera portalCamera;
 	private WorldRenderer worldRenderer;
 	
 	private ShaderProgram portalProgram;
@@ -32,6 +34,8 @@ public class PortalRenderer {
 		this.portal = portal;
 		this.worldRenderer = worldRenderer;
 		
+		portalCamera = new Camera();
+		
 		init();
 	}
 	
@@ -40,13 +44,13 @@ public class PortalRenderer {
 		Vector2 s = portal.getSize();
 		
 		final float[] portalData = {
-				v.x(), v.y(), v.z(),
-				v.x() + s.x(), v.y(), v.z(),
-				v.x(), v.y() - s.y(), v.z(),
-				
-				v.x() + s.x(), v.y() - s.y(), v.z(),
-				v.x(), v.y() - s.y(), v.z(),
-				v.x() + s.x(), v.y(), v.z(),
+		                             v.x(), v.y(), v.z(),
+		                             v.x() + s.x(), v.y(), v.z(),
+		                             v.x(), v.y() - s.y(), v.z(),
+		  
+		                             v.x() + s.x(), v.y() - s.y(), v.z(),
+		                             v.x(), v.y() - s.y(), v.z(),
+		                             v.x() + s.x(), v.y(), v.z(),
 		};
 		
 		System.out.println(Arrays.toString(portalData));
@@ -65,48 +69,36 @@ public class PortalRenderer {
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 		
 		portalProgram = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "shaders/portal.vert")),
-				Utils.readFully(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "shaders/portal.frag")));
+		                                   Utils.readFully(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "shaders/portal.frag")));
 		projectionMatrixUniform = portalProgram.getUniformLocation("projectionMatrix");
 		viewMatrixUniform = portalProgram.getUniformLocation("viewMatrix");
-		
-		// makeDummy();
 	}
 	
-	//
-	// private ShaderProgram dummy;
-	// private int dummyVAO;
-	//
-	// private void makeDummy() {
-	// dummy = new ShaderProgram("#version 440\nlayout(location = 0) in vec4 position; void main() { gl_Position = position; }\n",
-	// "#version 440\nout vec4 fragColor; void main() { fragColor = vec4(1, 1, 0, 1); }\n");
-	//
-	// FloatBuffer verts = BufferUtils.createFloatBuffer(8).put(new float[] {
-	// 1, 1,
-	// 1, -1,
-	// -1, 1,
-	// -1, -1
-	// });
-	// verts.flip();
-	//
-	// int vbo = glGenBuffers();
-	// glBindBuffer(GL_ARRAY_BUFFER, vbo);
-	// glBufferData(GL_ARRAY_BUFFER, verts, GL_STATIC_DRAW);
-	//
-	// dummyVAO = glGenVertexArrays();
-	// glBindVertexArray(dummyVAO);
-	// glEnableVertexAttribArray(0);
-	// glVertexAttribPointer(0, 2, GL_FLOAT, false, 0, 0);
-	// glBindVertexArray(0);
-	//
-	// glBindBuffer(GL_ARRAY_BUFFER, 0);
-	// }
+	private boolean updated = false;
+	private boolean rendered = false;
 	
 	public void update(long deltaTime) {
+		if(updated) {
+			return;
+		}
+		
+		updated = true;
+		rendered = false;
+		
 		worldRenderer.update(deltaTime);
 	}
 	
 	public void render(Matrix4 projectionMatrix, Matrix4 viewMatrix) {
+		if(rendered) {
+			return;
+		}
+		
+		rendered = true;
+		updated = false;
+		
 		glEnable(GL_STENCIL_TEST);
+		glClear(GL_STENCIL_BUFFER_BIT);
+		
 		glStencilFunc(GL_ALWAYS, 1, 0xFF);
 		glStencilOp(GL_ZERO, GL_ZERO, GL_REPLACE);
 		
@@ -122,7 +114,9 @@ public class PortalRenderer {
 		
 		glClear(GL_DEPTH_BUFFER_BIT);
 		
-		worldRenderer.render();
+		portalCamera.setCamera(portal.getCamera());
+		portalCamera.setPosition(new Vector3(portal.getDestPosition()).add(portalCamera.getPosition()).sub(portal.getPosition()));
+		worldRenderer.render(portalCamera);
 		
 		glDisable(GL_STENCIL_TEST);
 	}

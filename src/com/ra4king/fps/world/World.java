@@ -9,26 +9,23 @@ import org.lwjgl.input.Mouse;
 
 import com.ra4king.fps.Camera;
 import com.ra4king.fps.Camera.CameraUpdate;
-import com.ra4king.fps.GLUtils;
+import com.ra4king.fps.actors.Actor;
 import com.ra4king.fps.actors.Block.BlockType;
 import com.ra4king.fps.actors.Bullet;
-import com.ra4king.fps.actors.Portal;
 import com.ra4king.opengl.util.Stopwatch;
 import com.ra4king.opengl.util.Utils;
 import com.ra4king.opengl.util.math.Matrix4;
 import com.ra4king.opengl.util.math.Quaternion;
-import com.ra4king.opengl.util.math.Vector2;
 import com.ra4king.opengl.util.math.Vector3;
 
 /**
  * @author Roi Atalla
  */
 public class World implements CameraUpdate {
-	private Camera camera;
 	private ChunkManager chunkManager;
 	private BulletManager bulletManager;
 	
-	private ArrayList<Portal> portals;
+	private ArrayList<Actor> actors;
 	
 	private boolean isPaused;
 	
@@ -37,23 +34,18 @@ public class World implements CameraUpdate {
 	private long bulletCooldown, blastCoolDown;
 	
 	public World(int chunksX, int chunksY, int chunksZ) {
-		camera = new Camera(60, 1, 5000);
-		camera.setCameraUpdate(this);
-		
 		chunkManager = new ChunkManager(chunksX, chunksY, chunksZ);
 		bulletManager = new BulletManager(chunkManager);
 		
-		portals = new ArrayList<>();
-		
-		reset();
+		actors = new ArrayList<>();
 	}
 	
-	public void addPortal(Vector3 position, Vector2 size, World otherWorld) {
-		portals.add(new Portal(this, position, size, otherWorld, new Vector3(50, 50, 100)));
+	public void addActor(Actor actor) {
+		actors.add(actor);
 	}
 	
-	public List<Portal> getPortals() {
-		return portals;
+	public List<Actor> getActors() {
+		return actors;
 	}
 	
 	public void clearAll() {
@@ -80,25 +72,12 @@ public class World implements CameraUpdate {
 		generator.generateBlocks();
 	}
 	
-	public Camera getCamera() {
-		return camera;
-	}
-	
 	public ChunkManager getChunkManager() {
 		return chunkManager;
 	}
 	
 	public BulletManager getBulletManager() {
 		return bulletManager;
-	}
-	
-	private void reset() {
-		camera.setPosition(new Vector3(-Chunk.BLOCK_SIZE, -Chunk.BLOCK_SIZE, Chunk.BLOCK_SIZE).mult(5));
-		Utils.lookAt(camera.getPosition(), Vector3.ZERO, Vector3.UP).toQuaternion(camera.getOrientation()).normalize();
-	}
-	
-	public void resized() {
-		camera.setWindowSize(GLUtils.getWidth(), GLUtils.getHeight());
 	}
 	
 	public void keyPressed(int key, char c) {
@@ -108,16 +87,12 @@ public class World implements CameraUpdate {
 	}
 	
 	public void update(long deltaTime) {
-		Stopwatch.start("Camera Update");
-		camera.update(deltaTime);
-		Stopwatch.stop();
-		
 		Stopwatch.start("ChunkManager Update");
 		chunkManager.update(deltaTime);
 		Stopwatch.stop();
 		
-		for(Portal portal : portals)
-			portal.update(deltaTime);
+		for(Actor a : actors)
+			a.update(deltaTime);
 		
 		if(!isPaused) {
 			Stopwatch.start("BulletManager Update");
@@ -127,11 +102,7 @@ public class World implements CameraUpdate {
 	}
 	
 	@Override
-	public void updateCamera(long deltaTime, Camera camera, Matrix4 projectionMatrix, Vector3 position, Quaternion orientation) {
-		if(Keyboard.isKeyDown(Keyboard.KEY_R)) {
-			reset();
-		}
-		
+	public void updateCamera(Camera camera, long deltaTime, Matrix4 projectionMatrix, Vector3 position, Quaternion orientation) {
 		deltaTimeBuffer += deltaTime;
 		
 		Quaternion inverse;
@@ -189,7 +160,7 @@ public class World implements CameraUpdate {
 			}
 			
 			if(delta.x() != 0f || delta.y() != 0f || delta.z() != 0f) {
-				position.add(inverse.mult3(delta));
+				position.add(inverse.mult3(delta, new Vector3()));
 			}
 		} else {
 			inverse = new Quaternion(orientation).inverse();
@@ -199,15 +170,15 @@ public class World implements CameraUpdate {
 		if((Mouse.isButtonDown(0) || Keyboard.isKeyDown(Keyboard.KEY_C)) && (diff = System.nanoTime() - bulletCooldown) > (long)5e7) {
 			int bulletSpeed = 160;
 			
-			bulletManager.addBullet(new Bullet(new Vector3(position).add(inverse.mult3(new Vector3(2f, -1f, 0f))), inverse.mult3(Vector3.FORWARD).mult(bulletSpeed), 3, 150));
-			bulletManager.addBullet(new Bullet(new Vector3(position).add(inverse.mult3(new Vector3(-2f, -1f, 0f))), inverse.mult3(Vector3.FORWARD).mult(bulletSpeed), 3, 150));
+			bulletManager.addBullet(new Bullet(new Vector3(position).add(inverse.mult3(new Vector3(2f, -1f, 0f), new Vector3())), inverse.mult3(Vector3.FORWARD, new Vector3()).mult(bulletSpeed), 3, 150));
+			bulletManager.addBullet(new Bullet(new Vector3(position).add(inverse.mult3(new Vector3(-2f, -1f, 0f), new Vector3())), inverse.mult3(Vector3.FORWARD, new Vector3()).mult(bulletSpeed), 3, 150));
 			bulletCooldown += diff;
 		}
 		
 		if((Mouse.isButtonDown(1) || Keyboard.isKeyDown(Keyboard.KEY_V)) && (diff = System.nanoTime() - blastCoolDown) > (long)3e8) {
 			int blastSpeed = 100;
 			
-			bulletManager.addBullet(new Bullet(new Vector3(position).add(inverse.mult3(new Vector3(0f, 0f, -20f))), inverse.mult3(Vector3.FORWARD).mult(blastSpeed), 20, 1000));
+			bulletManager.addBullet(new Bullet(new Vector3(position).add(inverse.mult3(new Vector3(0f, 0f, -20f), new Vector3())), inverse.mult3(Vector3.FORWARD, new Vector3()).mult(blastSpeed), 20, 1000));
 			
 			blastCoolDown += diff;
 		}
