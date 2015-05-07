@@ -90,7 +90,7 @@ public class Portal implements Actor {
 		Vector3 delta = camera.getDelta();
 		Vector3 prevPos = new Vector3(camera.getPosition()).sub(delta);
 		
-		Vector3 normal = orientation.mult3(new Vector3(0, size.y(), 0f).cross(new Vector3(size.x(), 0f, 0f)), new Vector3());
+		Vector3 normal = orientation.mult3(Vector3.BACK, new Vector3()).normalize();
 		float d = -position.dot(normal);
 		
 		float dot = delta.dot(normal);

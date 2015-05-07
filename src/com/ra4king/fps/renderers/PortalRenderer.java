@@ -18,6 +18,7 @@ import com.ra4king.opengl.util.math.Matrix4;
 import com.ra4king.opengl.util.math.Quaternion;
 import com.ra4king.opengl.util.math.Vector2;
 import com.ra4king.opengl.util.math.Vector3;
+import com.ra4king.opengl.util.render.RenderUtils.FrustumCulling;
 
 /**
  * @author Roi Atalla
@@ -41,7 +42,6 @@ public class PortalRenderer {
 	}
 	
 	private void init() {
-		Vector3 v = portal.getPosition();
 		Vector2 s = portal.getSize();
 		
 		final float[] portalData = {
@@ -89,50 +89,51 @@ public class PortalRenderer {
 		worldRenderer.update(deltaTime);
 	}
 	
-	public void render(Matrix4 projectionMatrix, Matrix4 viewMatrix) {
-		if(rendered) {
-			return;
+	public void render(Matrix4 projectionMatrix, Matrix4 viewMatrix, FrustumCulling culling) {
+//		if(!culling.isRectPrismInsideFrustum(portal.getPosition(), portal.getSize().x(), -portal.getSize().y(), 0))
+//			return;
+		
+		if(!rendered) {
+			glEnable(GL_STENCIL_TEST);
+			glClear(GL_STENCIL_BUFFER_BIT);
+			
+			glStencilFunc(GL_ALWAYS, 1, 0xFF);
+			glStencilOp(GL_ZERO, GL_ZERO, GL_REPLACE);
 		}
-		
-		rendered = true;
-		updated = false;
-		
-		glEnable(GL_STENCIL_TEST);
-		glClear(GL_STENCIL_BUFFER_BIT);
-		
-		glStencilFunc(GL_ALWAYS, 1, 0xFF);
-		glStencilOp(GL_ZERO, GL_ZERO, GL_REPLACE);
 		
 		portalProgram.begin();
 		
 		glUniformMatrix4(projectionMatrixUniform, false, projectionMatrix.toBuffer());
 		glUniformMatrix4(viewMatrixUniform, false, new Matrix4(viewMatrix).translate(portal.getPosition()).mult(portal.getOrientation().toMatrix(new Matrix4())).toBuffer());
 		
-		glDisable(GL_CULL_FACE);
-		
 		GLUtils.glBindVertexArray(vao);
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 		
-		glEnable(GL_CULL_FACE);
-		
-		glStencilFunc(GL_EQUAL, 1, 0xFF);
-		
-		glClear(GL_DEPTH_BUFFER_BIT);
-		
-		portalCamera.setCamera(portal.getCamera());
-		
-		// Calculate the difference orientation between the portal's orientation and the camera's orientation
-		Quaternion diff = new Quaternion(portal.getCamera().getOrientation()).mult(new Quaternion(portal.getOrientation()).inverse());
-		// Multiply this difference with the destination portal to get the correct effect
-		portalCamera.getOrientation().set(diff.normalize()).mult(portal.getDestPortal().getOrientation()).normalize();
-		
-		diff.set(portal.getDestPortal().getOrientation()).mult(new Quaternion(portal.getOrientation()).inverse()).normalize();
-		
-		Vector3 diffPosition = new Vector3(portalCamera.getPosition()).sub(portal.getPosition());
-		portalCamera.getPosition().set(portal.getDestPortal().getPosition()).add(diff.inverse().mult3(diffPosition, new Vector3()));
-		
-		worldRenderer.render(portalCamera);
-		
-		glDisable(GL_STENCIL_TEST);
+		if(!rendered) {
+			rendered = true;
+			updated = false;
+			
+			glStencilFunc(GL_EQUAL, 1, 0xFF);
+			
+			glClear(GL_DEPTH_BUFFER_BIT);
+			
+			portalCamera.setCamera(portal.getCamera());
+			
+			// Calculate the difference orientation between the portal's orientation and the camera's orientation
+			Quaternion diff = new Quaternion(portal.getCamera().getOrientation()).mult(new Quaternion(portal.getOrientation()).inverse());
+			// Multiply this difference with the destination portal to get the correct effect
+			portalCamera.getOrientation().set(diff.normalize()).mult(portal.getDestPortal().getOrientation()).normalize();
+			
+			// Get the difference orientation between the origin portal and the destination portal
+			diff.set(portal.getDestPortal().getOrientation()).mult(new Quaternion(portal.getOrientation()).inverse()).normalize();
+			
+			// Convert the position difference using the difference orientation
+			Vector3 diffPosition = new Vector3(portalCamera.getPosition()).sub(portal.getPosition());
+			portalCamera.getPosition().set(portal.getDestPortal().getPosition()).add(diff.inverse().mult3(diffPosition, new Vector3()));
+			
+			worldRenderer.render(portalCamera);
+			
+			glDisable(GL_STENCIL_TEST);
+		}
 	}
 }

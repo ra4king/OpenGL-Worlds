@@ -32,7 +32,6 @@ import org.lwjgl.opengl.OpenGLException;
 
 import com.ra4king.fps.Camera;
 import com.ra4king.fps.GLUtils;
-import com.ra4king.fps.GLUtils.FrustumCulling;
 import com.ra4king.fps.OpenGLWorlds;
 import com.ra4king.fps.actors.Actor;
 import com.ra4king.fps.actors.Bullet;
@@ -53,6 +52,7 @@ import com.ra4king.opengl.util.math.Vector3;
 import com.ra4king.opengl.util.math.Vector4;
 import com.ra4king.opengl.util.render.MonospaceFont;
 import com.ra4king.opengl.util.render.PerformanceGraph;
+import com.ra4king.opengl.util.render.RenderUtils.FrustumCulling;
 
 /**
  * @author Roi Atalla
@@ -664,7 +664,7 @@ public class WorldRenderer {
 		Stopwatch.stop();
 		
 		for(PortalRenderer portalRenderer : portalRenderers)
-			portalRenderer.render(camera.getProjectionMatrix(), viewMatrix);
+			portalRenderer.render(camera.getProjectionMatrix(), viewMatrix, culling);
 		
 		if(showPerformanceGraphs) {
 			Stopwatch.start("Performance Graphs Render");

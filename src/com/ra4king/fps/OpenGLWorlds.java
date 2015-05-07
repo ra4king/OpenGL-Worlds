@@ -1,6 +1,7 @@
 package com.ra4king.fps;
 
 import static org.lwjgl.opengl.GL11.*;
+import static org.lwjgl.opengl.GL32.*;
 
 import java.util.HashMap;
 
@@ -79,6 +80,8 @@ public class OpenGLWorlds extends GLProgram {
 		glCullFace(GL_BACK);
 		glFrontFace(GL_CW);
 		
+		glEnable(GL_DEPTH_CLAMP);
+		
 		worldsMap = new HashMap<>();
 		
 		// Mouse.setGrabbed(true);
@@ -96,8 +99,8 @@ public class OpenGLWorlds extends GLProgram {
 			worldsMap.put(worlds[a], worldRenderers[a]);
 		}
 		
-		Portal portal1 = new Portal(this, worlds[0], new Vector3(-50, 50, -50), new Vector2(3, 5), new Quaternion((float)Math.PI * 0.5f, Vector3.UP), worlds[1]);
-		Portal portal2 = new Portal(this, worlds[1], new Vector3(40, 50, 100), new Vector2(3, 5), new Quaternion(), worlds[0]);
+		Portal portal1 = new Portal(this, worlds[0], new Vector3(0, 0, -10), new Vector2(3, 5), new Quaternion((float)Math.PI * 0.5f, Vector3.LEFT), worlds[1]);
+		Portal portal2 = new Portal(this, worlds[1], new Vector3(10, 0, 0), new Vector2(3, 5), new Quaternion(), worlds[0]);
 		portal1.setDestPortal(portal2);
 		portal2.setDestPortal(portal1);
 		

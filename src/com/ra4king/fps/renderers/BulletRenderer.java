@@ -11,7 +11,6 @@ import java.util.List;
 import org.lwjgl.BufferUtils;
 
 import com.ra4king.fps.GLUtils;
-import com.ra4king.fps.GLUtils.FrustumCulling;
 import com.ra4king.fps.actors.Bullet;
 import com.ra4king.fps.world.BulletManager;
 import com.ra4king.opengl.util.ShaderProgram;
@@ -19,6 +18,7 @@ import com.ra4king.opengl.util.Utils;
 import com.ra4king.opengl.util.math.Matrix4;
 import com.ra4king.opengl.util.math.MatrixStack;
 import com.ra4king.opengl.util.math.Vector3;
+import com.ra4king.opengl.util.render.RenderUtils.FrustumCulling;
 
 /**
  * @author Roi Atalla
