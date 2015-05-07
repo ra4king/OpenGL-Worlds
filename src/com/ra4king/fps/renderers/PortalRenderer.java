@@ -15,6 +15,7 @@ import com.ra4king.fps.actors.Portal;
 import com.ra4king.opengl.util.ShaderProgram;
 import com.ra4king.opengl.util.Utils;
 import com.ra4king.opengl.util.math.Matrix4;
+import com.ra4king.opengl.util.math.Quaternion;
 import com.ra4king.opengl.util.math.Vector2;
 import com.ra4king.opengl.util.math.Vector3;
 
@@ -44,13 +45,13 @@ public class PortalRenderer {
 		Vector2 s = portal.getSize();
 		
 		final float[] portalData = {
-		                             v.x(), v.y(), v.z(),
-		                             v.x() + s.x(), v.y(), v.z(),
-		                             v.x(), v.y() - s.y(), v.z(),
+		                             0, 0, 0,
+		                             s.x(), 0, 0,
+		                             0, -s.y(), 0,
 		  
-		                             v.x() + s.x(), v.y() - s.y(), v.z(),
-		                             v.x(), v.y() - s.y(), v.z(),
-		                             v.x() + s.x(), v.y(), v.z(),
+		                             s.x(), -s.y(), 0,
+		                             0, -s.y(), 0,
+		                             s.x(), 0, 0,
 		};
 		
 		System.out.println(Arrays.toString(portalData));
@@ -74,8 +75,8 @@ public class PortalRenderer {
 		viewMatrixUniform = portalProgram.getUniformLocation("viewMatrix");
 	}
 	
-	private boolean updated = false;
-	private boolean rendered = false;
+	private static boolean updated = false;
+	private static boolean rendered = false;
 	
 	public void update(long deltaTime) {
 		if(updated) {
@@ -105,17 +106,31 @@ public class PortalRenderer {
 		portalProgram.begin();
 		
 		glUniformMatrix4(projectionMatrixUniform, false, projectionMatrix.toBuffer());
-		glUniformMatrix4(viewMatrixUniform, false, viewMatrix.toBuffer());
+		glUniformMatrix4(viewMatrixUniform, false, new Matrix4(viewMatrix).translate(portal.getPosition()).mult(portal.getOrientation().toMatrix(new Matrix4())).toBuffer());
+		
+		glDisable(GL_CULL_FACE);
 		
 		GLUtils.glBindVertexArray(vao);
 		glDrawArrays(GL_TRIANGLES, 0, 6);
+		
+		glEnable(GL_CULL_FACE);
 		
 		glStencilFunc(GL_EQUAL, 1, 0xFF);
 		
 		glClear(GL_DEPTH_BUFFER_BIT);
 		
 		portalCamera.setCamera(portal.getCamera());
-		portalCamera.setPosition(new Vector3(portal.getDestPosition()).add(portalCamera.getPosition()).sub(portal.getPosition()));
+		
+		// Calculate the difference orientation between the portal's orientation and the camera's orientation
+		Quaternion diff = new Quaternion(portal.getCamera().getOrientation()).mult(new Quaternion(portal.getOrientation()).inverse());
+		// Multiply this difference with the destination portal to get the correct effect
+		portalCamera.getOrientation().set(diff.normalize()).mult(portal.getDestPortal().getOrientation()).normalize();
+		
+		diff.set(portal.getDestPortal().getOrientation()).mult(new Quaternion(portal.getOrientation()).inverse()).normalize();
+		
+		Vector3 diffPosition = new Vector3(portalCamera.getPosition()).sub(portal.getPosition());
+		portalCamera.getPosition().set(portal.getDestPortal().getPosition()).add(diff.inverse().mult3(diffPosition, new Vector3()));
+		
 		worldRenderer.render(portalCamera);
 		
 		glDisable(GL_STENCIL_TEST);

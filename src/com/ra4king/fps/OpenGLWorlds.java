@@ -15,6 +15,7 @@ import com.ra4king.fps.world.World;
 import com.ra4king.opengl.util.GLProgram;
 import com.ra4king.opengl.util.Stopwatch;
 import com.ra4king.opengl.util.Utils;
+import com.ra4king.opengl.util.math.Quaternion;
 import com.ra4king.opengl.util.math.Vector2;
 import com.ra4king.opengl.util.math.Vector3;
 
@@ -95,8 +96,13 @@ public class OpenGLWorlds extends GLProgram {
 			worldsMap.put(worlds[a], worldRenderers[a]);
 		}
 		
-		//worlds[0].addActor(new Portal(this, worlds[0], new Vector3(50, 50, 100), new Vector2(3, 5), worlds[1], new Vector3(0, 0, 0)));
-		worlds[1].addActor(new Portal(this, worlds[1], new Vector3(0, 0, 0), new Vector2(3, 5), worlds[0], new Vector3(50, 50, 100)));
+		Portal portal1 = new Portal(this, worlds[0], new Vector3(-50, 50, -50), new Vector2(3, 5), new Quaternion((float)Math.PI * 0.5f, Vector3.UP), worlds[1]);
+		Portal portal2 = new Portal(this, worlds[1], new Vector3(40, 50, 100), new Vector2(3, 5), new Quaternion(), worlds[0]);
+		portal1.setDestPortal(portal2);
+		portal2.setDestPortal(portal1);
+		
+		worlds[0].addActor(portal1);
+		worlds[1].addActor(portal2);
 		
 		for(int a = 0; a < WORLD_COUNT; a++) {
 			worldRenderers[a].loadActors();
@@ -148,10 +154,6 @@ public class OpenGLWorlds extends GLProgram {
 		}
 		if(key == Keyboard.KEY_2) {
 			currentWorld = 1;
-			camera.setCameraUpdate(worlds[currentWorld]);
-		}
-		if(key == Keyboard.KEY_3) {
-			currentWorld = 2;
 			camera.setCameraUpdate(worlds[currentWorld]);
 		}
 		

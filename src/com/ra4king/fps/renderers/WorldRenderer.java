@@ -26,6 +26,7 @@ import java.util.function.Supplier;
 
 import org.lwjgl.BufferUtils;
 import org.lwjgl.input.Keyboard;
+import org.lwjgl.opengl.Display;
 import org.lwjgl.opengl.EXTTextureFilterAnisotropic;
 import org.lwjgl.opengl.OpenGLException;
 
@@ -678,8 +679,17 @@ public class WorldRenderer {
 			Stopwatch.stop();
 		}
 		
-		font.render(game.getLastFps() + " FPS", 10, 10, 40, new Vector4(1f, 0f, 0f, 1f));
-		font.render("I like pie!", 10, 50, 15, new Vector4(1f, 0f, 0f, 1f));
+		font.render(game.getLastFps() + " FPS", 100, 75, 20, new Vector4(0, 1, 0, 1));
+		font.render(String.format("Update %.2f ms", Stopwatch.getTimePerFrame("Update")), 100, 55, 20, new Vector4(0, 0, 1, 1));
+		font.render(String.format("Render %.2f ms", Stopwatch.getTimePerFrame("Render")), 100, 35, 20, new Vector4(0, 1, 1, 1));
+		font.render("Display.update()", 100, 15, 20, new Vector4(1, 0, 1, 1));
+		
+		font.render("Update Compact Array", 300, 75, 20, new Vector4(1, 0, 0, 1));
+		font.render("Bullet Render", 300, 55, 20, new Vector4(1, 1, 1, 1));
+		font.render("Light System Render", 300, 35, 20, new Vector4(1, 1, 0, 1));
+		font.render("Chunk Render", 300, 15, 20, new Vector4(0.5f, 0.5f, 0.5f, 1));
+		
+		font.render("Position: " + camera.getPosition().toString(), 20, Display.getHeight() - 40, 20, new Vector4(1));
 	}
 	
 	public static class DrawElementsIndirectCommand {
