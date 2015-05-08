@@ -22,7 +22,6 @@ import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
 import java.util.ArrayList;
-import java.util.function.Supplier;
 
 import org.lwjgl.BufferUtils;
 import org.lwjgl.input.Keyboard;
@@ -141,54 +140,14 @@ public class WorldRenderer {
 		
 		final float maxValue = 10.0f;
 		final int graphX = 100, graphY = 100, maxSteps = 100, stepSize = 5, graphHeight = 300;
-		performanceGraphUpdate = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(0, 0, 1, 1), new Supplier<Number>() {
-			@Override
-			public Number get() {
-				return Stopwatch.getTimePerFrame("Update");
-			}
-		}); // Blue
-		performanceGraphRender = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(0, 1, 1, 1), new Supplier<Number>() {
-			@Override
-			public Number get() {
-				return Stopwatch.getTimePerFrame("Render");
-			}
-		}); // Cyan
-		performanceGraphChunkRenderers = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(0.5f, 0.5f, 0.5f, 1), new Supplier<Number>() {
-			@Override
-			public Number get() {
-				return Stopwatch.getTimePerFrame("ChunkRenderers");
-			}
-		}); // gray
-		performanceGraphUpdateCompactArray = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(1, 0, 0, 1), new Supplier<Number>() {
-			@Override
-			public Number get() {
-				return Stopwatch.getTimePerFrame("Update Compact Array");
-			}
-		}); // Red
-		performanceGraphLightSystemRender = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(1, 1, 0, 1), new Supplier<Number>() {
-			@Override
-			public Number get() {
-				return Stopwatch.getTimePerFrame("LightSystem render UBO");
-			}
-		}); // Orange
-		performanceGraphBulletRender = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(1, 1, 1, 1), new Supplier<Number>() {
-			@Override
-			public Number get() {
-				return Stopwatch.getTimePerFrame("BulletRenderer");
-			}
-		}); // White
-		performanceGraphDisplayUpdate = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(1, 0, 1, 1), new Supplier<Number>() {
-			@Override
-			public Number get() {
-				return Stopwatch.getTimePerFrame("Display.update()");
-			}
-		}); // Magenta
-		performanceGraphFPS = new PerformanceGraph(200, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(0, 1, 0, 1), new Supplier<Number>() {
-			@Override
-			public Number get() {
-				return game.getLastFps();
-			}
-		}); // Green
+		performanceGraphUpdate = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(0, 0, 1, 1), () -> Stopwatch.getTimePerFrame("Update")); // Blue
+		performanceGraphRender = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(0, 1, 1, 1), () -> Stopwatch.getTimePerFrame("Render")); // Cyan
+		performanceGraphChunkRenderers = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(0.5f, 0.5f, 0.5f, 1), () -> Stopwatch.getTimePerFrame("ChunkRenderers")); // gray
+		performanceGraphUpdateCompactArray = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(1, 0, 0, 1), () -> Stopwatch.getTimePerFrame("Update Compact Array")); // Red
+		performanceGraphLightSystemRender = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(1, 1, 0, 1), () -> Stopwatch.getTimePerFrame("LightSystem render UBO")); // Orange
+		performanceGraphBulletRender = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(1, 1, 1, 1), () -> Stopwatch.getTimePerFrame("BulletRenderer")); // White
+		performanceGraphDisplayUpdate = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(1, 0, 1, 1), () -> Stopwatch.getTimePerFrame("Display.update()")); // Magenta
+		performanceGraphFPS = new PerformanceGraph(200, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(0, 1, 0, 1), game::getLastFps); // Green
 	}
 	
 	public void loadActors() {
