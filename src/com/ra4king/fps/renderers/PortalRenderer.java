@@ -14,9 +14,7 @@ import com.ra4king.fps.actors.Portal;
 import com.ra4king.opengl.util.ShaderProgram;
 import com.ra4king.opengl.util.Utils;
 import com.ra4king.opengl.util.math.Matrix4;
-import com.ra4king.opengl.util.math.Quaternion;
 import com.ra4king.opengl.util.math.Vector2;
-import com.ra4king.opengl.util.math.Vector3;
 import com.ra4king.opengl.util.render.RenderUtils;
 import com.ra4king.opengl.util.render.RenderUtils.FrustumCulling;
 
@@ -122,24 +120,10 @@ public class PortalRenderer {
 		glEnable(GL_CULL_FACE);
 		
 		glStencilFunc(GL_EQUAL, 1, 0xFF);
-		
 		glClear(GL_DEPTH_BUFFER_BIT);
 		
 		portalCamera.setCamera(camera);
-		
-		//Quaternion destUp = new Quaternion((float)Math.PI * 0.25f, portal.getDestPortal().getOrientation().mult3(Vector3.UP, new Vector3()));
-		
-		// Calculate the difference orientation between the portal's orientation and the camera's orientation
-		Quaternion diff = new Quaternion(camera.getOrientation()).mult(new Quaternion(portal.getOrientation()).inverse()).normalize();
-		// Multiply this difference with the destination portal to get the correct effect
-		portalCamera.getOrientation().set(diff).mult(portal.getDestPortal().getOrientation()).normalize();
-		
-		// Get the difference orientation between the origin portal and the destination portal
-		diff.set(portal.getOrientation())/*.mult(destUp)*/.mult(new Quaternion(portal.getDestPortal().getOrientation()).inverse()).normalize();
-		
-		// Convert the position difference using the difference orientation
-		Vector3 diffPosition = new Vector3(camera.getPosition()).sub(portal.getPosition());
-		portalCamera.getPosition().set(portal.getDestPortal().getPosition()).add(diff.mult3(diffPosition, new Vector3()));
+		portal.transform(portalCamera.getPosition(), portalCamera.getOrientation());
 		
 		worldRenderer.render(portalCamera);
 		

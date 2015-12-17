@@ -64,7 +64,7 @@ public class OpenGLWorlds extends GLProgram {
 		
 		printDebug(true);
 		checkError(false);
-		setFPS(0);
+		setFPS(500);
 		
 		RenderUtils.init();
 		
@@ -100,7 +100,7 @@ public class OpenGLWorlds extends GLProgram {
 			worldsMap.put(worlds[a], worldRenderers[a]);
 		}
 		
-		Portal portal1 = new Portal(this, worlds[0], new Vector3(0, 0, -10), new Vector2(10, 10), new Quaternion((float)Math.PI * 0.5f, Vector3.UP), worlds[1]);
+		Portal portal1 = new Portal(this, worlds[0], new Vector3(0, 0, 0), new Vector2(10, 10), new Quaternion(), worlds[1]);
 		Portal portal2 = new Portal(this, worlds[1], new Vector3(10, 0, 0), new Vector2(3, 5), new Quaternion((float)Math.PI * 0.25f, Vector3.UP), worlds[0]);
 		portal1.setDestPortal(portal2);
 		portal2.setDestPortal(portal1);
