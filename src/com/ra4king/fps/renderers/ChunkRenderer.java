@@ -95,9 +95,9 @@ public class ChunkRenderer implements ChunkModifiedCallback {
 	
 	public void update() {
 		if(chunkModified) {
-			Stopwatch.start("Update Compact Array");
-			
 			blockCount = 0;
+			
+			Stopwatch.start("Update Compact Array");
 			
 			for(Block block : chunk.getBlocks()) {
 				if(block.getType() != BlockType.AIR && !block.isSurrounded(chunk)) {

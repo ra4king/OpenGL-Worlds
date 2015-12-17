@@ -30,7 +30,6 @@ import org.lwjgl.opengl.EXTTextureFilterAnisotropic;
 import org.lwjgl.opengl.OpenGLException;
 
 import com.ra4king.fps.Camera;
-import com.ra4king.fps.GLUtils;
 import com.ra4king.fps.OpenGLWorlds;
 import com.ra4king.fps.actors.Actor;
 import com.ra4king.fps.actors.Bullet;
@@ -51,6 +50,7 @@ import com.ra4king.opengl.util.math.Vector3;
 import com.ra4king.opengl.util.math.Vector4;
 import com.ra4king.opengl.util.render.MonospaceFont;
 import com.ra4king.opengl.util.render.PerformanceGraph;
+import com.ra4king.opengl.util.render.RenderUtils;
 import com.ra4king.opengl.util.render.RenderUtils.FrustumCulling;
 
 /**
@@ -112,7 +112,7 @@ public class WorldRenderer {
 		this.game = game;
 		this.world = world;
 		
-		if(GLUtils.GL_VERSION >= 32) {
+		if(RenderUtils.GL_VERSION >= 32) {
 			glEnable(GL_DEPTH_CLAMP);
 		}
 		
@@ -161,8 +161,8 @@ public class WorldRenderer {
 	}
 	
 	private void loadShaders() {
-		blocksProgram = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "shaders/blocks.vert")),
-		                                   Utils.readFully(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "shaders/blocks.frag")));
+		blocksProgram = new ShaderProgram(Utils.readFully(Resources.getInputStream("shaders/blocks.vert")),
+				                                 Utils.readFully(Resources.getInputStream("shaders/blocks.frag")));
 		
 		projectionMatrixUniform = blocksProgram.getUniformLocation("projectionMatrix");
 		viewMatrixUniform = blocksProgram.getUniformLocation("viewMatrix");
@@ -172,8 +172,8 @@ public class WorldRenderer {
 		glUniform1f(blocksProgram.getUniformLocation("cubeSize"), Chunk.BLOCK_SIZE);
 		blocksProgram.end();
 		
-		deferredProgram = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "shaders/deferred.vert")),
-		                                     Utils.readFully(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "shaders/deferred.frag")));
+		deferredProgram = new ShaderProgram(Utils.readFully(Resources.getInputStream("shaders/deferred.vert")),
+				                                   Utils.readFully(Resources.getInputStream("shaders/deferred.frag")));
 		
 		lightSystem = new UniformBufferLightSystem();
 		lightSystem.setupLights(deferredProgram);
@@ -186,7 +186,7 @@ public class WorldRenderer {
 		int charWidth;
 		String characters;
 		
-		try(BufferedReader reader = new BufferedReader(new InputStreamReader(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "textures/font.fnt")))) {
+		try(BufferedReader reader = new BufferedReader(new InputStreamReader(Resources.getInputStream("textures/font.fnt")))) {
 			file = reader.readLine().trim();
 			charWidth = Integer.parseInt(reader.readLine().trim());
 			characters = reader.readLine().trim();
@@ -198,7 +198,7 @@ public class WorldRenderer {
 		ByteBuffer data;
 		int imageWidth, imageHeight;
 		try {
-			PNGDecoder imageDecoder = new PNGDecoder(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "textures/" + file));
+			PNGDecoder imageDecoder = new PNGDecoder(Resources.getInputStream("textures/" + file));
 			imageWidth = imageDecoder.getWidth();
 			imageHeight = imageDecoder.getHeight();
 			data = BufferUtils.createByteBuffer(imageWidth * imageHeight * 4);
@@ -216,57 +216,57 @@ public class WorldRenderer {
 		final short[] indices = { 0, 1, 2, 2, 3, 0 };
 		
 		final Vector3[] normals = {
-		                            new Vector3(0, 0, 1),
-		                            new Vector3(0, 0, -1),
-		                            new Vector3(0, 1, 0),
-		                            new Vector3(0, -1, 0),
-		                            new Vector3(1, 0, 0),
-		                            new Vector3(-1, 0, 0)
+				new Vector3(0, 0, 1),
+				new Vector3(0, 0, -1),
+				new Vector3(0, 1, 0),
+				new Vector3(0, -1, 0),
+				new Vector3(1, 0, 0),
+				new Vector3(-1, 0, 0)
 		};
 		
 		final Vector2[] texCoords = {
-		                              new Vector2(0, 1),
-		                              new Vector2(1, 1),
-		                              new Vector2(1, 0),
-		                              new Vector2(0, 0)
+				new Vector2(0, 1),
+				new Vector2(1, 1),
+				new Vector2(1, 0),
+				new Vector2(0, 0)
 		};
 		
 		final Vector3[] unitCube = {
-		                             // front
-		                             new Vector3(0.0f, 1.0f, 0.0f),
-		                             new Vector3(1.0f, 1.0f, 0.0f),
-		                             new Vector3(1.0f, 0.0f, 0.0f),
-		                             new Vector3(0.0f, 0.0f, 0.0f),
-		  
-		                             // back
-		                             new Vector3(1.0f, 1.0f, -1.0f),
-		                             new Vector3(0.0f, 1.0f, -1.0f),
-		                             new Vector3(0.0f, 0.0f, -1.0f),
-		                             new Vector3(1.0f, 0.0f, -1.0f),
-		  
-		                             // top
-		                             new Vector3(0.0f, 1.0f, -1.0f),
-		                             new Vector3(1.0f, 1.0f, -1.0f),
-		                             new Vector3(1.0f, 1.0f, 0.0f),
-		                             new Vector3(0.0f, 1.0f, 0.0f),
-		  
-		                             // bottom
-		                             new Vector3(0.0f, 0.0f, 0.0f),
-		                             new Vector3(1.0f, 0.0f, 0.0f),
-		                             new Vector3(1.0f, 0.0f, -1.0f),
-		                             new Vector3(0.0f, 0.0f, -1.0f),
-		  
-		                             // right
-		                             new Vector3(1.0f, 1.0f, 0.0f),
-		                             new Vector3(1.0f, 1.0f, -1.0f),
-		                             new Vector3(1.0f, 0.0f, -1.0f),
-		                             new Vector3(1.0f, 0.0f, 0.0f),
-		  
-		                             // left
-		                             new Vector3(0.0f, 1.0f, -1.0f),
-		                             new Vector3(0.0f, 1.0f, 0.0f),
-		                             new Vector3(0.0f, 0.0f, 0.0f),
-		                             new Vector3(0.0f, 0.0f, -1.0f)
+				// front
+				new Vector3(0.0f, 1.0f, 0.0f),
+				new Vector3(1.0f, 1.0f, 0.0f),
+				new Vector3(1.0f, 0.0f, 0.0f),
+				new Vector3(0.0f, 0.0f, 0.0f),
+				
+				// back
+				new Vector3(1.0f, 1.0f, -1.0f),
+				new Vector3(0.0f, 1.0f, -1.0f),
+				new Vector3(0.0f, 0.0f, -1.0f),
+				new Vector3(1.0f, 0.0f, -1.0f),
+				
+				// top
+				new Vector3(0.0f, 1.0f, -1.0f),
+				new Vector3(1.0f, 1.0f, -1.0f),
+				new Vector3(1.0f, 1.0f, 0.0f),
+				new Vector3(0.0f, 1.0f, 0.0f),
+				
+				// bottom
+				new Vector3(0.0f, 0.0f, 0.0f),
+				new Vector3(1.0f, 0.0f, 0.0f),
+				new Vector3(1.0f, 0.0f, -1.0f),
+				new Vector3(0.0f, 0.0f, -1.0f),
+				
+				// right
+				new Vector3(1.0f, 1.0f, 0.0f),
+				new Vector3(1.0f, 1.0f, -1.0f),
+				new Vector3(1.0f, 0.0f, -1.0f),
+				new Vector3(1.0f, 0.0f, 0.0f),
+				
+				// left
+				new Vector3(0.0f, 1.0f, -1.0f),
+				new Vector3(0.0f, 1.0f, 0.0f),
+				new Vector3(0.0f, 0.0f, 0.0f),
+				new Vector3(0.0f, 0.0f, -1.0f)
 		};
 		
 		// 2 vec3s and 1 vec2
@@ -296,7 +296,7 @@ public class WorldRenderer {
 	}
 	
 	private static int loadTexture(String texName) {
-		try(InputStream in = WorldRenderer.class.getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "textures/" + texName)) {
+		try(InputStream in = Resources.getInputStream("textures/" + texName)) {
 			PNGDecoder decoder = new PNGDecoder(in);
 			
 			int width = decoder.getWidth();
@@ -327,8 +327,8 @@ public class WorldRenderer {
 	private void setupBlockVAO() {
 		final int DATA_VBO_SIZE = world.getChunkManager().getChunks().length * ChunkRenderer.CHUNK_DATA_SIZE;
 		
-		chunkVAO = glGenVertexArrays();
-		glBindVertexArray(chunkVAO);
+		chunkVAO = RenderUtils.glGenVertexArrays();
+		RenderUtils.glBindVertexArray(chunkVAO);
 		
 		glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indicesVBO);
@@ -346,13 +346,13 @@ public class WorldRenderer {
 		
 		glEnableVertexAttribArray(3);
 		glVertexAttribPointer(3, 3, GL_UNSIGNED_INT, false, 4 * 4, 0);
-		GLUtils.glVertexAttribDivisor(3, 1);
+		RenderUtils.glVertexAttribDivisor(3, 1);
 		
 		glEnableVertexAttribArray(4);
 		glVertexAttribIPointer(4, 1, GL_UNSIGNED_INT, 4 * 4, 3 * 4);
-		GLUtils.glVertexAttribDivisor(4, 1);
+		RenderUtils.glVertexAttribDivisor(4, 1);
 		
-		GLUtils.glBindVertexArray(0);
+		RenderUtils.glBindVertexArray(0);
 		
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
@@ -370,7 +370,7 @@ public class WorldRenderer {
 		
 		cameraPositionsTexture = glGenTextures();
 		glBindTexture(GL_TEXTURE_2D, cameraPositionsTexture);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, GLUtils.getWidth(), GLUtils.getHeight(), 0, GL_RGB, GL_FLOAT, (ByteBuffer)null);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, RenderUtils.getWidth(), RenderUtils.getHeight(), 0, GL_RGB, GL_FLOAT, (ByteBuffer)null);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -379,7 +379,7 @@ public class WorldRenderer {
 		
 		normalsTexture = glGenTextures();
 		glBindTexture(GL_TEXTURE_2D, normalsTexture);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, GLUtils.getWidth(), GLUtils.getHeight(), 0, GL_RGB, GL_FLOAT, (ByteBuffer)null);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, RenderUtils.getWidth(), RenderUtils.getHeight(), 0, GL_RGB, GL_FLOAT, (ByteBuffer)null);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -388,7 +388,7 @@ public class WorldRenderer {
 		
 		texCoordsTexture = glGenTextures();
 		glBindTexture(GL_TEXTURE_2D, texCoordsTexture);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, GLUtils.getWidth(), GLUtils.getHeight(), 0, GL_RG, GL_FLOAT, (ByteBuffer)null);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, RenderUtils.getWidth(), RenderUtils.getHeight(), 0, GL_RG, GL_FLOAT, (ByteBuffer)null);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -397,7 +397,7 @@ public class WorldRenderer {
 		
 		depthTexture = glGenTextures();
 		glBindTexture(GL_TEXTURE_2D, depthTexture);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, GLUtils.getWidth(), GLUtils.getHeight(), 0, GL_DEPTH_COMPONENT, GL_FLOAT, (ByteBuffer)null);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, RenderUtils.getWidth(), RenderUtils.getHeight(), 0, GL_DEPTH_COMPONENT, GL_FLOAT, (ByteBuffer)null);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -407,10 +407,10 @@ public class WorldRenderer {
 		glBindTexture(GL_TEXTURE_2D, 0);
 		
 		IntBuffer drawBuffers = BufferUtils.createIntBuffer(3).put(new int[] {
-		                                                                       GL_COLOR_ATTACHMENT0,
-		                                                                       GL_COLOR_ATTACHMENT1,
-		                                                                       GL_COLOR_ATTACHMENT2,
-		});
+				GL_COLOR_ATTACHMENT0,
+				GL_COLOR_ATTACHMENT1,
+				GL_COLOR_ATTACHMENT2,
+				});
 		drawBuffers.flip();
 		glDrawBuffers(drawBuffers);
 		
@@ -432,10 +432,10 @@ public class WorldRenderer {
 	
 	private void setupDeferredVAO() {
 		FloatBuffer verts = BufferUtils.createFloatBuffer(8).put(new float[] {
-		                                                                       1, 1,
-		                                                                       1, -1,
-		                                                                       -1, 1,
-		                                                                       -1, -1
+				1, 1,
+				1, -1,
+				-1, 1,
+				-1, -1
 		});
 		verts.flip();
 		
@@ -443,11 +443,11 @@ public class WorldRenderer {
 		glBindBuffer(GL_ARRAY_BUFFER, vbo);
 		glBufferData(GL_ARRAY_BUFFER, verts, GL_STATIC_DRAW);
 		
-		deferredVAO = glGenVertexArrays();
-		glBindVertexArray(deferredVAO);
+		deferredVAO = RenderUtils.glGenVertexArrays();
+		RenderUtils.glBindVertexArray(deferredVAO);
 		glEnableVertexAttribArray(0);
 		glVertexAttribPointer(0, 2, GL_FLOAT, false, 0, 0);
-		glBindVertexArray(0);
+		RenderUtils.glBindVertexArray(0);
 		
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 	}
@@ -455,9 +455,6 @@ public class WorldRenderer {
 	public void resized() {
 		setupDeferredFBO();
 	}
-	
-	private long timePassed;
-	private int lastChunksRendered;
 	
 	private boolean showPerformanceGraphs = true;
 	
@@ -468,23 +465,6 @@ public class WorldRenderer {
 	}
 	
 	public void update(long deltaTime) {
-		timePassed += deltaTime;
-		
-		while(timePassed >= 1e9) {
-			timePassed -= 1e9;
-			
-			if(timePassed >= 1e9) {
-				continue;
-			}
-			
-			long cubes = 0;
-			for(ChunkRenderer chunkRenderer : chunkRenderers) {
-				cubes += chunkRenderer.getLastCubeRenderCount();
-			}
-			
-			System.out.printf("Rendering %d chunks, %d cubes\n", lastChunksRendered, cubes);
-		}
-		
 		for(PortalRenderer portalRenderer : portalRenderers)
 			portalRenderer.update(deltaTime);
 		
@@ -525,6 +505,8 @@ public class WorldRenderer {
 		Stopwatch.start("ChunkRenderers");
 		
 		int chunksRendered = 0;
+		int blocksRendered = 0;
+		
 		float halfSpacing = Chunk.SPACING * 0.5f;
 		
 		chunkRendererStorage.nextBuffer();
@@ -541,23 +523,22 @@ public class WorldRenderer {
 			
 			if(culling.isRectPrismInsideFrustum(new Vector3(chunk.getCornerX(), chunk.getCornerY(), -chunk.getCornerZ())
 			                                      .mult(Chunk.SPACING).sub(halfSpacing, halfSpacing, -halfSpacing),
-			                                     Chunk.CHUNK_BLOCK_WIDTH * Chunk.SPACING,
-			                                     Chunk.CHUNK_BLOCK_HEIGHT * Chunk.SPACING,
-			                                     -Chunk.CHUNK_BLOCK_DEPTH * Chunk.SPACING)) {
+					Chunk.CHUNK_BLOCK_WIDTH * Chunk.SPACING,
+					Chunk.CHUNK_BLOCK_HEIGHT * Chunk.SPACING,
+					-Chunk.CHUNK_BLOCK_DEPTH * Chunk.SPACING)) {
 				if(chunkRenderer.render(command, currentOffset)) {
 					commandsBuffer.put(command.toBuffer());
 					
 					chunksRendered++;
+					blocksRendered += chunkRenderer.getLastCubeRenderCount();
 				}
 			}
 		}
 		
 		commandsBuffer.flip();
 		
-		lastChunksRendered = chunksRendered;
-		
 		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandsVBO);
-		glBufferSubData(GL_DRAW_INDIRECT_BUFFER, 0, commandsBuffer);
+		glBufferData(GL_DRAW_INDIRECT_BUFFER, commandsBuffer, GL_STREAM_DRAW);
 		
 		{
 			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, deferredFBO);
@@ -574,7 +555,7 @@ public class WorldRenderer {
 			
 			glUniformMatrix3(normalMatrixUniform, false, new Matrix3().set4x4(viewMatrix).inverse().transpose().toBuffer());
 			
-			GLUtils.glBindVertexArray(chunkVAO);
+			RenderUtils.glBindVertexArray(chunkVAO);
 			glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_SHORT, 0, chunksRendered, 0);
 		}
 		
@@ -601,12 +582,12 @@ public class WorldRenderer {
 			glEnable(GL_BLEND);
 			
 			deferredProgram.begin();
-			glUniform2f(resolutionUniform, GLUtils.getWidth(), GLUtils.getHeight());
+			glUniform2f(resolutionUniform, RenderUtils.getWidth(), RenderUtils.getHeight());
 			
 			final float mainK = 0.00001f;
 			lightSystem.renderLights(new Vector3(0.5f, 0.5f, 0.5f), mainK, new Vector3(0.01f, 0.01f, 0.01f), viewMatrix, bulletRenderer);
 			
-			GLUtils.glBindVertexArray(deferredVAO);
+			RenderUtils.glBindVertexArray(deferredVAO);
 			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 		}
 		
@@ -617,13 +598,13 @@ public class WorldRenderer {
 		bulletRenderer.render(camera.getProjectionMatrix(), tempStack.setTop(viewMatrix), culling);
 		
 		glDisable(GL_DEPTH_TEST);
-		bulletRenderer.render(new Matrix4().clearToOrtho(-GLUtils.getWidth() / 2, GLUtils.getWidth() / 2, -GLUtils.getHeight() / 2, GLUtils.getHeight() / 2, -1, 1), new MatrixStack(), null, aim);
+		bulletRenderer.render(new Matrix4().clearToOrtho(-RenderUtils.getWidth() / 2, RenderUtils.getWidth() / 2, -RenderUtils.getHeight() / 2, RenderUtils.getHeight() / 2, -1, 1), new MatrixStack(), null, aim);
 		glEnable(GL_DEPTH_TEST);
 		
 		Stopwatch.stop();
 		
 		for(PortalRenderer portalRenderer : portalRenderers)
-			portalRenderer.render(camera.getProjectionMatrix(), viewMatrix, culling);
+			portalRenderer.render(camera, viewMatrix, culling);
 		
 		if(showPerformanceGraphs) {
 			Stopwatch.start("Performance Graphs Render");
@@ -639,16 +620,17 @@ public class WorldRenderer {
 		}
 		
 		font.render(game.getLastFps() + " FPS", 100, 75, 20, new Vector4(0, 1, 0, 1));
-		font.render(String.format("Update %.2f ms", Stopwatch.getTimePerFrame("Update")), 100, 55, 20, new Vector4(0, 0, 1, 1));
-		font.render(String.format("Render %.2f ms", Stopwatch.getTimePerFrame("Render")), 100, 35, 20, new Vector4(0, 1, 1, 1));
-		font.render("Display.update()", 100, 15, 20, new Vector4(1, 0, 1, 1));
+		font.render(String.format("Update: %.2f ms", Stopwatch.getTimePerFrame("Update")), 100, 55, 20, new Vector4(0, 0, 1, 1));
+		font.render(String.format("Render: %.2f ms", Stopwatch.getTimePerFrame("Render")), 100, 35, 20, new Vector4(0, 1, 1, 1));
+		font.render(String.format("Display.update(): %.2f ms", Stopwatch.getTimePerFrame("Display.update()")), 100, 15, 20, new Vector4(1, 0, 1, 1));
 		
-		font.render("Update Compact Array", 300, 75, 20, new Vector4(1, 0, 0, 1));
-		font.render("Bullet Render", 300, 55, 20, new Vector4(1, 1, 1, 1));
-		font.render("Light System Render", 300, 35, 20, new Vector4(1, 1, 0, 1));
-		font.render("Chunk Render", 300, 15, 20, new Vector4(0.5f, 0.5f, 0.5f, 1));
+		font.render(String.format("Update Compact Array: %.2f ms", Stopwatch.getTimePerFrame("Update Compact Array")), 360, 75, 20, new Vector4(1, 0, 0, 1));
+		font.render(String.format("Bullet Render: %.2f ms", Stopwatch.getTimePerFrame("BulletRenderer")), 360, 55, 20, new Vector4(1, 1, 1, 1));
+		font.render(String.format("Light System Render: %.2f ms", Stopwatch.getTimePerFrame("LightSystem render UBO")), 360, 35, 20, new Vector4(1, 1, 0, 1));
+		font.render(String.format("Chunk Render: %.2f ms", Stopwatch.getTimePerFrame("ChunkRenderers")), 360, 15, 20, new Vector4(0.5f, 0.5f, 0.5f, 1));
 		
 		font.render("Position: " + camera.getPosition().toString(), 20, Display.getHeight() - 40, 20, new Vector4(1));
+		font.render("Chunks visible: " + chunksRendered + ", Total cubes rendered: " + blocksRendered, 20, Display.getHeight() - 60, 20, new Vector4(1));
 	}
 	
 	public static class DrawElementsIndirectCommand {
@@ -726,7 +708,7 @@ public class WorldRenderer {
 				
 				glBindBuffer(GL_UNIFORM_BUFFER, lightsUniformBufferVBO);
 				ByteBuffer lightsMappedBuffer = glMapBufferRange(GL_UNIFORM_BUFFER, 0, LIGHTS_UNIFORM_BUFFER_SIZE,
-				                                                  GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_UNSYNCHRONIZED_BIT, null);
+						GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_UNSYNCHRONIZED_BIT, null);
 				
 				if(lightsMappedBuffer == null) {
 					Utils.checkGLError("lights map buffer");

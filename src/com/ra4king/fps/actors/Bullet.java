@@ -31,8 +31,8 @@ public class Bullet implements Actor {
 	// private static final Vector3[] colors = { new Vector3(1, 20f / 255f, 147f / 255f), new Vector3(1, 0, 0), new Vector3(0, 250f / 255f, 154f / 255f), new Vector3(0, 191f / 255f, 1) };
 	
 	public Bullet(Vector3 position, Vector3 velocity, float size, float range, long lifeTime, boolean isSolid) {
-		this(position, velocity, size, range, lifeTime, isSolid, new Vector3((float)Math.random(), (float)Math.random(), (float)Math.random()));// colors[(int)(Math.random() *
-																																				// colors.length)]);
+		this(position, velocity, size, range, lifeTime, isSolid, new Vector3((float)Math.random(),
+				                                                                    (float)Math.random(), (float)Math.random()));// colors[(int)(Math.random() * colors.length)]);
 	}
 	
 	public Bullet(Vector3 position, Vector3 velocity, float size, float range, long lifeTime, boolean isSolid, Vector3 color) {
@@ -53,11 +53,12 @@ public class Bullet implements Actor {
 			Struct.free(position);
 			Struct.free(velocity);
 			Struct.free(color);
-		} finally {
+		}
+		finally {
 			super.finalize();
 		}
 	}
-
+	
 	public boolean isAlive() {
 		return age < life;
 	}
@@ -76,10 +77,6 @@ public class Bullet implements Actor {
 	
 	public long getAge() {
 		return age;
-	}
-	
-	public void increaseAge(long deltaTime) {
-		age += deltaTime;
 	}
 	
 	@TakeStruct

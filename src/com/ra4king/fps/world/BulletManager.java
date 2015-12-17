@@ -15,7 +15,7 @@ public class BulletManager {
 	private ArrayList<Bullet> bullets;
 	
 	private HashMap<Bullet,Integer> megaBulletDestroyCount;
-	private final int MAX_MEGA_BULLET_DESTROY_COUNT = 2000;
+	private final int MAX_MEGA_BULLET_DESTROY_COUNT = 600;
 	
 	private ChunkManager chunkManager;
 	
@@ -83,9 +83,6 @@ public class BulletManager {
 								megaBulletDestroyCount.remove(bullet);
 								isAlive = false;
 							}
-							
-							long ageIncrease = Math.round((double)i / MAX_MEGA_BULLET_DESTROY_COUNT * (bullet.getLife() - bullet.getAge()));
-							bullet.increaseAge(ageIncrease);
 						}
 					} else if((block = chunkManager.getBlock(pos, 0.5f * bullet.getSize())) != null && block.getType() != BlockType.AIR) {
 						chunkManager.setBlock(BlockType.AIR, block);

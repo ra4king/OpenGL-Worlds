@@ -10,7 +10,6 @@ import java.util.List;
 
 import org.lwjgl.BufferUtils;
 
-import com.ra4king.fps.GLUtils;
 import com.ra4king.fps.actors.Bullet;
 import com.ra4king.fps.world.BulletManager;
 import com.ra4king.opengl.util.ShaderProgram;
@@ -18,6 +17,7 @@ import com.ra4king.opengl.util.Utils;
 import com.ra4king.opengl.util.math.Matrix4;
 import com.ra4king.opengl.util.math.MatrixStack;
 import com.ra4king.opengl.util.math.Vector3;
+import com.ra4king.opengl.util.render.RenderUtils;
 import com.ra4king.opengl.util.render.RenderUtils.FrustumCulling;
 
 /**
@@ -38,8 +38,8 @@ public class BulletRenderer {
 	public BulletRenderer(BulletManager bulletManager) {
 		this.bulletManager = bulletManager;
 		
-		bulletProgram = new ShaderProgram(Utils.readFully(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "shaders/bullet.vert")),
-				Utils.readFully(getClass().getResourceAsStream(GLUtils.RESOURCES_ROOT_PATH + "shaders/bullet.frag")));
+		bulletProgram = new ShaderProgram(Utils.readFully(Resources.getInputStream("shaders/bullet.vert")),
+				                                 Utils.readFully(Resources.getInputStream("shaders/bullet.frag")));
 		
 		projectionMatrixUniform = bulletProgram.getUniformLocation("projectionMatrix");
 		modelViewMatrixUniform = bulletProgram.getUniformLocation("modelViewMatrix");
@@ -52,8 +52,8 @@ public class BulletRenderer {
 		FloatBuffer bulletMappingsBuffer = BufferUtils.createFloatBuffer(bulletMappings.length);
 		bulletMappingsBuffer.put(bulletMappings).flip();
 		
-		vao = GLUtils.glGenVertexArrays();
-		GLUtils.glBindVertexArray(vao);
+		vao = RenderUtils.glGenVertexArrays();
+		RenderUtils.glBindVertexArray(vao);
 		
 		int bulletMappingsVBO = glGenBuffers();
 		glBindBuffer(GL_ARRAY_BUFFER, bulletMappingsVBO);
@@ -70,15 +70,15 @@ public class BulletRenderer {
 		
 		glEnableVertexAttribArray(1);
 		glVertexAttribPointer(1, 4, GL_FLOAT, false, 2 * 4 * 4, 0);
-		GLUtils.glVertexAttribDivisor(1, 1);
+		RenderUtils.glVertexAttribDivisor(1, 1);
 		
 		glEnableVertexAttribArray(2);
 		glVertexAttribPointer(2, 4, GL_FLOAT, false, 2 * 4 * 4, 4 * 4);
-		GLUtils.glVertexAttribDivisor(2, 1);
+		RenderUtils.glVertexAttribDivisor(2, 1);
 		
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 		
-		GLUtils.glBindVertexArray(0);
+		RenderUtils.glBindVertexArray(0);
 	}
 	
 	public int getBulletLightData(Matrix4 viewMatrix, FloatBuffer bulletData, int maxBulletCount) {
@@ -95,8 +95,9 @@ public class BulletRenderer {
 			Bullet b = bulletVectorPairs[a].bullet;
 			Vector3 v = bulletVectorPairs[a].vector;
 			
-			if(v.z() >= 0)
+			if(v.z() >= 0) {
 				continue;
+			}
 			
 			bulletData.put(v.toBuffer());
 			bulletData.put(b.getRange());
@@ -110,8 +111,9 @@ public class BulletRenderer {
 	}
 	
 	private static void sort(List<Bullet> bullets, Matrix4 viewMatrix, BulletVectorPair[] sortedBullets) {
-		if(bullets.size() != sortedBullets.length)
+		if(bullets.size() != sortedBullets.length) {
 			throw new IllegalArgumentException("sortedBullets array is invalid length!");
+		}
 		
 		for(int a = 0; a < bullets.size(); a++) {
 			Bullet b = bullets.get(a);
@@ -132,7 +134,7 @@ public class BulletRenderer {
 		render(projectionMatrix, modelViewMatrix, bulletVectorPairs, culling);
 	}
 	
-	public void render(Matrix4 projectionMatrix, MatrixStack modelViewMatrix, FrustumCulling culling, Bullet ... bullets) {
+	public void render(Matrix4 projectionMatrix, MatrixStack modelViewMatrix, FrustumCulling culling, Bullet... bullets) {
 		List<Bullet> bulletList = Arrays.asList(bullets);
 		
 		BulletVectorPair[] bulletVectorPairs = new BulletVectorPair[bulletList.size()];
@@ -145,8 +147,9 @@ public class BulletRenderer {
 	}
 	
 	private void render(Matrix4 projectionMatrix, MatrixStack modelViewMatrix, BulletVectorPair[] bullets, FrustumCulling culling) {
-		if(bullets.length == 0)
+		if(bullets.length == 0) {
 			return;
+		}
 		
 		bulletProgram.begin();
 		
@@ -163,16 +166,16 @@ public class BulletRenderer {
 			}
 			
 			bulletDataBuffer = BufferUtils.createFloatBuffer(BULLET_BUFFER_SIZE >> 2);
-		}
-		else {
+		} else {
 			bulletDataBuffer.clear();
 		}
 		
 		int bulletDrawnCount = 0;
 		
 		for(BulletVectorPair bvp : bullets) {
-			if(culling != null && !culling.isCubeInsideFrustum(bvp.bullet.getPosition(), bvp.bullet.getSize()))
+			if(culling != null && !culling.isCubeInsideFrustum(bvp.bullet.getPosition(), bvp.bullet.getSize())) {
 				continue;
+			}
 			
 			bulletDrawnCount++;
 			
@@ -186,18 +189,17 @@ public class BulletRenderer {
 		
 		if(bulletCountChanged) {
 			glBufferData(GL_ARRAY_BUFFER, bulletDataBuffer, GL_STREAM_DRAW);
-		}
-		else {
+		} else {
 			glBufferData(GL_ARRAY_BUFFER, BULLET_BUFFER_SIZE, GL_STREAM_DRAW);
 			glBufferSubData(GL_ARRAY_BUFFER, 0, bulletDataBuffer);
 		}
 		
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 		
-		GLUtils.glBindVertexArray(vao);
+		RenderUtils.glBindVertexArray(vao);
 		
 		glDepthMask(false);
-		GLUtils.glDrawArraysInstanced(GL_TRIANGLES, 0, 6, bulletDrawnCount);
+		RenderUtils.glDrawArraysInstanced(GL_TRIANGLES, 0, 6, bulletDrawnCount);
 		glDepthMask(true);
 	}
 	

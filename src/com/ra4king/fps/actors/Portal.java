@@ -90,13 +90,12 @@ public class Portal implements Actor {
 		Vector3 delta = camera.getDelta();
 		Vector3 prevPos = new Vector3(camera.getPosition()).sub(delta);
 		
-		Vector3 normal = orientation.mult3(Vector3.BACK, new Vector3()).normalize();
-		float d = -position.dot(normal);
+		Vector3 normal = orientation.mult3(Vector3.FORWARD, new Vector3()).normalize();
 		
 		float dot = delta.dot(normal);
 		
 		if(dot != 0.0) {
-			float t = (-prevPos.dot(normal) - d) / dot;
+			float t = new Vector3(position).sub(prevPos).dot(normal) / dot;
 			
 			if(t >= 0f && t <= 1f) {
 				Vector3 intersection = new Vector3(delta).mult(t).add(prevPos).sub(position);
@@ -108,15 +107,19 @@ public class Portal implements Actor {
 				     offset.y() <= 0f && offset.y() >= -size.y()) {
 					worldsManager.setWorld(destWorld);
 					
+					//Quaternion destUp = new Quaternion((float)Math.PI * 0.25f, destPortal.getOrientation().mult3(Vector3.UP, new Vector3()));
+					
 					// Calculate the difference orientation between the portal's orientation and the camera's orientation
-					Quaternion diff = new Quaternion(camera.getOrientation()).mult(new Quaternion(orientation).inverse());
+					Quaternion diff = new Quaternion(camera.getOrientation()).mult(new Quaternion(orientation).inverse()).normalize();
 					// Multiply this difference with the destination portal to get the correct effect
-					camera.getOrientation().set(diff.normalize()).mult(destPortal.getOrientation()).normalize();
+					camera.getOrientation().set(diff).mult(destPortal.getOrientation()).normalize();
 					
-					diff.set(destPortal.getOrientation()).mult(new Quaternion(orientation).inverse()).normalize();
+					// Get the difference orientation between the origin portal and the destination portal
+					diff.set(orientation).mult(new Quaternion(destPortal.getOrientation()).inverse()).normalize();
 					
+					// Convert the position difference using the difference orientation
 					Vector3 diffPosition = new Vector3(camera.getPosition()).sub(position);
-					camera.getPosition().set(destPortal.getPosition()).add(diff.inverse().mult3(diffPosition, new Vector3()));
+					camera.getPosition().set(destPortal.getPosition()).add(diff.mult3(diffPosition, new Vector3()));
 				}
 			}
 		}

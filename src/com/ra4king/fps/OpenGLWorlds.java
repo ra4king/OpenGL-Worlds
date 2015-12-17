@@ -15,10 +15,10 @@ import com.ra4king.fps.world.Chunk;
 import com.ra4king.fps.world.World;
 import com.ra4king.opengl.util.GLProgram;
 import com.ra4king.opengl.util.Stopwatch;
-import com.ra4king.opengl.util.Utils;
 import com.ra4king.opengl.util.math.Quaternion;
 import com.ra4king.opengl.util.math.Vector2;
 import com.ra4king.opengl.util.math.Vector3;
+import com.ra4king.opengl.util.render.RenderUtils;
 
 /**
  * @author Roi Atalla
@@ -62,12 +62,13 @@ public class OpenGLWorlds extends GLProgram {
 		System.out.println(glGetString(GL_VENDOR));
 		System.out.println(glGetString(GL_RENDERER));
 		
-		setPrintDebug(true);
+		printDebug(true);
+		checkError(false);
 		setFPS(0);
 		
-		GLUtils.init();
+		RenderUtils.init();
 		
-		if(GLUtils.GL_VERSION < 21) {
+		if(RenderUtils.GL_VERSION < 21) {
 			System.out.println("Your OpenGL version is too old.");
 			System.exit(1);
 		}
@@ -93,14 +94,14 @@ public class OpenGLWorlds extends GLProgram {
 		resetCamera();
 		
 		for(int a = 0; a < WORLD_COUNT; a++) {
-			worlds[a] = new World(3, 3, 3);
+			worlds[a] = new World(5, 5, 5);
 			worldRenderers[a] = new WorldRenderer(this, worlds[a]);
 			worlds[a].generateRandomBlocks();
 			worldsMap.put(worlds[a], worldRenderers[a]);
 		}
 		
-		Portal portal1 = new Portal(this, worlds[0], new Vector3(0, 0, -10), new Vector2(3, 5), new Quaternion((float)Math.PI * 0.5f, Vector3.LEFT), worlds[1]);
-		Portal portal2 = new Portal(this, worlds[1], new Vector3(10, 0, 0), new Vector2(3, 5), new Quaternion(), worlds[0]);
+		Portal portal1 = new Portal(this, worlds[0], new Vector3(0, 0, -10), new Vector2(10, 10), new Quaternion((float)Math.PI * 0.5f, Vector3.UP), worlds[1]);
+		Portal portal2 = new Portal(this, worlds[1], new Vector3(10, 0, 0), new Vector2(3, 5), new Quaternion((float)Math.PI * 0.25f, Vector3.UP), worlds[0]);
 		portal1.setDestPortal(portal2);
 		portal2.setDestPortal(portal1);
 		
@@ -123,7 +124,7 @@ public class OpenGLWorlds extends GLProgram {
 	public void resized() {
 		super.resized();
 		
-		camera.setWindowSize(GLUtils.getWidth(), GLUtils.getHeight());
+		camera.setWindowSize(RenderUtils.getWidth(), RenderUtils.getHeight());
 		
 		for(int a = 0; a < WORLD_COUNT; a++) {
 			worldRenderers[a].resized();
@@ -167,7 +168,8 @@ public class OpenGLWorlds extends GLProgram {
 	
 	public void resetCamera() {
 		camera.setPosition(new Vector3(-Chunk.BLOCK_SIZE, -Chunk.BLOCK_SIZE, Chunk.BLOCK_SIZE).mult(5));
-		Utils.lookAt(camera.getPosition(), Vector3.ZERO, Vector3.UP).toQuaternion(camera.getOrientation()).normalize();
+		camera.getOrientation().reset();
+		//Utils.lookAt(camera.getPosition(), Vector3.ZERO, Vector3.UP).toQuaternion(camera.getOrientation()).normalize();
 	}
 	
 	public void setWorld(World world) {
