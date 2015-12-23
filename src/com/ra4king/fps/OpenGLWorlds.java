@@ -15,6 +15,7 @@ import com.ra4king.fps.world.Chunk;
 import com.ra4king.fps.world.World;
 import com.ra4king.opengl.util.GLProgram;
 import com.ra4king.opengl.util.Stopwatch;
+import com.ra4king.opengl.util.Utils;
 import com.ra4king.opengl.util.math.Quaternion;
 import com.ra4king.opengl.util.math.Vector2;
 import com.ra4king.opengl.util.math.Vector3;
@@ -33,7 +34,7 @@ public class OpenGLWorlds extends GLProgram {
 		// System.setOut(logs);
 		// System.setErr(logs);
 		
-		new OpenGLWorlds().run(true, new PixelFormat(16, 0, 8, 8, 4));// , new ContextAttribs(4, 4).withDebug(true).withProfileCore(true));
+		new OpenGLWorlds().run(4, 3, true, new PixelFormat(16, 0, 8, 8, 4));// , new ContextAttribs(4, 4).withDebug(true).withProfileCore(true));
 	}
 	
 	private final int WORLD_COUNT = 2;
@@ -63,8 +64,8 @@ public class OpenGLWorlds extends GLProgram {
 		System.out.println(glGetString(GL_RENDERER));
 		
 		printDebug(true);
-		checkError(false);
-		setFPS(500);
+		checkError(true);
+		setFPS(0);
 		
 		RenderUtils.init();
 		
@@ -101,7 +102,7 @@ public class OpenGLWorlds extends GLProgram {
 		}
 		
 		Portal portal1 = new Portal(this, worlds[0], new Vector3(0, 0, 0), new Vector2(10, 10), new Quaternion(), worlds[1]);
-		Portal portal2 = new Portal(this, worlds[1], new Vector3(10, 0, 0), new Vector2(3, 5), new Quaternion((float)Math.PI * 0.25f, Vector3.UP), worlds[0]);
+		Portal portal2 = new Portal(this, worlds[1], new Vector3(10, 0, 0), new Vector2(10, 10), new Quaternion((float)Math.PI * 0.25f, Vector3.UP).mult(new Quaternion((float)Math.PI * 0.25f, Vector3.RIGHT)), worlds[0]);
 		portal1.setDestPortal(portal2);
 		portal2.setDestPortal(portal1);
 		
@@ -168,8 +169,11 @@ public class OpenGLWorlds extends GLProgram {
 	
 	public void resetCamera() {
 		camera.setPosition(new Vector3(-Chunk.BLOCK_SIZE, -Chunk.BLOCK_SIZE, Chunk.BLOCK_SIZE).mult(5));
-		camera.getOrientation().reset();
-		//Utils.lookAt(camera.getPosition(), Vector3.ZERO, Vector3.UP).toQuaternion(camera.getOrientation()).normalize();
+		Utils.lookAt(camera.getPosition(), Vector3.ZERO, Vector3.UP).toQuaternion(camera.getOrientation()).normalize();
+	}
+	
+	public World getWorld() {
+		return worlds[currentWorld];
 	}
 	
 	public void setWorld(World world) {
@@ -189,7 +193,8 @@ public class OpenGLWorlds extends GLProgram {
 		Stopwatch.stop();
 		
 		Stopwatch.start("World Update");
-		worlds[currentWorld].update(deltaTime);
+		for(World w : worlds)
+			w.update(deltaTime);
 		Stopwatch.stop();
 		
 		Stopwatch.start("WorldRenderer Update");

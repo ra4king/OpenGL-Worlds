@@ -35,6 +35,11 @@ public class Bullet implements Actor {
 				                                                                    (float)Math.random(), (float)Math.random()));// colors[(int)(Math.random() * colors.length)]);
 	}
 	
+	public Bullet(Bullet other) {
+		this(other.position, other.velocity, other.size, other.range, other.life, other.isSolid, other.color);
+		this.age = other.age;
+	}
+	
 	public Bullet(Vector3 position, Vector3 velocity, float size, float range, long lifeTime, boolean isSolid, Vector3 color) {
 		this.position = Struct.malloc(Vector3.class).set(position);
 		this.velocity = Struct.malloc(Vector3.class).set(velocity);
@@ -106,7 +111,7 @@ public class Bullet implements Actor {
 	public void update(long deltaTime) {
 		age += deltaTime;
 		
-		position.add(new Vector3(velocity).mult(deltaTime / (float)1e9));
+		position.add(new Vector3(velocity).mult(deltaTime / 1e9f));
 	}
 	
 	@Override

@@ -34,7 +34,7 @@ public class World implements CameraUpdate {
 	private long bulletCooldown, blastCoolDown;
 	
 	public World(int chunksX, int chunksY, int chunksZ) {
-		chunkManager = new ChunkManager(chunksX, chunksY, chunksZ);
+		chunkManager = new ChunkManager(this, chunksX, chunksY, chunksZ);
 		bulletManager = new BulletManager(chunkManager);
 		
 		actors = new ArrayList<>();
@@ -42,6 +42,10 @@ public class World implements CameraUpdate {
 	
 	public void addActor(Actor actor) {
 		actors.add(actor);
+	}
+	
+	public void addBullet(Bullet bullet) {
+		bulletManager.addBullet(bullet);
 	}
 	
 	public List<Actor> getActors() {

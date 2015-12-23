@@ -43,7 +43,8 @@ public class Portal implements Actor {
 			Struct.free(position);
 			Struct.free(size);
 			Struct.free(orientation);
-		} finally {
+		}
+		finally {
 			super.finalize();
 		}
 	}
@@ -97,33 +98,39 @@ public class Portal implements Actor {
 		diff.mult3(diffPosition, position).add(destPortal.getPosition());
 	}
 	
-	@Override
-	public void update(long deltaTime) {
-		Camera camera = getCamera();
-		
-		Vector3 delta = camera.getDelta();
-		Vector3 prevPos = new Vector3(camera.getPosition()).sub(delta);
-		
+	public boolean intersects(Vector3 position, Vector3 delta) {
+		Vector3 prevPos = new Vector3(position).sub(delta);
 		Vector3 normal = orientation.mult3(Vector3.FORWARD, new Vector3()).normalize();
 		
-		float dot = delta.dot(normal);
+		float t = new Vector3(this.position).sub(prevPos).dot(normal) / delta.dot(normal);
+		if(t < 0f || t > 1f) {
+			return false;
+		}
 		
-		if(dot != 0.0) {
-			float t = new Vector3(position).sub(prevPos).dot(normal) / dot;
+		Vector3 intersection = new Vector3(delta).mult(t).add(prevPos).sub(this.position);
+		
+		Quaternion inverse = new Quaternion(orientation).inverse().normalize();
+		Vector3 offset = inverse.mult3(intersection, intersection);
+		
+		return offset.x() >= 0f && offset.x() < size.x() &&
+				       offset.y() <= 0f && offset.y() > -size.y();
+	}
+	
+	@Override
+	public void update(long deltaTime) {
+		if(parentWorld != worldsManager.getWorld()) {
+			return;
+		}
+		
+		Camera camera = getCamera();
+		
+		if(intersects(camera.getPosition(), camera.getDelta())) {
+			worldsManager.setWorld(destWorld);
 			
-			if(t >= 0f && t <= 1f) {
-				Vector3 intersection = new Vector3(delta).mult(t).add(prevPos).sub(position);
-				
-				Quaternion inverse = new Quaternion(orientation).inverse().normalize();
-				Vector3 offset = inverse.mult3(intersection, intersection);
-				
-				if(offset.x() >= 0f && offset.x() <= size.x() &&
-				     offset.y() <= 0f && offset.y() >= -size.y()) {
-					worldsManager.setWorld(destWorld);
-					
-					transform(camera.getPosition(), camera.getOrientation());
-				}
-			}
+			System.out.println("TRANSFORMING FROM PORTAL " + this + " TO PORTAL " + this.destPortal);
+			transform(camera.getPosition(), camera.getOrientation());
+			
+			camera.getDelta().set(0);
 		}
 	}
 }

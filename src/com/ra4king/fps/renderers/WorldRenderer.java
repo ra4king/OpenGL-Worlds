@@ -593,6 +593,9 @@ public class WorldRenderer {
 		
 		Stopwatch.stop();
 		
+		for(PortalRenderer portalRenderer : portalRenderers)
+			portalRenderer.render(camera, viewMatrix, culling);
+		
 		Stopwatch.start("BulletRenderer");
 		
 		bulletRenderer.render(camera.getProjectionMatrix(), tempStack.setTop(viewMatrix), culling);
@@ -602,9 +605,6 @@ public class WorldRenderer {
 		glEnable(GL_DEPTH_TEST);
 		
 		Stopwatch.stop();
-		
-		for(PortalRenderer portalRenderer : portalRenderers)
-			portalRenderer.render(camera, viewMatrix, culling);
 		
 		if(showPerformanceGraphs) {
 			Stopwatch.start("Performance Graphs Render");

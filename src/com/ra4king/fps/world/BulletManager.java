@@ -3,9 +3,12 @@ package com.ra4king.fps.world;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import com.ra4king.fps.actors.Actor;
 import com.ra4king.fps.actors.Block;
 import com.ra4king.fps.actors.Block.BlockType;
 import com.ra4king.fps.actors.Bullet;
+import com.ra4king.fps.actors.Portal;
+import com.ra4king.opengl.util.math.Quaternion;
 import com.ra4king.opengl.util.math.Vector3;
 
 /**
@@ -14,7 +17,7 @@ import com.ra4king.opengl.util.math.Vector3;
 public class BulletManager {
 	private ArrayList<Bullet> bullets;
 	
-	private HashMap<Bullet,Integer> megaBulletDestroyCount;
+	private HashMap<Bullet, Integer> megaBulletDestroyCount;
 	private final int MAX_MEGA_BULLET_DESTROY_COUNT = 600;
 	
 	private ChunkManager chunkManager;
@@ -97,8 +100,29 @@ public class BulletManager {
 					}
 				}
 				
-				if(isAlive)
-					temp.add(bullet);
+				if(isAlive) {
+					Vector3 delta = new Vector3(bullet.getVelocity()).mult(deltaTime / 1e9f);
+					
+					for(Actor actor : chunkManager.getWorld().getActors()) {
+						if(actor instanceof Portal) {
+							Portal portal = (Portal)actor;
+							if(portal.intersects(bullet.getPosition(), delta)) {
+								Quaternion bulletOrient = new Quaternion();
+								portal.transform(bullet.getPosition(), bulletOrient);
+								bulletOrient.inverse().mult3(bullet.getVelocity(), bullet.getVelocity());
+								
+								isAlive = false;
+								portal.getDestWorld().addBullet(new Bullet(bullet));
+								
+								break;
+							}
+						}
+					}
+					
+					if(isAlive) {
+						temp.add(bullet);
+					}
+				}
 			}
 		}
 		

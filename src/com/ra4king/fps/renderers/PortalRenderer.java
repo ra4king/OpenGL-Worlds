@@ -27,7 +27,6 @@ public class PortalRenderer {
 	private WorldRenderer worldRenderer;
 	
 	private ShaderProgram portalProgram;
-	private int projectionMatrixUniform, viewMatrixUniform;
 	private int vao;
 	
 	public PortalRenderer(Portal portal, WorldRenderer worldRenderer) {
@@ -43,14 +42,14 @@ public class PortalRenderer {
 		Vector2 s = portal.getSize();
 		
 		final float[] portalData = {
-		                             0, 0, 0,
-		                             s.x(), 0, 0,
-		                             0, -s.y(), 0,
-		  
-		                             s.x(), -s.y(), 0,
-		                             0, -s.y(), 0,
-		                             s.x(), 0, 0,
-		};
+				0, 0, 0,
+				s.x(), 0, 0,
+				0, -s.y(), 0,
+				
+				s.x(), -s.y(), 0,
+				0, -s.y(), 0,
+				s.x(), 0, 0,
+				};
 		
 		System.out.println(Arrays.toString(portalData));
 		
@@ -69,8 +68,6 @@ public class PortalRenderer {
 		
 		portalProgram = new ShaderProgram(Utils.readFully(Resources.getInputStream("shaders/portal.vert")),
 				                                 Utils.readFully(Resources.getInputStream("shaders/portal.frag")));
-		projectionMatrixUniform = portalProgram.getUniformLocation("projectionMatrix");
-		viewMatrixUniform = portalProgram.getUniformLocation("viewMatrix");
 	}
 	
 	private static boolean updated = false;
@@ -91,13 +88,21 @@ public class PortalRenderer {
 		if(rendered) {
 			return;
 		}
+
+//		Does not work, as portal could occupy entire screen with its corners outside the frustum and it would be culled, which is incorrect behavior.
+//		Vector3 portalPos1 = new Vector3(portal.getSize().x(), 0, 0);
+//		Vector3 portalPos2 = new Vector3(portal.getSize().x(), -portal.getSize().y(), 0);
+//		Vector3 portalPos3 = new Vector3(0, -portal.getSize().y(), 0);
 //		
-//		Matrix4 finalMatrix = new Matrix4(projectionMatrix).mult(viewMatrix);
-//		Vector3 portalPos = finalMatrix.mult3(portal.getPosition(), 1.0f, new Vector3());
-//		Vector3 portalPos2 = finalMatrix.mult3(new Vector3(portal.getPosition()).add(portal.getSize().x(), portal.getSize().y(), 0), 1.0f, new Vector3());
-//		if(!culling.isPointInsideFrustum(portalPos) && !culling.isPointInsideFrustum(portalPos2))
+//		portal.getOrientation().mult3(portalPos1, portalPos1).add(portal.getPosition());
+//		portal.getOrientation().mult3(portalPos2, portalPos2).add(portal.getPosition());
+//		portal.getOrientation().mult3(portalPos3, portalPos3).add(portal.getPosition());
+//		
+//		if(!culling.isPointInsideFrustum(portal.getPosition()) && !culling.isPointInsideFrustum(portalPos1) &&
+//				   !culling.isPointInsideFrustum(portalPos2) && !culling.isPointInsideFrustum(portalPos3)) {
 //			return;
-//		
+//		}
+		
 		rendered = true;
 		updated = false;
 		
@@ -109,8 +114,9 @@ public class PortalRenderer {
 		
 		portalProgram.begin();
 		
-		glUniformMatrix4(projectionMatrixUniform, false, camera.getProjectionMatrix().toBuffer());
-		glUniformMatrix4(viewMatrixUniform, false, new Matrix4(viewMatrix).translate(portal.getPosition()).mult(portal.getOrientation().toMatrix(new Matrix4())).toBuffer());
+		glUniformMatrix4(portalProgram.getUniformLocation("projectionMatrix"), false, camera.getProjectionMatrix().toBuffer());
+		glUniformMatrix4(portalProgram.getUniformLocation("viewMatrix"), false, new Matrix4(viewMatrix).translate(portal.getPosition()).mult(portal.getOrientation().toMatrix(new Matrix4())).toBuffer());
+		glUniform1f(portalProgram.getUniformLocation("a"), 1.0f);
 		
 		glDisable(GL_CULL_FACE);
 		
@@ -128,5 +134,15 @@ public class PortalRenderer {
 		worldRenderer.render(portalCamera);
 		
 		glDisable(GL_STENCIL_TEST);
+		
+		portalProgram.begin();
+		glUniform1f(portalProgram.getUniformLocation("a"), 0.0f);
+		
+		glDisable(GL_CULL_FACE);
+		
+		RenderUtils.glBindVertexArray(vao);
+		glDrawArrays(GL_TRIANGLES, 0, 6);
+		
+		glEnable(GL_CULL_FACE);
 	}
 }

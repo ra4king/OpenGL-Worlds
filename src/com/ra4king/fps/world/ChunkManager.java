@@ -13,10 +13,14 @@ import net.indiespot.struct.cp.TakeStruct;
 public class ChunkManager {
 	public final int CHUNKS_SIDE_X, CHUNKS_SIDE_Y, CHUNKS_SIDE_Z;
 	
+	private World world;
+	
 	// z * CHUNKS_SIDE_X * CHUNKS_SIDE_Y + y * CHUNKS_SIDE_X + x
 	private Chunk[] chunks;
 	
-	public ChunkManager(int chunksX, int chunksY, int chunksZ) {
+	public ChunkManager(World world, int chunksX, int chunksY, int chunksZ) {
+		this.world = world;
+		
 		this.CHUNKS_SIDE_X = chunksX;
 		this.CHUNKS_SIDE_Y = chunksY;
 		this.CHUNKS_SIDE_Z = chunksZ;
@@ -33,6 +37,10 @@ public class ChunkManager {
 		}
 		long time = System.nanoTime() - t0;
 		System.out.printf("Chunks created in %.3f ms\n", time / 1e6);
+	}
+	
+	public World getWorld() {
+		return world;
 	}
 	
 	public void clearAll() {
