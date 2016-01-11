@@ -11,6 +11,6 @@ void main() {
 	if(d > 1.0)
 		discard;
 	
-	float a = -d * d;
-	fragColor = vec4(bulletColor.rgb, bulletColor.a + bulletColor.a * a);
+	float a = 0.8 - d * d;
+	fragColor = vec4(bulletColor.rgb, bulletColor.a * a);
 }

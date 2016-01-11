@@ -218,7 +218,8 @@ public class BulletRenderer {
 				BulletVectorPair bvp = (BulletVectorPair)o;
 				return (int)Math.signum(this.vector.z() - bvp.vector.z());
 			}
-			return 0;
+			
+			throw new IllegalArgumentException("Wat");
 		}
 	}
 }

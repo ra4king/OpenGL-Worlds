@@ -65,9 +65,9 @@ void main() {
 		
 		vec3 lightDistance = light.position - cameraSpacePosition;
 		
-		if(dot(lightDistance, lightDistance) <= light.range * light.range) {
+//		if(dot(lightDistance, lightDistance) <= light.range * light.range) {
 			totalLight += calculateLight(light.color, light.k, normal, lightDistance) * 0.55;
-		}
+//		}
 	}
 	
 	float fog = clamp(1.0 - cameraSpacePosition.z * fogRange, 0.1, 1.0);

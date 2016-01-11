@@ -3,23 +3,36 @@ package com.ra4king.fps;
 import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.opengl.GL32.*;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.nio.ByteBuffer;
 import java.util.HashMap;
 
+import org.lwjgl.BufferUtils;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.input.Mouse;
+import org.lwjgl.opengl.Display;
 import org.lwjgl.opengl.PixelFormat;
 
 import com.ra4king.fps.actors.Portal;
+import com.ra4king.fps.renderers.Resources;
 import com.ra4king.fps.renderers.WorldRenderer;
 import com.ra4king.fps.world.Chunk;
 import com.ra4king.fps.world.World;
 import com.ra4king.opengl.util.GLProgram;
+import com.ra4king.opengl.util.PNGDecoder;
+import com.ra4king.opengl.util.PNGDecoder.Format;
 import com.ra4king.opengl.util.Stopwatch;
 import com.ra4king.opengl.util.Utils;
 import com.ra4king.opengl.util.math.Quaternion;
 import com.ra4king.opengl.util.math.Vector2;
 import com.ra4king.opengl.util.math.Vector3;
+import com.ra4king.opengl.util.math.Vector4;
+import com.ra4king.opengl.util.render.MonospaceFont;
+import com.ra4king.opengl.util.render.PerformanceGraph;
 import com.ra4king.opengl.util.render.RenderUtils;
+
+import net.indiespot.struct.cp.Struct;
 
 /**
  * @author Roi Atalla
@@ -34,7 +47,7 @@ public class OpenGLWorlds extends GLProgram {
 		// System.setOut(logs);
 		// System.setErr(logs);
 		
-		new OpenGLWorlds().run(4, 3, true, new PixelFormat(16, 0, 8, 8, 4));// , new ContextAttribs(4, 4).withDebug(true).withProfileCore(true));
+		new OpenGLWorlds().run(4, 3, true, new PixelFormat(24, 0, 24, 8, 4));// , new ContextAttribs(4, 4).withDebug(true).withProfileCore(true));
 	}
 	
 	private final int WORLD_COUNT = 2;
@@ -46,6 +59,18 @@ public class OpenGLWorlds extends GLProgram {
 	private World[] worlds;
 	private WorldRenderer[] worldRenderers;
 	private int currentWorld;
+	
+	private MonospaceFont font;
+	
+	private boolean showPerformanceGraphs = true;
+	private PerformanceGraph performanceGraphUpdate;
+	private PerformanceGraph performanceGraphRender;
+	private PerformanceGraph performanceGraphChunkRenderers;
+	private PerformanceGraph performanceGraphUpdateCompactArray;
+	private PerformanceGraph performanceGraphLightSystemRender;
+	private PerformanceGraph performanceGraphBulletRender;
+	private PerformanceGraph performanceGraphDisplayUpdate;
+	private PerformanceGraph performanceGraphFPS;
 	
 	// private Fractal fractal;
 	
@@ -101,8 +126,8 @@ public class OpenGLWorlds extends GLProgram {
 			worldsMap.put(worlds[a], worldRenderers[a]);
 		}
 		
-		Portal portal1 = new Portal(this, worlds[0], new Vector3(0, 0, 0), new Vector2(10, 10), new Quaternion(), worlds[1]);
-		Portal portal2 = new Portal(this, worlds[1], new Vector3(10, 0, 0), new Vector2(10, 10), new Quaternion((float)Math.PI * 0.25f, Vector3.UP).mult(new Quaternion((float)Math.PI * 0.25f, Vector3.RIGHT)), worlds[0]);
+		Portal portal1 = new Portal(this, worlds[0], new Vector3(0, 0, 0), new Vector2(5, 10), new Quaternion(), worlds[1]);
+		Portal portal2 = new Portal(this, worlds[1], new Vector3(10, 0, 0), new Vector2(5, 10), new Quaternion((float)Math.PI * 0.25f, Vector3.UP).mult(new Quaternion((float)Math.PI * 0.25f, Vector3.RIGHT)), worlds[0]);
 		portal1.setDestPortal(portal2);
 		portal2.setDestPortal(portal1);
 		
@@ -115,6 +140,50 @@ public class OpenGLWorlds extends GLProgram {
 		
 		currentWorld = 0;
 		camera.setCameraUpdate(worlds[currentWorld]);
+		
+		loadFont();
+		
+		final float maxValue = 10.0f;
+		final int graphX = 100, graphY = 100, maxSteps = 100, stepSize = 5, graphHeight = 300;
+		performanceGraphUpdate = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(0, 0, 1, 1), () -> Stopwatch.getTimePerFrame("Update")); // Blue
+		performanceGraphRender = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(0, 1, 1, 1), () -> Stopwatch.getTimePerFrame("Render")); // Cyan
+		performanceGraphChunkRenderers = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(0.5f, 0.5f, 0.5f, 1), () -> Stopwatch.getTimePerFrame("ChunkRenderers")); // gray
+		performanceGraphUpdateCompactArray = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(1, 0, 0, 1), () -> Stopwatch.getTimePerFrame("Update Compact Array")); // Red
+		performanceGraphLightSystemRender = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(1, 1, 0, 1), () -> Stopwatch.getTimePerFrame("LightSystem render UBO")); // Orange
+		performanceGraphBulletRender = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(1, 1, 1, 1), () -> Stopwatch.getTimePerFrame("BulletRenderer")); // White
+		performanceGraphDisplayUpdate = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(1, 0, 1, 1), () -> Stopwatch.getTimePerFrame("Display.update()")); // Magenta
+		performanceGraphFPS = new PerformanceGraph(200, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(0, 1, 0, 1), this::getLastFps); // Green
+	}
+	
+	private void loadFont() {
+		String file;
+		int charWidth;
+		String characters;
+		
+		try(BufferedReader reader = new BufferedReader(new InputStreamReader(Resources.getInputStream("textures/font.fnt")))) {
+			file = reader.readLine().trim();
+			charWidth = Integer.parseInt(reader.readLine().trim());
+			characters = reader.readLine().trim();
+		}
+		catch(Exception exc) {
+			throw new RuntimeException(exc);
+		}
+		
+		ByteBuffer data;
+		int imageWidth, imageHeight;
+		try {
+			PNGDecoder imageDecoder = new PNGDecoder(Resources.getInputStream("textures/" + file));
+			imageWidth = imageDecoder.getWidth();
+			imageHeight = imageDecoder.getHeight();
+			data = BufferUtils.createByteBuffer(imageWidth * imageHeight * 4);
+			imageDecoder.decode(data, imageWidth * 4, Format.RGBA);
+			data.flip();
+		}
+		catch(Exception exc) {
+			throw new RuntimeException(exc);
+		}
+		
+		font = MonospaceFont.init("DejaVu-Sans-Mono", charWidth, imageWidth, imageHeight, data, characters);
 	}
 	
 	public WorldRenderer getRenderer(World world) {
@@ -151,7 +220,6 @@ public class OpenGLWorlds extends GLProgram {
 			worlds[currentWorld].clearAll();
 		
 		worlds[currentWorld].keyPressed(key, c);
-		worldRenderers[currentWorld].keyPressed(key, c);
 		
 		if(key == Keyboard.KEY_1) {
 			currentWorld = 0;
@@ -164,6 +232,10 @@ public class OpenGLWorlds extends GLProgram {
 		
 		if(Keyboard.isKeyDown(Keyboard.KEY_R)) {
 			resetCamera();
+		}
+		
+		if(key == Keyboard.KEY_O) {
+			showPerformanceGraphs = !showPerformanceGraphs;
 		}
 	}
 	
@@ -200,15 +272,56 @@ public class OpenGLWorlds extends GLProgram {
 		Stopwatch.start("WorldRenderer Update");
 		worldRenderers[currentWorld].update(deltaTime);
 		Stopwatch.stop();
+		
+		performanceGraphUpdate.update(deltaTime);
+		performanceGraphRender.update(deltaTime);
+		performanceGraphChunkRenderers.update(deltaTime);
+		performanceGraphUpdateCompactArray.update(deltaTime);
+		performanceGraphLightSystemRender.update(deltaTime);
+		performanceGraphBulletRender.update(deltaTime);
+		performanceGraphDisplayUpdate.update(deltaTime);
+		performanceGraphFPS.update(deltaTime);
 	}
 	
 	@Override
 	public void render() {
-		glClearColor(0.4f, 0.6f, 0.9f, 0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		
 		Stopwatch.start("World Render");
-		worldRenderers[currentWorld].render(camera);
+		worldRenderers[currentWorld].render(Struct.nullStruct(Vector4.class), null, 0, camera);
 		Stopwatch.stop();
+		
+		if(showPerformanceGraphs) {
+			Stopwatch.start("Performance Graphs Render");
+			performanceGraphUpdate.render();
+			performanceGraphRender.render();
+			performanceGraphChunkRenderers.render();
+			performanceGraphUpdateCompactArray.render();
+			performanceGraphLightSystemRender.render();
+			performanceGraphBulletRender.render();
+			performanceGraphDisplayUpdate.render();
+			performanceGraphFPS.render();
+			Stopwatch.stop();
+		}
+		
+		font.render(getLastFps() + " FPS", 100, 75, 20, new Vector4(0, 1, 0, 1));
+		font.render(String.format("Update: %.2f ms", Stopwatch.getTimePerFrame("Update")), 100, 55, 20, new Vector4(0, 0, 1, 1));
+		font.render(String.format("Render: %.2f ms", Stopwatch.getTimePerFrame("Render")), 100, 35, 20, new Vector4(0, 1, 1, 1));
+		font.render(String.format("Display.update(): %.2f ms", Stopwatch.getTimePerFrame("Display.update()")), 100, 15, 20, new Vector4(1, 0, 1, 1));
+		
+		font.render(String.format("Update Compact Array: %.2f ms", Stopwatch.getTimePerFrame("Update Compact Array")), 360, 75, 20, new Vector4(1, 0, 0, 1));
+		font.render(String.format("Bullet Render: %.2f ms", Stopwatch.getTimePerFrame("BulletRenderer")), 360, 55, 20, new Vector4(1, 1, 1, 1));
+		font.render(String.format("Light System Render: %.2f ms", Stopwatch.getTimePerFrame("LightSystem render UBO")), 360, 35, 20, new Vector4(1, 1, 0, 1));
+		font.render(String.format("Chunk Render: %.2f ms", Stopwatch.getTimePerFrame("ChunkRenderers")), 360, 15, 20, new Vector4(0.5f, 0.5f, 0.5f, 1));
+		
+		font.render("Position: " + camera.getPosition().toString(), 20, Display.getHeight() - 40, 20, new Vector4(1));
+		
+		int totalChunksRendered = 0, totalBlocksRendered = 0;
+		for(WorldRenderer renderer : worldRenderers) {
+			totalChunksRendered += renderer.getChunksRenderedCount();
+			totalBlocksRendered += renderer.getBlocksRenderedCount();
+		}
+		
+		font.render("Chunks visible: " + totalChunksRendered + ", Total cubes rendered: " + totalBlocksRendered, 20, Display.getHeight() - 60, 20, new Vector4(1));
+		
+		glEnable(GL_DEPTH_TEST);
 	}
 }

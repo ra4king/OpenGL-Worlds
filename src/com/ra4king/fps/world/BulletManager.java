@@ -95,7 +95,7 @@ public class BulletManager {
 						isAlive = false;
 						
 						for(int a = 0; a < 2; a++) {
-							temp.add(new Bullet(pos, new Vector3((float)Math.random() * 2 - 1, (float)Math.random() * 2 - 1, (float)Math.random() * 2 - 1).normalize().mult(100), 1, 500, (long)2.5e8, false, new Vector3(1, 1, 1)));
+							temp.add(new Bullet(pos, new Vector3((float)(Math.random() * 2.0 - 1.0), (float)(Math.random() * 2.0 - 1.0), (float)(Math.random() * 2.0 - 1.0)).normalize().mult(100), 1, 500, (long)2.5e8, false, new Vector3(1)));
 						}
 					}
 				}

@@ -16,6 +16,9 @@ uniform mat3 normalMatrix;
 
 uniform float cubeSize;
 
+uniform int insideClipPlane;
+uniform vec4 clipPlane;
+
 void main() {
 	vec4 worldPosition = vec4(cubeSize * (vec3(cubePos.xy, -cubePos.z) + position), 1);
 	
@@ -27,4 +30,6 @@ void main() {
 	norm = normalMatrix * normal;
 	
 	texCoord = tex;
+	
+	gl_ClipDistance[0] = insideClipPlane * (dot(clipPlane.xyz, worldPosition.xyz) + clipPlane.w);
 }

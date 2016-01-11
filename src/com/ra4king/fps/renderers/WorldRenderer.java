@@ -6,6 +6,7 @@ import static org.lwjgl.opengl.GL12.*;
 import static org.lwjgl.opengl.GL13.*;
 import static org.lwjgl.opengl.GL15.*;
 import static org.lwjgl.opengl.GL20.*;
+import static org.lwjgl.opengl.GL20.glUniform4;
 import static org.lwjgl.opengl.GL20.glUniformMatrix3;
 import static org.lwjgl.opengl.GL20.glUniformMatrix4;
 import static org.lwjgl.opengl.GL30.*;
@@ -14,9 +15,7 @@ import static org.lwjgl.opengl.GL32.*;
 import static org.lwjgl.opengl.GL40.*;
 import static org.lwjgl.opengl.GL43.*;
 
-import java.io.BufferedReader;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
@@ -24,8 +23,6 @@ import java.nio.ShortBuffer;
 import java.util.ArrayList;
 
 import org.lwjgl.BufferUtils;
-import org.lwjgl.input.Keyboard;
-import org.lwjgl.opengl.Display;
 import org.lwjgl.opengl.EXTTextureFilterAnisotropic;
 import org.lwjgl.opengl.OpenGLException;
 
@@ -48,8 +45,6 @@ import com.ra4king.opengl.util.math.MatrixStack;
 import com.ra4king.opengl.util.math.Vector2;
 import com.ra4king.opengl.util.math.Vector3;
 import com.ra4king.opengl.util.math.Vector4;
-import com.ra4king.opengl.util.render.MonospaceFont;
-import com.ra4king.opengl.util.render.PerformanceGraph;
 import com.ra4king.opengl.util.render.RenderUtils;
 import com.ra4king.opengl.util.render.RenderUtils.FrustumCulling;
 
@@ -88,21 +83,12 @@ public class WorldRenderer {
 	private ChunkRenderer[] chunkRenderers;
 	private BufferStorage chunkRendererStorage;
 	
+	private int chunksRendered, blocksRendered;
+	
 	private BulletRenderer bulletRenderer;
 	private LightSystem lightSystem;
 	
-	private MonospaceFont font;
-	
 	private ArrayList<PortalRenderer> portalRenderers;
-	
-	private PerformanceGraph performanceGraphUpdate;
-	private PerformanceGraph performanceGraphRender;
-	private PerformanceGraph performanceGraphChunkRenderers;
-	private PerformanceGraph performanceGraphUpdateCompactArray;
-	private PerformanceGraph performanceGraphLightSystemRender;
-	private PerformanceGraph performanceGraphBulletRender;
-	private PerformanceGraph performanceGraphDisplayUpdate;
-	private PerformanceGraph performanceGraphFPS;
 	
 	static {
 		cubeTexture = loadTexture("crate.png");
@@ -120,8 +106,6 @@ public class WorldRenderer {
 		
 		loadShaders();
 		
-		loadFont();
-		
 		bulletRenderer = new BulletRenderer(world.getBulletManager());
 		
 		loadCube();
@@ -137,17 +121,6 @@ public class WorldRenderer {
 		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandsVBO);
 		glBufferData(GL_DRAW_INDIRECT_BUFFER, COMMANDS_BUFFER_SIZE, GL_STREAM_DRAW);
 		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
-		
-		final float maxValue = 10.0f;
-		final int graphX = 100, graphY = 100, maxSteps = 100, stepSize = 5, graphHeight = 300;
-		performanceGraphUpdate = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(0, 0, 1, 1), () -> Stopwatch.getTimePerFrame("Update")); // Blue
-		performanceGraphRender = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(0, 1, 1, 1), () -> Stopwatch.getTimePerFrame("Render")); // Cyan
-		performanceGraphChunkRenderers = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(0.5f, 0.5f, 0.5f, 1), () -> Stopwatch.getTimePerFrame("ChunkRenderers")); // gray
-		performanceGraphUpdateCompactArray = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(1, 0, 0, 1), () -> Stopwatch.getTimePerFrame("Update Compact Array")); // Red
-		performanceGraphLightSystemRender = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(1, 1, 0, 1), () -> Stopwatch.getTimePerFrame("LightSystem render UBO")); // Orange
-		performanceGraphBulletRender = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(1, 1, 1, 1), () -> Stopwatch.getTimePerFrame("BulletRenderer")); // White
-		performanceGraphDisplayUpdate = new PerformanceGraph(maxValue, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(1, 0, 1, 1), () -> Stopwatch.getTimePerFrame("Display.update()")); // Magenta
-		performanceGraphFPS = new PerformanceGraph(200, graphX, graphY, maxSteps, stepSize, graphHeight, new Vector4(0, 1, 0, 1), game::getLastFps); // Green
 	}
 	
 	public void loadActors() {
@@ -179,37 +152,6 @@ public class WorldRenderer {
 		lightSystem.setupLights(deferredProgram);
 		
 		resolutionUniform = deferredProgram.getUniformLocation("resolution");
-	}
-	
-	private void loadFont() {
-		String file;
-		int charWidth;
-		String characters;
-		
-		try(BufferedReader reader = new BufferedReader(new InputStreamReader(Resources.getInputStream("textures/font.fnt")))) {
-			file = reader.readLine().trim();
-			charWidth = Integer.parseInt(reader.readLine().trim());
-			characters = reader.readLine().trim();
-		}
-		catch(Exception exc) {
-			throw new RuntimeException(exc);
-		}
-		
-		ByteBuffer data;
-		int imageWidth, imageHeight;
-		try {
-			PNGDecoder imageDecoder = new PNGDecoder(Resources.getInputStream("textures/" + file));
-			imageWidth = imageDecoder.getWidth();
-			imageHeight = imageDecoder.getHeight();
-			data = BufferUtils.createByteBuffer(imageWidth * imageHeight * 4);
-			imageDecoder.decode(data, imageWidth * 4, Format.RGBA);
-			data.flip();
-		}
-		catch(Exception exc) {
-			throw new RuntimeException(exc);
-		}
-		
-		font = MonospaceFont.init("DejaVu-Sans-Mono", charWidth, imageWidth, imageHeight, data, characters);
 	}
 	
 	private void loadCube() {
@@ -365,6 +307,14 @@ public class WorldRenderer {
 	}
 	
 	private void setupDeferredFBO() {
+		if(deferredFBO != 0) {
+			glDeleteFramebuffers(deferredFBO);
+			
+			IntBuffer texs = BufferUtils.createIntBuffer(4).put(cameraPositionsTexture).put(normalsTexture).put(texCoordsTexture).put(depthTexture);
+			texs.flip();
+			glDeleteTextures(texs);
+		}
+		
 		deferredFBO = glGenFramebuffers();
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, deferredFBO);
 		
@@ -452,30 +402,23 @@ public class WorldRenderer {
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 	}
 	
-	public void resized() {
-		setupDeferredFBO();
+	public int getChunksRenderedCount() {
+		return chunksRendered;
 	}
 	
-	private boolean showPerformanceGraphs = true;
+	public int getBlocksRenderedCount() {
+		return blocksRendered;
+	}
 	
-	public void keyPressed(int key, char c) {
-		if(key == Keyboard.KEY_O) {
-			showPerformanceGraphs = !showPerformanceGraphs;
-		}
+	public void resized() {
+		setupDeferredFBO();
+		
+		portalRenderers.forEach(PortalRenderer::resized);
 	}
 	
 	public void update(long deltaTime) {
 		for(PortalRenderer portalRenderer : portalRenderers)
 			portalRenderer.update(deltaTime);
-		
-		performanceGraphUpdate.update(deltaTime);
-		performanceGraphRender.update(deltaTime);
-		performanceGraphChunkRenderers.update(deltaTime);
-		performanceGraphUpdateCompactArray.update(deltaTime);
-		performanceGraphLightSystemRender.update(deltaTime);
-		performanceGraphBulletRender.update(deltaTime);
-		performanceGraphDisplayUpdate.update(deltaTime);
-		performanceGraphFPS.update(deltaTime);
 	}
 	
 	private final Bullet aim = new Bullet(new Vector3(), new Vector3(), 4, 0, Long.MAX_VALUE, false, new Vector3(1));
@@ -490,7 +433,10 @@ public class WorldRenderer {
 		command.baseVertex = 0;
 	}
 	
-	public void render(Camera camera) {
+	public void render(Vector4 clipPlane, Portal surroundingPortal, int currentFbo, Camera camera) {
+		glClearColor(0.4f, 0.6f, 0.9f, 0f);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		
 		Stopwatch.start("WorldRender Setup");
 		
 		// Convert Camera's Quaternion to a Matrix4 and translate it by the camera's position
@@ -504,8 +450,8 @@ public class WorldRenderer {
 		
 		Stopwatch.start("ChunkRenderers");
 		
-		int chunksRendered = 0;
-		int blocksRendered = 0;
+		chunksRendered = 0;
+		blocksRendered = 0;
 		
 		float halfSpacing = Chunk.SPACING * 0.5f;
 		
@@ -554,15 +500,25 @@ public class WorldRenderer {
 			glUniformMatrix4(viewMatrixUniform, false, viewMatrix.toBuffer());
 			
 			glUniformMatrix3(normalMatrixUniform, false, new Matrix3().set4x4(viewMatrix).inverse().transpose().toBuffer());
+			glEnable(GL_CLIP_DISTANCE0);
+			
+			if(clipPlane == null) {
+				glUniform1i(blocksProgram.getUniformLocation("insideClipPlane"), 0);
+			} else {
+				glUniform1i(blocksProgram.getUniformLocation("insideClipPlane"), 1);
+				glUniform4(blocksProgram.getUniformLocation("clipPlane"), clipPlane.toBuffer());
+			}
 			
 			RenderUtils.glBindVertexArray(chunkVAO);
 			glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_SHORT, 0, chunksRendered, 0);
+			
+			glDisable(GL_CLIP_DISTANCE0);
 		}
 		
 		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
 		
 		{
-			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, currentFbo);
 			
 			glActiveTexture(GL_TEXTURE0 + CUBE_TEXTURE_BINDING);
 			glBindTexture(GL_TEXTURE_2D, cubeTexture);
@@ -584,7 +540,7 @@ public class WorldRenderer {
 			deferredProgram.begin();
 			glUniform2f(resolutionUniform, RenderUtils.getWidth(), RenderUtils.getHeight());
 			
-			final float mainK = 0.00001f;
+			final float mainK = 0.001f;
 			lightSystem.renderLights(new Vector3(0.5f, 0.5f, 0.5f), mainK, new Vector3(0.01f, 0.01f, 0.01f), viewMatrix, bulletRenderer);
 			
 			RenderUtils.glBindVertexArray(deferredVAO);
@@ -593,8 +549,13 @@ public class WorldRenderer {
 		
 		Stopwatch.stop();
 		
-		for(PortalRenderer portalRenderer : portalRenderers)
-			portalRenderer.render(camera, viewMatrix, culling);
+		for(PortalRenderer portalRenderer : portalRenderers) {
+			if(portalRenderer.getPortal().getDestPortal() == surroundingPortal) {
+				continue;
+			}
+			
+			portalRenderer.render(currentFbo, camera, viewMatrix, culling);
+		}
 		
 		Stopwatch.start("BulletRenderer");
 		
@@ -605,32 +566,6 @@ public class WorldRenderer {
 		glEnable(GL_DEPTH_TEST);
 		
 		Stopwatch.stop();
-		
-		if(showPerformanceGraphs) {
-			Stopwatch.start("Performance Graphs Render");
-			performanceGraphUpdate.render();
-			performanceGraphRender.render();
-			performanceGraphChunkRenderers.render();
-			performanceGraphUpdateCompactArray.render();
-			performanceGraphLightSystemRender.render();
-			performanceGraphBulletRender.render();
-			performanceGraphDisplayUpdate.render();
-			performanceGraphFPS.render();
-			Stopwatch.stop();
-		}
-		
-		font.render(game.getLastFps() + " FPS", 100, 75, 20, new Vector4(0, 1, 0, 1));
-		font.render(String.format("Update: %.2f ms", Stopwatch.getTimePerFrame("Update")), 100, 55, 20, new Vector4(0, 0, 1, 1));
-		font.render(String.format("Render: %.2f ms", Stopwatch.getTimePerFrame("Render")), 100, 35, 20, new Vector4(0, 1, 1, 1));
-		font.render(String.format("Display.update(): %.2f ms", Stopwatch.getTimePerFrame("Display.update()")), 100, 15, 20, new Vector4(1, 0, 1, 1));
-		
-		font.render(String.format("Update Compact Array: %.2f ms", Stopwatch.getTimePerFrame("Update Compact Array")), 360, 75, 20, new Vector4(1, 0, 0, 1));
-		font.render(String.format("Bullet Render: %.2f ms", Stopwatch.getTimePerFrame("BulletRenderer")), 360, 55, 20, new Vector4(1, 1, 1, 1));
-		font.render(String.format("Light System Render: %.2f ms", Stopwatch.getTimePerFrame("LightSystem render UBO")), 360, 35, 20, new Vector4(1, 1, 0, 1));
-		font.render(String.format("Chunk Render: %.2f ms", Stopwatch.getTimePerFrame("ChunkRenderers")), 360, 15, 20, new Vector4(0.5f, 0.5f, 0.5f, 1));
-		
-		font.render("Position: " + camera.getPosition().toString(), 20, Display.getHeight() - 40, 20, new Vector4(1));
-		font.render("Chunks visible: " + chunksRendered + ", Total cubes rendered: " + blocksRendered, 20, Display.getHeight() - 60, 20, new Vector4(1));
 	}
 	
 	public static class DrawElementsIndirectCommand {
@@ -717,7 +652,7 @@ public class WorldRenderer {
 				
 				FloatBuffer lightsBuffer = lightsMappedBuffer.asFloatBuffer();
 				
-				lightsBuffer.put(ambientColor.toBuffer());
+				lightsBuffer.put(new Vector3(0).toBuffer());//ambientColor.toBuffer());
 				lightsBuffer.put(bulletCount + 1);
 				
 				bulletsBuffer.flip();

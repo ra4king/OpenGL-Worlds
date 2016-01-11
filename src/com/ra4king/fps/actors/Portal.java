@@ -85,12 +85,12 @@ public class Portal implements Actor {
 	}
 	
 	public void transform(Vector3 position, Quaternion orientation) {
-		// Calculate the difference orientation between the portal's orientation and the camera's orientation
+		// Calculate the difference orientation between the portals' orientations
 		Quaternion diff = new Quaternion(this.orientation).mult(new Quaternion(destPortal.getOrientation()).inverse()).normalize();
-		// Multiply this difference with the destination portal to get the correct effect
+		// Multiply this difference with the provided orientation to get the correct effect
 		orientation.mult(diff).normalize();
 		
-		// Get the difference orientation between the origin portal and the destination portal
+		// Get the difference orientation from the origin portal to the destination portal
 		diff.set(destPortal.getOrientation()).mult(new Quaternion(this.orientation).inverse()).normalize();
 		
 		// Convert the position difference using the difference orientation
@@ -112,8 +112,12 @@ public class Portal implements Actor {
 		Quaternion inverse = new Quaternion(orientation).inverse().normalize();
 		Vector3 offset = inverse.mult3(intersection, intersection);
 		
-		return offset.x() >= 0f && offset.x() < size.x() &&
-				       offset.y() <= 0f && offset.y() > -size.y();
+		offset.mult(2.0f).sub(new Vector3(size, 0.0f));
+		return offset.dot(offset) <= size.dot(size); // oval portal
+		
+		// rectangular portal
+//		return offset.x() >= 0f && offset.x() < size.x() &&
+//				       offset.y() > 0f && offset.y() < size.y();
 	}
 	
 	@Override
