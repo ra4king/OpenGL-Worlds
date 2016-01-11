@@ -15,7 +15,6 @@ void main() {
         discard;
     
     float a = 1.0 - d * d;
-    
     float a2 = pow(d * d, 4.0);
     
 	vec2 coord = gl_FragCoord.xy / resolution;

@@ -16,7 +16,6 @@ uniform mat3 normalMatrix;
 
 uniform float cubeSize;
 
-uniform int insideClipPlane;
 uniform vec4 clipPlane;
 
 void main() {
@@ -31,5 +30,5 @@ void main() {
 	
 	texCoord = tex;
 	
-	gl_ClipDistance[0] = insideClipPlane * (dot(clipPlane.xyz, worldPosition.xyz) + clipPlane.w);
+	gl_ClipDistance[0] = dot(clipPlane.xyz, worldPosition.xyz) + clipPlane.w;
 }

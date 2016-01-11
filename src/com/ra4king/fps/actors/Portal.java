@@ -109,11 +109,11 @@ public class Portal implements Actor {
 		
 		Vector3 intersection = new Vector3(delta).mult(t).add(prevPos).sub(this.position);
 		
-		Quaternion inverse = new Quaternion(orientation).inverse().normalize();
+		Quaternion inverse = new Quaternion(orientation).inverse();
 		Vector3 offset = inverse.mult3(intersection, intersection);
 		
-		offset.mult(2.0f).sub(new Vector3(size, 0.0f));
-		return offset.dot(offset) <= size.dot(size); // oval portal
+		offset.mult(2.0f).sub(new Vector3(size, 0.0f)).divide(new Vector3(size, 1.0f));
+		return offset.dot(offset) <= 1.0f; // oval portal
 		
 		// rectangular portal
 //		return offset.x() >= 0f && offset.x() < size.x() &&

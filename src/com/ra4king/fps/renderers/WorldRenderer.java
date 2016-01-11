@@ -500,12 +500,9 @@ public class WorldRenderer {
 			glUniformMatrix4(viewMatrixUniform, false, viewMatrix.toBuffer());
 			
 			glUniformMatrix3(normalMatrixUniform, false, new Matrix3().set4x4(viewMatrix).inverse().transpose().toBuffer());
-			glEnable(GL_CLIP_DISTANCE0);
 			
-			if(clipPlane == null) {
-				glUniform1i(blocksProgram.getUniformLocation("insideClipPlane"), 0);
-			} else {
-				glUniform1i(blocksProgram.getUniformLocation("insideClipPlane"), 1);
+			if(clipPlane != null) {
+				glEnable(GL_CLIP_DISTANCE0);
 				glUniform4(blocksProgram.getUniformLocation("clipPlane"), clipPlane.toBuffer());
 			}
 			
