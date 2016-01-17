@@ -19,7 +19,6 @@ import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
-import java.nio.ShortBuffer;
 import java.util.ArrayList;
 
 import org.lwjgl.BufferUtils;
@@ -42,7 +41,6 @@ import com.ra4king.opengl.util.buffers.BufferStorage;
 import com.ra4king.opengl.util.math.Matrix3;
 import com.ra4king.opengl.util.math.Matrix4;
 import com.ra4king.opengl.util.math.MatrixStack;
-import com.ra4king.opengl.util.math.Vector2;
 import com.ra4king.opengl.util.math.Vector3;
 import com.ra4king.opengl.util.math.Vector4;
 import com.ra4king.opengl.util.render.RenderUtils;
@@ -78,7 +76,7 @@ public class WorldRenderer {
 	
 	private IntBuffer commandsBuffer;
 	
-	private int chunkVAO, cubeVBO, indicesVBO, commandsVBO;
+	private int chunkVAO, commandsVBO;
 	private ChunkRenderer[] chunkRenderers;
 	private BufferStorage chunkRendererStorage;
 	
@@ -107,13 +105,12 @@ public class WorldRenderer {
 		
 		bulletRenderer = new BulletRenderer(world.getBulletManager());
 		
-		loadCube();
 		setupBlockVAO();
 		
 		setupDeferredFBO();
 		setupDeferredVAO();
 		
-		final int COMMANDS_BUFFER_SIZE = chunkRenderers.length * 5 * 4;
+		final int COMMANDS_BUFFER_SIZE = chunkRenderers.length * 4 * 4;
 		commandsBuffer = BufferUtils.createIntBuffer(COMMANDS_BUFFER_SIZE / 4);
 		
 		commandsVBO = glGenBuffers();
@@ -134,7 +131,8 @@ public class WorldRenderer {
 	
 	private void loadShaders() {
 		blocksProgram = new ShaderProgram(Utils.readFully(Resources.getInputStream("shaders/blocks.vert")),
-				                                 Utils.readFully(Resources.getInputStream("shaders/blocks.frag")));
+		                                   Utils.readFully(Resources.getInputStream("shaders/blocks.geom")),
+		                                   Utils.readFully(Resources.getInputStream("shaders/blocks.frag")));
 		
 		projectionMatrixUniform = blocksProgram.getUniformLocation("projectionMatrix");
 		viewMatrixUniform = blocksProgram.getUniformLocation("viewMatrix");
@@ -145,93 +143,10 @@ public class WorldRenderer {
 		blocksProgram.end();
 		
 		deferredProgram = new ShaderProgram(Utils.readFully(Resources.getInputStream("shaders/deferred.vert")),
-				                                   Utils.readFully(Resources.getInputStream("shaders/deferred.frag")));
+		                                     Utils.readFully(Resources.getInputStream("shaders/deferred.frag")));
 		
 		lightSystem = new UniformBufferLightSystem();
 		lightSystem.setupLights(deferredProgram);
-	}
-	
-	private void loadCube() {
-		final short[] indices = { 0, 1, 2, 2, 3, 0 };
-		
-		final Vector3[] normals = {
-		  new Vector3(0, 0, 1), // front
-		  new Vector3(0, 0, -1), // back
-		  new Vector3(0, 1, 0), // top
-		  new Vector3(0, -1, 0), // bottom
-		  new Vector3(1, 0, 0), // right
-		  new Vector3(-1, 0, 0) // left
-		};
-		
-		final Vector2[] texCoords = {
-				new Vector2(0, 1),
-				new Vector2(1, 1),
-				new Vector2(1, 0),
-				new Vector2(0, 0)
-		};
-		
-		final Vector3[] unitCube = {
-				// front
-				new Vector3(0.0f, 1.0f, 0.0f),
-				new Vector3(1.0f, 1.0f, 0.0f),
-				new Vector3(1.0f, 0.0f, 0.0f),
-				new Vector3(0.0f, 0.0f, 0.0f),
-				
-				// back
-				new Vector3(1.0f, 1.0f, -1.0f),
-				new Vector3(0.0f, 1.0f, -1.0f),
-				new Vector3(0.0f, 0.0f, -1.0f),
-				new Vector3(1.0f, 0.0f, -1.0f),
-				
-				// top
-				new Vector3(0.0f, 1.0f, -1.0f),
-				new Vector3(1.0f, 1.0f, -1.0f),
-				new Vector3(1.0f, 1.0f, 0.0f),
-				new Vector3(0.0f, 1.0f, 0.0f),
-				
-				// bottom
-				new Vector3(0.0f, 0.0f, 0.0f),
-				new Vector3(1.0f, 0.0f, 0.0f),
-				new Vector3(1.0f, 0.0f, -1.0f),
-				new Vector3(0.0f, 0.0f, -1.0f),
-				
-				// right
-				new Vector3(1.0f, 1.0f, 0.0f),
-				new Vector3(1.0f, 1.0f, -1.0f),
-				new Vector3(1.0f, 0.0f, -1.0f),
-				new Vector3(1.0f, 0.0f, 0.0f),
-				
-				// left
-				new Vector3(0.0f, 1.0f, -1.0f),
-				new Vector3(0.0f, 1.0f, 0.0f),
-				new Vector3(0.0f, 0.0f, 0.0f),
-				new Vector3(0.0f, 0.0f, -1.0f)
-		};
-		
-		// 2 vec3s and 1 vec2
-		FloatBuffer cubeBuffer = BufferUtils.createFloatBuffer(unitCube.length * (2 * 3 + 2));
-		for(int a = 0; a < unitCube.length; a++) {
-			cubeBuffer.put(unitCube[a].toBuffer());
-			cubeBuffer.put(normals[a / 4].toBuffer());
-			cubeBuffer.put(texCoords[a % 4].toBuffer());
-		}
-		cubeBuffer.flip();
-		
-		ShortBuffer indicesBuffer = BufferUtils.createShortBuffer(indices.length * 6);
-		for(int a = 0; a < 6 * indices.length; a++) {
-			indicesBuffer.put((short)(indices[a % 6] + (a / indices.length) * 4));
-		}
-		indicesBuffer.flip();
-		
-		cubeVBO = glGenBuffers();
-		glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
-		glBufferData(GL_ARRAY_BUFFER, cubeBuffer, GL_STATIC_DRAW);
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-		
-		indicesVBO = glGenBuffers();
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indicesVBO);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, indicesBuffer, GL_STATIC_DRAW);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	}
 	
 	private static int loadTexture(String texName) {
@@ -269,32 +184,18 @@ public class WorldRenderer {
 		chunkVAO = RenderUtils.glGenVertexArrays();
 		RenderUtils.glBindVertexArray(chunkVAO);
 		
-		glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indicesVBO);
+		chunkRendererStorage = new BufferStorage(GL_ARRAY_BUFFER, DATA_VBO_SIZE, true, 3);
+		System.out.println("DATA_VBO_SIZE=" + DATA_VBO_SIZE);
 		
 		glEnableVertexAttribArray(0);
-		glVertexAttribPointer(0, 3, GL_FLOAT, false, (2 * 3 + 2) * 4, 0);
+		glVertexAttribPointer(0, 3, GL_UNSIGNED_INT, false, 4 * 4, 0);
 		
 		glEnableVertexAttribArray(1);
-		glVertexAttribPointer(1, 3, GL_FLOAT, false, (2 * 3 + 2) * 4, 3 * 4);
-		
-		glEnableVertexAttribArray(2);
-		glVertexAttribPointer(2, 2, GL_FLOAT, false, (2 * 3 + 2) * 4, 2 * 3 * 4);
-		
-		chunkRendererStorage = new BufferStorage(GL_ARRAY_BUFFER, DATA_VBO_SIZE, true, 3);
-		
-		glEnableVertexAttribArray(3);
-		glVertexAttribPointer(3, 3, GL_UNSIGNED_INT, false, 4 * 4, 0);
-		RenderUtils.glVertexAttribDivisor(3, 1);
-		
-		glEnableVertexAttribArray(4);
-		glVertexAttribIPointer(4, 1, GL_UNSIGNED_INT, 4 * 4, 3 * 4);
-		RenderUtils.glVertexAttribDivisor(4, 1);
+		glVertexAttribIPointer(1, 1, GL_UNSIGNED_INT, 4 * 4, 3 * 4);
 		
 		RenderUtils.glBindVertexArray(0);
 		
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 		
 		Chunk[] chunks = world.getChunkManager().getChunks();
 		chunkRenderers = new ChunkRenderer[chunks.length];
@@ -354,10 +255,10 @@ public class WorldRenderer {
 		glBindTexture(GL_TEXTURE_2D, 0);
 		
 		IntBuffer drawBuffers = BufferUtils.createIntBuffer(3).put(new int[] {
-				GL_COLOR_ATTACHMENT0,
-				GL_COLOR_ATTACHMENT1,
-				GL_COLOR_ATTACHMENT2,
-				});
+		  GL_COLOR_ATTACHMENT0,
+		  GL_COLOR_ATTACHMENT1,
+		  GL_COLOR_ATTACHMENT2,
+		  });
 		drawBuffers.flip();
 		glDrawBuffers(drawBuffers);
 		
@@ -379,10 +280,10 @@ public class WorldRenderer {
 	
 	private void setupDeferredVAO() {
 		FloatBuffer verts = BufferUtils.createFloatBuffer(8).put(new float[] {
-				1, 1,
-				1, -1,
-				-1, 1,
-				-1, -1
+		  1, 1,
+		  1, -1,
+		  -1, 1,
+		  -1, -1
 		});
 		verts.flip();
 		
@@ -422,13 +323,7 @@ public class WorldRenderer {
 	
 	private final MatrixStack tempStack = new MatrixStack();
 	
-	private final DrawElementsIndirectCommand command = new DrawElementsIndirectCommand();
-	
-	{
-		command.count = 6 * 6; // elements count
-		command.firstIndex = 0;
-		command.baseVertex = 0;
-	}
+	private final DrawArraysIndirectCommand command = new DrawArraysIndirectCommand();
 	
 	public void render(Vector4 clipPlane, Portal surroundingPortal, int currentFbo, Camera camera) {
 		glClearColor(0.4f, 0.6f, 0.9f, 0f);
@@ -461,14 +356,17 @@ public class WorldRenderer {
 		
 		int currentOffset = chunkRendererStorage.getBufferIndex() * chunkRenderers.length * Chunk.TOTAL_BLOCKS;
 		
+		command.baseInstance = 0;
+		command.instanceCount = 1;
+		
 		for(ChunkRenderer chunkRenderer : chunkRenderers) {
 			Chunk chunk = chunkRenderer.getChunk();
 			
 			if(culling.isRectPrismInsideFrustum(new Vector3(chunk.getCornerX(), chunk.getCornerY(), -chunk.getCornerZ())
 			                                      .mult(Chunk.SPACING).sub(halfSpacing, halfSpacing, -halfSpacing),
-					Chunk.CHUNK_BLOCK_WIDTH * Chunk.SPACING,
-					Chunk.CHUNK_BLOCK_HEIGHT * Chunk.SPACING,
-					-Chunk.CHUNK_BLOCK_DEPTH * Chunk.SPACING)) {
+			  Chunk.CHUNK_BLOCK_WIDTH * Chunk.SPACING,
+			  Chunk.CHUNK_BLOCK_HEIGHT * Chunk.SPACING,
+			  -Chunk.CHUNK_BLOCK_DEPTH * Chunk.SPACING)) {
 				if(chunkRenderer.render(command, currentOffset)) {
 					commandsBuffer.put(command.toBuffer());
 					
@@ -504,7 +402,7 @@ public class WorldRenderer {
 			}
 			
 			RenderUtils.glBindVertexArray(chunkVAO);
-			glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_SHORT, 0, chunksRendered, 0);
+			glMultiDrawArraysIndirect(GL_POINTS, 0, chunksRendered, 0);
 			
 			glDisable(GL_CLIP_DISTANCE0);
 		}
@@ -563,18 +461,17 @@ public class WorldRenderer {
 		Stopwatch.stop();
 	}
 	
-	public static class DrawElementsIndirectCommand {
+	public static class DrawArraysIndirectCommand {
 		public int count;
 		public int instanceCount;
-		public int firstIndex;
-		public int baseVertex;
+		public int first;
 		public int baseInstance;
 		
 		private static final IntBuffer commandBuffer = BufferUtils.createIntBuffer(5);
 		
 		public IntBuffer toBuffer() {
 			commandBuffer.clear();
-			commandBuffer.put(count).put(instanceCount).put(firstIndex).put(baseVertex).put(baseInstance).flip();
+			commandBuffer.put(count).put(instanceCount).put(first).put(baseInstance).flip();
 			return commandBuffer;
 		}
 	}
@@ -638,7 +535,7 @@ public class WorldRenderer {
 				
 				glBindBuffer(GL_UNIFORM_BUFFER, lightsUniformBufferVBO);
 				ByteBuffer lightsMappedBuffer = glMapBufferRange(GL_UNIFORM_BUFFER, 0, LIGHTS_UNIFORM_BUFFER_SIZE,
-						GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_UNSYNCHRONIZED_BIT, null);
+				  GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_UNSYNCHRONIZED_BIT, null);
 				
 				if(lightsMappedBuffer == null) {
 					Utils.checkGLError("lights map buffer");

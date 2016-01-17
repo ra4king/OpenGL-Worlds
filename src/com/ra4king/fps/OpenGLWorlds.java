@@ -90,7 +90,7 @@ public class OpenGLWorlds extends GLProgram {
 		
 		printDebug(true);
 		checkError(true);
-		setFPS(60);
+		setFPS(0);
 		
 		RenderUtils.init();
 		
@@ -122,7 +122,7 @@ public class OpenGLWorlds extends GLProgram {
 		for(int a = 0; a < WORLD_COUNT; a++) {
 			worlds[a] = new World(4, 4, 4);
 			worldRenderers[a] = new WorldRenderer(this, worlds[a]);
-			worlds[a].generateRandomBlocks();
+			worlds[a].generateAllBlocks();//generateRandomBlocks();
 			worldsMap.put(worlds[a], worldRenderers[a]);
 		}
 		

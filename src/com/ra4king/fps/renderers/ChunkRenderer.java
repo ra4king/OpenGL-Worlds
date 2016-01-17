@@ -6,7 +6,7 @@ import org.lwjgl.BufferUtils;
 
 import com.ra4king.fps.actors.Block;
 import com.ra4king.fps.actors.Block.BlockType;
-import com.ra4king.fps.renderers.WorldRenderer.DrawElementsIndirectCommand;
+import com.ra4king.fps.renderers.WorldRenderer.DrawArraysIndirectCommand;
 import com.ra4king.fps.world.Chunk;
 import com.ra4king.fps.world.Chunk.ChunkModifiedCallback;
 import com.ra4king.opengl.util.Stopwatch;
@@ -115,7 +115,7 @@ public class ChunkRenderer implements ChunkModifiedCallback {
 		return blockCount;
 	}
 	
-	public boolean render(DrawElementsIndirectCommand command, int baseInstance) {
+	public boolean render(DrawArraysIndirectCommand command, int offset) {
 		if(blockCount == 0)
 			return false;
 		
@@ -130,8 +130,8 @@ public class ChunkRenderer implements ChunkModifiedCallback {
 		
 		Stopwatch.stop();
 		
-		command.instanceCount = blockCount;
-		command.baseInstance = baseInstance + chunkNumOffset * Chunk.TOTAL_BLOCKS;
+		command.count = blockCount;
+		command.first = offset + chunkNumOffset * Chunk.TOTAL_BLOCKS;
 		
 		return true;
 	}

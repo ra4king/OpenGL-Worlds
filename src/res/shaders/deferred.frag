@@ -18,7 +18,7 @@ struct PointLight {
 layout(std140) uniform Lights {
 	vec3 ambientLight;
 	float numberOfLights;
-	PointLight lights[500];
+	PointLight lights[100];
 };
 
 out vec4 fragColor;
