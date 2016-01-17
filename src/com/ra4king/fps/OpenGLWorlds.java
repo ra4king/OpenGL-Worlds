@@ -90,7 +90,7 @@ public class OpenGLWorlds extends GLProgram {
 		
 		printDebug(true);
 		checkError(true);
-		setFPS(0);
+		setFPS(60);
 		
 		RenderUtils.init();
 		
@@ -120,14 +120,14 @@ public class OpenGLWorlds extends GLProgram {
 		resetCamera();
 		
 		for(int a = 0; a < WORLD_COUNT; a++) {
-			worlds[a] = new World(5, 5, 5);
+			worlds[a] = new World(4, 4, 4);
 			worldRenderers[a] = new WorldRenderer(this, worlds[a]);
 			worlds[a].generateRandomBlocks();
 			worldsMap.put(worlds[a], worldRenderers[a]);
 		}
 		
-		Portal portal1 = new Portal(this, worlds[0], new Vector3(0, 0, 0), new Vector2(5, 10), new Quaternion(), worlds[1]);
-		Portal portal2 = new Portal(this, worlds[1], new Vector3(10, 0, 0), new Vector2(5, 10), new Quaternion((float)Math.PI * 0.25f, Vector3.UP).mult(new Quaternion((float)Math.PI * 0.25f, Vector3.RIGHT)), worlds[0]);
+		Portal portal1 = new Portal(this, worlds[0], new Vector3(0, 0, 0), new Vector2(10, 20), new Quaternion(), worlds[1]);
+		Portal portal2 = new Portal(this, worlds[1], new Vector3(10, 0, 0), new Vector2(10, 20), new Quaternion((float)Math.PI * 0.25f, Vector3.UP).mult(new Quaternion((float)Math.PI * 0.25f, Vector3.RIGHT)), worlds[0]);
 		portal1.setDestPortal(portal2);
 		portal2.setDestPortal(portal1);
 		
@@ -321,7 +321,5 @@ public class OpenGLWorlds extends GLProgram {
 		}
 		
 		font.render("Chunks visible: " + totalChunksRendered + ", Total cubes rendered: " + totalBlocksRendered, 20, Display.getHeight() - 60, 20, new Vector4(1));
-		
-		glEnable(GL_DEPTH_TEST);
 	}
 }

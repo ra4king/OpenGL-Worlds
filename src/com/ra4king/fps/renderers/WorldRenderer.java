@@ -63,7 +63,6 @@ public class WorldRenderer {
 	private int normalMatrixUniform;
 	
 	private ShaderProgram deferredProgram;
-	private int resolutionUniform;
 	private int deferredFBO, deferredVAO;
 	
 	private static final int CUBE_TEXTURE_BINDING = 0;
@@ -150,20 +149,18 @@ public class WorldRenderer {
 		
 		lightSystem = new UniformBufferLightSystem();
 		lightSystem.setupLights(deferredProgram);
-		
-		resolutionUniform = deferredProgram.getUniformLocation("resolution");
 	}
 	
 	private void loadCube() {
 		final short[] indices = { 0, 1, 2, 2, 3, 0 };
 		
 		final Vector3[] normals = {
-				new Vector3(0, 0, 1),
-				new Vector3(0, 0, -1),
-				new Vector3(0, 1, 0),
-				new Vector3(0, -1, 0),
-				new Vector3(1, 0, 0),
-				new Vector3(-1, 0, 0)
+		  new Vector3(0, 0, 1), // front
+		  new Vector3(0, 0, -1), // back
+		  new Vector3(0, 1, 0), // top
+		  new Vector3(0, -1, 0), // bottom
+		  new Vector3(1, 0, 0), // right
+		  new Vector3(-1, 0, 0) // left
 		};
 		
 		final Vector2[] texCoords = {
@@ -535,10 +532,11 @@ public class WorldRenderer {
 			glEnable(GL_BLEND);
 			
 			deferredProgram.begin();
-			glUniform2f(resolutionUniform, RenderUtils.getWidth(), RenderUtils.getHeight());
 			
 			final float mainK = 0.001f;
 			lightSystem.renderLights(new Vector3(0.5f, 0.5f, 0.5f), mainK, new Vector3(0.01f, 0.01f, 0.01f), viewMatrix, bulletRenderer);
+			
+			glProvokingVertex(GL_FIRST_VERTEX_CONVENTION);
 			
 			RenderUtils.glBindVertexArray(deferredVAO);
 			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);

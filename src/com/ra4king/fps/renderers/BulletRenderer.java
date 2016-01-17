@@ -82,7 +82,7 @@ public class BulletRenderer {
 	}
 	
 	public int getBulletLightData(Matrix4 viewMatrix, FloatBuffer bulletData, int maxBulletCount) {
-		final float bulletK = 0.01f, hugeBulletK = 0.0001f, nonSolidBulletK = 0.05f;
+		final float bulletK = 0.1f, hugeBulletK = 0.01f, nonSolidBulletK = 0.5f;
 		
 		BulletVectorPair[] bulletVectorPairs = new BulletVectorPair[bulletManager.getBullets().size()];
 		for(int a = 0; a < bulletVectorPairs.length; a++)

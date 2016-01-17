@@ -1,9 +1,5 @@
 #version 420
 
-uniform vec2 resolution;
-
-uniform bool tripBalls;
-
 uniform sampler2D cubeTexture;
 
 uniform sampler2D cameraPositions;
@@ -19,12 +15,10 @@ struct PointLight {
 	float k;
 };
 
-#define MAX_LIGHTS 100
-
 layout(std140) uniform Lights {
 	vec3 ambientLight;
 	float numberOfLights;
-	PointLight lights[MAX_LIGHTS];
+	PointLight lights[500];
 };
 
 out vec4 fragColor;
@@ -42,21 +36,24 @@ vec3 calculateLight(vec3 color, float k, vec3 normal, vec3 lightDistance) {
 }
 
 void main() {
-	vec2 tex = gl_FragCoord.xy / resolution;
+	ivec2 tex = ivec2(gl_FragCoord.xy);
 	
-	if(tripBalls) {
+	//#define TRIP_BALLS
+	
+	#ifdef TRIP_BALLS
 		tex.x += cos(tex.y * 30.0) / 100.0;
 		tex.y += sin(tex.x * 30.0) / 100.0;
-	}
+	#endif
 	
-	vec3 cameraSpacePosition = texture(cameraPositions, tex).xyz;
-	vec3 normal = normalize(texture(normals, tex).xyz);
-	vec2 texCoord = texture(texCoords, tex).st;
-	gl_FragDepth = texture(depth, tex).x;
+	vec3 cameraSpacePosition = texelFetch(cameraPositions, tex, 0).xyz;
 	
 	if(cameraSpacePosition == vec3(0.0)) {
 		discard;
 	}
+	
+	vec3 normal = normalize(texelFetch(normals, tex, 0).xyz);
+    vec2 texCoord = texelFetch(texCoords, tex, 0).st;
+	gl_FragDepth = texelFetch(depth, tex, 0).x;
 	
 	vec3 totalLight = ambientLight;
 	
@@ -70,9 +67,9 @@ void main() {
 //		}
 	}
 	
-	float fog = clamp(1.0 - cameraSpacePosition.z * fogRange, 0.1, 1.0);
+	//float fog = clamp(1.0 - cameraSpacePosition.z * fogRange, 0.1, 1.0);
 	
 	vec4 gamma = vec4(1.0 / 2.2);
 	gamma.w = 1;
-	fragColor = pow(vec4(texture(cubeTexture, texCoord).rgb * totalLight * fog, 1), gamma);
+	fragColor = pow(vec4(texture(cubeTexture, texCoord).rgb * totalLight, 1), gamma);
 }
