@@ -452,7 +452,6 @@ public class WorldRenderer {
 		
 		float halfSpacing = Chunk.SPACING * 0.5f;
 		
-		chunkRendererStorage.nextBuffer();
 		for(ChunkRenderer chunkRenderer : chunkRenderers) {
 			chunkRenderer.update();
 		}
@@ -477,6 +476,8 @@ public class WorldRenderer {
 				}
 			}
 		}
+		
+		chunkRendererStorage.nextBuffer();
 		
 		commandsBuffer.flip();
 		
@@ -535,8 +536,6 @@ public class WorldRenderer {
 			
 			final float mainK = 0.001f;
 			lightSystem.renderLights(new Vector3(0.5f, 0.5f, 0.5f), mainK, new Vector3(0.01f, 0.01f, 0.01f), viewMatrix, bulletRenderer);
-			
-			glProvokingVertex(GL_FIRST_VERTEX_CONVENTION);
 			
 			RenderUtils.glBindVertexArray(deferredVAO);
 			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
@@ -605,10 +604,6 @@ public class WorldRenderer {
 			bulletsBuffer = BufferUtils.createFloatBuffer(MAX_NUM_LIGHTS * 2 * 4);
 			
 			int lightsBlockIndex = program.getUniformBlockIndex("Lights");
-			
-			if(lightsBlockIndex == -1) {
-				throw new IllegalArgumentException("Uniform Block 'Lights' not found.");
-			}
 			
 			glUniformBlockBinding(program.getProgram(), lightsBlockIndex, BUFFER_BLOCK_BINDING);
 			
