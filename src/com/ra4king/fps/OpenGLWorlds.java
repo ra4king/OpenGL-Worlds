@@ -90,7 +90,7 @@ public class OpenGLWorlds extends GLProgram {
 		
 		printDebug(true);
 		checkError(true);
-		setFPS(60);
+		setFPS(0);
 		
 		RenderUtils.init();
 		
@@ -98,8 +98,6 @@ public class OpenGLWorlds extends GLProgram {
 			System.out.println("Your OpenGL version is too old.");
 			System.exit(1);
 		}
-		
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		
 		glEnable(GL_DEPTH_TEST);
 		

@@ -1,25 +1,16 @@
 #version 420
 
+flat in vec3 position;
+flat in float range;
+flat in vec3 color;
+flat in float k;
+
 uniform sampler2D cubeTexture;
 
 uniform sampler2D cameraPositions;
 uniform sampler2D normals;
 uniform sampler2D texCoords;
 uniform sampler2D depth;
-
-struct PointLight {
-	vec3 position;
-	float range;
-	
-	vec3 color;
-	float k;
-};
-
-layout(std140) uniform Lights {
-	vec3 ambientLight;
-	float numberOfLights;
-	PointLight lights[500];
-};
 
 out vec4 fragColor;
 
@@ -47,25 +38,18 @@ void main() {
 	
 	vec3 cameraSpacePosition = texelFetch(cameraPositions, tex, 0).xyz;
 	
-	if(cameraSpacePosition == vec3(0.0)) {
+	if(cameraSpacePosition == vec3(0.0))
 		discard;
-	}
 	
 	vec3 normal = normalize(texelFetch(normals, tex, 0).xyz);
-    vec2 texCoord = texelFetch(texCoords, tex, 0).st;
+	vec2 texCoord = texelFetch(texCoords, tex, 0).st;
 	gl_FragDepth = texelFetch(depth, tex, 0).x;
 	
-	vec3 totalLight = ambientLight;
+	vec3 lightDistance = position - cameraSpacePosition;
+	if(range > 0.0 && dot(lightDistance, lightDistance) > range * range)
+		discard;
 	
-	for(int a = 0; a < numberOfLights; a++) {
-		PointLight light = lights[a];
-		
-		vec3 lightDistance = light.position - cameraSpacePosition;
-		
-//		if(dot(lightDistance, lightDistance) <= light.range * light.range) {
-			totalLight += calculateLight(light.color, light.k, normal, lightDistance) * 0.55;
-//		}
-	}
+	vec3 totalLight = calculateLight(color, k, normal, lightDistance);
 	
 	//float fog = clamp(1.0 - cameraSpacePosition.z * fogRange, 0.1, 1.0);
 	

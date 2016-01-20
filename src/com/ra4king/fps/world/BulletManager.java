@@ -17,8 +17,8 @@ import com.ra4king.opengl.util.math.Vector3;
 public class BulletManager {
 	private ArrayList<Bullet> bullets;
 	
-	private HashMap<Bullet, Integer> megaBulletDestroyCount;
-	private final int MAX_MEGA_BULLET_DESTROY_COUNT = 600;
+	private HashMap<Bullet, Integer> bulletDestroyCount;
+	private final int BLOCK_DESTROY_RATE = 5;
 	
 	private ChunkManager chunkManager;
 	
@@ -27,7 +27,7 @@ public class BulletManager {
 		
 		bullets = new ArrayList<>();
 		
-		megaBulletDestroyCount = new HashMap<>();
+		bulletDestroyCount = new HashMap<>();
 	}
 	
 	public void addBullet(Bullet bullet) {
@@ -44,10 +44,6 @@ public class BulletManager {
 		return blocksDestroyed;
 	}
 	
-	public boolean isMegaBullet(Bullet bullet) {
-		return bullet.getSize() >= 20;
-	}
-	
 	private ArrayList<Bullet> temp = new ArrayList<>();
 	
 	public void update(long deltaTime) {
@@ -60,44 +56,40 @@ public class BulletManager {
 				if(bullet.isSolid()) {
 					Vector3 pos = bullet.getPosition();
 					
-					boolean megaBullet = isMegaBullet(bullet);
+					Block[] blocks = chunkManager.getBlocks(pos, 0.5f * bullet.getSize());
 					
-					// Check if it's a normal sized bullet
-					Block block;
-					if(megaBullet) { // It's a mega bullet!
-						Block[] blocks = chunkManager.getBlocks(pos, 0.5f * bullet.getSize());
+					if(blocks.length > 0) {
+						int destroyCount = 0;
 						
-						if(blocks.length > 0) {
-							int destroyCount = 0;
+						for(Block b : blocks) {
+							chunkManager.setBlock(BlockType.AIR, b);
+							blocksDestroyed++;
+							destroyCount++;
 							
-							for(Block b : blocks) {
-								chunkManager.setBlock(BlockType.AIR, b);
-								blocksDestroyed++;
-								destroyCount++;
-								
-								temp.add(new Bullet(new Vector3(b.getX(), b.getY(), -b.getZ()).mult(Chunk.SPACING), new Vector3((float)Math.random() * 2 - 1, (float)Math.random() * 2 - 1, (float)Math.random() * 2 - 1).normalize().mult(100), 1, 500, (long)2.5e8, false, new Vector3(1, 1, 1)));
-							}
-							
-							Integer i = megaBulletDestroyCount.get(bullet);
-							i = i == null ? destroyCount : i + destroyCount;
-							megaBulletDestroyCount.put(bullet, i);
-							
-							if(i >= MAX_MEGA_BULLET_DESTROY_COUNT) {
-								megaBulletDestroyCount.remove(bullet);
-								isAlive = false;
-							}
+							temp.add(new Bullet(new Vector3(b.getX(), b.getY(), -b.getZ()).mult(Chunk.SPACING), new Vector3((float)Math.random() * 2 - 1, (float)Math.random() * 2 - 1, (float)Math.random() * 2 - 1).normalize().mult(100), 1, 5, (long)2.5e8, false, new Vector3(1, 1, 1)));
 						}
-					} else if((block = chunkManager.getBlock(pos, 0.5f * bullet.getSize())) != null && block.getType() != BlockType.AIR) {
-						chunkManager.setBlock(BlockType.AIR, block);
 						
-						blocksDestroyed++;
+						Integer i = bulletDestroyCount.get(bullet);
+						i = i == null ? destroyCount : i + destroyCount;
+						bulletDestroyCount.put(bullet, i);
 						
-						isAlive = false;
-						
-						for(int a = 0; a < 2; a++) {
-							temp.add(new Bullet(pos, new Vector3((float)(Math.random() * 2.0 - 1.0), (float)(Math.random() * 2.0 - 1.0), (float)(Math.random() * 2.0 - 1.0)).normalize().mult(100), 1, 500, (long)2.5e8, false, new Vector3(1)));
+						if(i >= bullet.getSize() * BLOCK_DESTROY_RATE) {
+							bulletDestroyCount.remove(bullet);
+							isAlive = false;
 						}
 					}
+
+//					} else if((block = chunkManager.getBlock(pos, 0.5f * bullet.getSize())) != null && block.getType() != BlockType.AIR) {
+//						chunkManager.setBlock(BlockType.AIR, block);
+//						
+//						blocksDestroyed++;
+//						
+//						isAlive = false;
+//						
+//						for(int a = 0; a < 2; a++) {
+//							temp.add(new Bullet(pos, new Vector3((float)(Math.random() * 2.0 - 1.0), (float)(Math.random() * 2.0 - 1.0), (float)(Math.random() * 2.0 - 1.0)).normalize().mult(100), 1, 5, (long)2.5e8, false, new Vector3(1)));
+//						}
+//					}
 				}
 				
 				if(isAlive) {
