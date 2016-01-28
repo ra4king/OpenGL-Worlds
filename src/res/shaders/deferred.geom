@@ -3,6 +3,7 @@
 layout(points) in;
 layout(triangle_strip, max_vertices=4) out;
 
+in vec3 _position[];
 in float _range[];
 in vec3 _color[];
 in float _k[];
@@ -18,29 +19,33 @@ void main() {
 	vec4 right = vec4(_range[0], 0, 0, 0);
 	vec4 up = vec4(0, _range[0], 0, 0);
 	
-	gl_Position = _range[0] == 0.0 ? vec4(1.0, 1.0, 0.0, 1.0) : projectionMatrix * (gl_in[0].gl_Position + right + up);
-	position = gl_in[0].gl_Position.xyz;
+	gl_Position = _range[0] == 0.0 ? vec4(1.0, 1.0, 0.0, 1.0) : projectionMatrix * (vec4(_position[0], 1) + right + up);
+	gl_Position.z = 0.0;
+	position = _position[0];
 	range = _range[0];
 	color = _color[0];
 	k = _k[0];
 	EmitVertex();
 	
-	gl_Position = _range[0] == 0.0 ? vec4(1.0, -1.0, 0.0, 1.0) : projectionMatrix * (gl_in[0].gl_Position + right - up);
-	position = gl_in[0].gl_Position.xyz;
+	gl_Position = _range[0] == 0.0 ? vec4(1.0, -1.0, 0.0, 1.0) : projectionMatrix * (vec4(_position[0], 1) + right - up);
+	gl_Position.z = 0.0;
+	position = _position[0];
 	range = _range[0];
 	color = _color[0];
 	k = _k[0];
 	EmitVertex();
 	
-	gl_Position = _range[0] == 0.0 ? vec4(-1.0, 1.0, 0.0, 1.0) : projectionMatrix * (gl_in[0].gl_Position - right + up);
-	position = gl_in[0].gl_Position.xyz;
+	gl_Position = _range[0] == 0.0 ? vec4(-1.0, 1.0, 0.0, 1.0) : projectionMatrix * (vec4(_position[0], 1) - right + up);
+	gl_Position.z = 0.0;
+	position = _position[0];
 	range = _range[0];
 	color = _color[0];
 	k = _k[0];
 	EmitVertex();
 	
-	gl_Position = _range[0] == 0.0 ? vec4(-1.0, -1.0, 0.0, 1.0) : projectionMatrix * (gl_in[0].gl_Position - right - up);
-	position = gl_in[0].gl_Position.xyz;
+	gl_Position = _range[0] == 0.0 ? vec4(-1.0, -1.0, 0.0, 1.0) : projectionMatrix * (vec4(_position[0], 1) - right - up);
+	gl_Position.z = 0.0;
+	position = _position[0];
 	range = _range[0];
 	color = _color[0];
 	k = _k[0];

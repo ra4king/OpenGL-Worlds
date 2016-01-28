@@ -544,8 +544,8 @@ public class WorldRenderer {
 			lightsBuffer.put(0);
 			
 			// camera is light source
-			lightsBuffer.put(0).put(0).put(-3); // camera position
-			lightsBuffer.put(200);
+			lightsBuffer.put(0).put(0).put(0); // camera position
+			lightsBuffer.put(1000);
 			lightsBuffer.put(diffuseColor.toBuffer());
 			lightsBuffer.put(0.1f);
 

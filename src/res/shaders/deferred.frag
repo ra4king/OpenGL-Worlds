@@ -27,23 +27,21 @@ vec3 calculateLight(vec3 color, float k, vec3 normal, vec3 lightDistance) {
 }
 
 void main() {
-	ivec2 tex = ivec2(gl_FragCoord.xy);
+	vec2 tex = gl_FragCoord.xy;
 	
-	//#define TRIP_BALLS
+//	tex.x += cos(tex.y * 30.0) / 50;
+//	tex.y += sin(tex.x * 30.0) / 50;
 	
-	#ifdef TRIP_BALLS
-		tex.x += cos(tex.y * 30.0) / 100.0;
-		tex.y += sin(tex.x * 30.0) / 100.0;
-	#endif
+	ivec2 texi = ivec2(tex);
 	
-	vec3 cameraSpacePosition = texelFetch(cameraPositions, tex, 0).xyz;
+	vec3 cameraSpacePosition = texelFetch(cameraPositions, texi, 0).xyz;
 	
 	if(cameraSpacePosition == vec3(0.0))
 		discard;
 	
-	vec3 normal = normalize(texelFetch(normals, tex, 0).xyz);
-	vec2 texCoord = texelFetch(texCoords, tex, 0).st;
-	gl_FragDepth = texelFetch(depth, tex, 0).x;
+	vec3 normal = normalize(texelFetch(normals, texi, 0).xyz);
+	vec2 texCoord = texelFetch(texCoords, texi, 0).st;
+	gl_FragDepth = texelFetch(depth, texi, 0).x;
 	
 	vec3 lightDistance = position - cameraSpacePosition;
 	if(range > 0.0 && dot(lightDistance, lightDistance) > range * range)
@@ -55,5 +53,5 @@ void main() {
 	
 	vec4 gamma = vec4(1.0 / 2.2);
 	gamma.w = 1;
-	fragColor = pow(vec4(texture(cubeTexture, texCoord).rgb * totalLight, 1), gamma);
+	fragColor = pow(vec4(mix(color, texture(cubeTexture, texCoord).rgb * totalLight, 1), 1), gamma);
 }

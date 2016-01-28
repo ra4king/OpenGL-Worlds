@@ -66,7 +66,7 @@ public class BulletManager {
 							blocksDestroyed++;
 							destroyCount++;
 							
-							temp.add(new Bullet(new Vector3(b.getX(), b.getY(), -b.getZ()).mult(Chunk.SPACING), new Vector3((float)Math.random() * 2 - 1, (float)Math.random() * 2 - 1, (float)Math.random() * 2 - 1).normalize().mult(100), 1, 5, (long)2.5e8, false, new Vector3(1, 1, 1)));
+							temp.add(new Bullet(new Vector3(b.getX(), b.getY(), -b.getZ()).mult(Chunk.SPACING), new Vector3((float)Math.random() * 2 - 1, (float)Math.random() * 2 - 1, (float)Math.random() * 2 - 1).normalize().mult(100), 1, 10, (long)2.5e8, false, new Vector3(1, 1, 1)));
 						}
 						
 						Integer i = bulletDestroyCount.get(bullet);
