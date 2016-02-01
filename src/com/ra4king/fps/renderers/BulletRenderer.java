@@ -194,8 +194,6 @@ public class BulletRenderer {
 			glBufferSubData(GL_ARRAY_BUFFER, 0, bulletDataBuffer);
 		}
 		
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-		
 		RenderUtils.glBindVertexArray(vao);
 		
 		glDepthMask(false);

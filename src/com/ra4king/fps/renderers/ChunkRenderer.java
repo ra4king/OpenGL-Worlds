@@ -11,6 +11,8 @@ import com.ra4king.fps.world.Chunk;
 import com.ra4king.fps.world.Chunk.ChunkModifiedCallback;
 import com.ra4king.opengl.util.Stopwatch;
 import com.ra4king.opengl.util.buffers.GLBuffer;
+import com.ra4king.opengl.util.math.Vector3;
+import com.ra4king.opengl.util.render.RenderUtils.FrustumCulling;
 
 import net.indiespot.struct.cp.Struct;
 
@@ -23,11 +25,12 @@ public class ChunkRenderer implements ChunkModifiedCallback {
 	private Block[] compact;
 	private int blockCount;
 	
-	private boolean chunkModified = true;
+	private final int BUFFER_COUNT;
+	private int uploadDirtyCount;
 	
 	public static final int CHUNK_DATA_SIZE = Chunk.TOTAL_BLOCKS * Struct.sizeof(Block.class);
 	
-	public ChunkRenderer(Chunk chunk, GLBuffer glBuffer, int chunkNumOffset) {
+	public ChunkRenderer(Chunk chunk, GLBuffer glBuffer, int bufferCount, int chunkNumOffset) {
 		this.chunk = chunk;
 		this.glBuffer = glBuffer;
 		this.chunkNumOffset = chunkNumOffset;
@@ -37,6 +40,9 @@ public class ChunkRenderer implements ChunkModifiedCallback {
 		compact = Struct.map(Block.class, buffer);
 		
 		chunk.setCallback(this);
+		
+		BUFFER_COUNT = bufferCount;
+		uploadDirtyCount = BUFFER_COUNT;
 	}
 	
 	public Chunk getChunk() {
@@ -48,14 +54,14 @@ public class ChunkRenderer implements ChunkModifiedCallback {
 		if(block != Struct.nullStruct(Block.class)) {
 			if(!chunk.containsBlock(block)) {
 				throw new IllegalArgumentException(String.format("Invalid block: (%d,%d,%d) of type %s. Chunk corner: (%d,%d,%d)",
-						block.getX(), block.getY(), block.getZ(), block.getType().toString(),
-						chunk.getCornerX(), chunk.getCornerY(), chunk.getCornerZ()));
+				  block.getX(), block.getY(), block.getZ(), block.getType().toString(),
+				  chunk.getCornerX(), chunk.getCornerY(), chunk.getCornerZ()));
 			}
 			
 			testForSurface(block);
 		}
 		
-		chunkModified = true;
+		uploadDirtyCount = BUFFER_COUNT;
 	}
 	
 	private void testForSurface(Block block) {
@@ -94,7 +100,7 @@ public class ChunkRenderer implements ChunkModifiedCallback {
 	}
 	
 	public void update() {
-		if(chunkModified) {
+		if(uploadDirtyCount == BUFFER_COUNT) {
 			blockCount = 0;
 			
 			Stopwatch.start("Update Compact Array");
@@ -106,8 +112,6 @@ public class ChunkRenderer implements ChunkModifiedCallback {
 			}
 			
 			Stopwatch.stop();
-			
-			chunkModified = false;
 		}
 	}
 	
@@ -115,18 +119,37 @@ public class ChunkRenderer implements ChunkModifiedCallback {
 		return blockCount;
 	}
 	
-	public boolean render(DrawElementsIndirectCommand command, int baseInstance) {
-		if(blockCount == 0)
+	public boolean render(DrawElementsIndirectCommand command, FrustumCulling culling, int baseInstance) {
+		int count = uploadDirtyCount;
+		
+		if(uploadDirtyCount > 0) {
+			uploadDirtyCount--;
+		}
+		
+		float halfSpacing = Chunk.SPACING * 0.5f;
+		if(!culling.isRectPrismInsideFrustum(new Vector3(chunk.getCornerX(), chunk.getCornerY(), -chunk.getCornerZ())
+		                                       .mult(Chunk.SPACING).sub(halfSpacing, halfSpacing, -halfSpacing),
+		  Chunk.CHUNK_BLOCK_WIDTH * Chunk.SPACING,
+		  Chunk.CHUNK_BLOCK_HEIGHT * Chunk.SPACING,
+		  -Chunk.CHUNK_BLOCK_DEPTH * Chunk.SPACING)) {
 			return false;
+		}
+		
+		
+		if(blockCount == 0) {
+			return false;
+		}
 		
 		Stopwatch.start("Upload VBO");
 		
-		final int DATA_SIZE = blockCount * Struct.sizeof(Block.class);
-		
-		ByteBuffer uploadBuffer = glBuffer.bind(chunkNumOffset * CHUNK_DATA_SIZE, DATA_SIZE);
-		buffer.limit(DATA_SIZE).position(0);
-		uploadBuffer.put(buffer);
-		glBuffer.unbind();
+		if(count > 0) {
+			final int DATA_SIZE = blockCount * Struct.sizeof(Block.class);
+			
+			ByteBuffer uploadBuffer = glBuffer.bind(chunkNumOffset * CHUNK_DATA_SIZE, DATA_SIZE);
+			buffer.limit(DATA_SIZE).position(0);
+			uploadBuffer.put(buffer);
+			glBuffer.unbind();
+		}
 		
 		Stopwatch.stop();
 		

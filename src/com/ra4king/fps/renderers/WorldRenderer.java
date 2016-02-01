@@ -280,7 +280,8 @@ public class WorldRenderer {
 		glEnableVertexAttribArray(2);
 		glVertexAttribPointer(2, 2, GL_FLOAT, false, (2 * 3 + 2) * 4, 2 * 3 * 4);
 		
-		chunkRendererStorage = new BufferStorage(GL_ARRAY_BUFFER, DATA_VBO_SIZE, true, 3);
+		final int BUFFER_COUNT = 3;
+		chunkRendererStorage = new BufferStorage(GL_ARRAY_BUFFER, DATA_VBO_SIZE, true, BUFFER_COUNT);
 		
 		glEnableVertexAttribArray(3);
 		glVertexAttribPointer(3, 3, GL_UNSIGNED_INT, false, 4 * 4, 0);
@@ -298,7 +299,7 @@ public class WorldRenderer {
 		Chunk[] chunks = world.getChunkManager().getChunks();
 		chunkRenderers = new ChunkRenderer[chunks.length];
 		for(int i = 0; i < chunkRenderers.length; i++) {
-			chunkRenderers[i] = new ChunkRenderer(chunks[i], chunkRendererStorage, i);
+			chunkRenderers[i] = new ChunkRenderer(chunks[i], chunkRendererStorage, BUFFER_COUNT, i);
 		}
 	}
 	
@@ -445,8 +446,6 @@ public class WorldRenderer {
 		chunksRendered = 0;
 		blocksRendered = 0;
 		
-		float halfSpacing = Chunk.SPACING * 0.5f;
-		
 		for(ChunkRenderer chunkRenderer : chunkRenderers) {
 			chunkRenderer.update();
 		}
@@ -458,17 +457,11 @@ public class WorldRenderer {
 		for(ChunkRenderer chunkRenderer : chunkRenderers) {
 			Chunk chunk = chunkRenderer.getChunk();
 			
-			if(culling.isRectPrismInsideFrustum(new Vector3(chunk.getCornerX(), chunk.getCornerY(), -chunk.getCornerZ())
-			                                      .mult(Chunk.SPACING).sub(halfSpacing, halfSpacing, -halfSpacing),
-					Chunk.CHUNK_BLOCK_WIDTH * Chunk.SPACING,
-					Chunk.CHUNK_BLOCK_HEIGHT * Chunk.SPACING,
-					-Chunk.CHUNK_BLOCK_DEPTH * Chunk.SPACING)) {
-				if(chunkRenderer.render(command, currentOffset)) {
-					commandsBuffer.put(command.toBuffer());
-					
-					chunksRendered++;
-					blocksRendered += chunkRenderer.getLastCubeRenderCount();
-				}
+			if(chunkRenderer.render(command, culling, currentOffset)) {
+				commandsBuffer.put(command.toBuffer());
+				
+				chunksRendered++;
+				blocksRendered += chunkRenderer.getLastCubeRenderCount();
 			}
 		}
 		
