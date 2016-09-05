@@ -14,7 +14,6 @@ import com.ra4king.fps.actors.Block.BlockType;
 import com.ra4king.fps.actors.Bullet;
 import com.ra4king.opengl.util.Stopwatch;
 import com.ra4king.opengl.util.Utils;
-import com.ra4king.opengl.util.math.Matrix4;
 import com.ra4king.opengl.util.math.Quaternion;
 import com.ra4king.opengl.util.math.Vector3;
 
@@ -106,7 +105,10 @@ public class World implements CameraUpdate {
 	}
 	
 	@Override
-	public void updateCamera(Camera camera, long deltaTime, Matrix4 projectionMatrix, Vector3 position, Quaternion orientation) {
+	public void updateCamera(Camera camera, long deltaTime) {
+		Vector3 position = camera.getPosition();
+		Quaternion orientation = camera.getOrientation();
+		
 		deltaTimeBuffer += deltaTime;
 		
 		Quaternion inverse;
@@ -174,8 +176,10 @@ public class World implements CameraUpdate {
 		if((Mouse.isButtonDown(0) || Keyboard.isKeyDown(Keyboard.KEY_C)) && (diff = System.nanoTime() - bulletCooldown) > (long)5e7) {
 			int bulletSpeed = 500;
 			
-			bulletManager.addBullet(new Bullet(new Vector3(position).add(inverse.mult3(new Vector3(1f, -1f, 0f), new Vector3())), inverse.mult3(Vector3.FORWARD, new Vector3()).mult(bulletSpeed), 1, 60));
-			bulletManager.addBullet(new Bullet(new Vector3(position).add(inverse.mult3(new Vector3(-1f, -1f, 0f), new Vector3())), inverse.mult3(Vector3.FORWARD, new Vector3()).mult(bulletSpeed), 1, 60));
+			bulletManager.addBullet(new Bullet(new Vector3(position).add(inverse.mult3(new Vector3(1f, -1f, 0f), new 
+			                                                                                                     Vector3())), inverse.mult3(Vector3.FORWARD, new Vector3()).mult(bulletSpeed), 1, 30));
+			bulletManager.addBullet(new Bullet(new Vector3(position).add(inverse.mult3(new Vector3(-1f, -1f, 0f), new 
+			                                                                                                      Vector3())), inverse.mult3(Vector3.FORWARD, new Vector3()).mult(bulletSpeed), 1, 30));
 			bulletCooldown += diff;
 		}
 		

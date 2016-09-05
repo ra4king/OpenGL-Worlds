@@ -17,6 +17,8 @@ out vec4 fragColor;
 const float fogRange = -1.0 / 200.0;
 const float specularExponent = 0.01;
 
+const float edgeSize = 1.0 - 0.02;
+
 vec3 calculateLight(vec3 color, float k, vec3 normal, vec3 lightDistance) {
 	vec3 lightDirection = normalize(lightDistance);
 	float cos = clamp(dot(normal, lightDirection), 0, 1);
@@ -44,8 +46,8 @@ void main() {
 	gl_FragDepth = texelFetch(depth, texi, 0).x;
 	
 	vec3 lightDistance = position - cameraSpacePosition;
-	if(range > 0.0 && dot(lightDistance, lightDistance) > range * range)
-		discard;
+//	if(range > 0.0 && dot(lightDistance, lightDistance) > range * range)
+//		discard;
 	
 	vec3 totalLight = calculateLight(color, k, normal, lightDistance);
 	
@@ -53,5 +55,20 @@ void main() {
 	
 	vec4 gamma = vec4(1.0 / 2.2);
 	gamma.w = 1;
-	fragColor = pow(vec4(mix(color, texture(cubeTexture, texCoord).rgb * totalLight, 1), 1), gamma);
+	
+	vec2 edgeC = abs((texCoord - vec2(0.5)) / vec2(0.5));
+	vec2 edgeU = abs((texCoord - vec2(0.5, 0.495)) / vec2(0.5));
+	vec2 edgeD = abs((texCoord - vec2(0.5, 0.505)) / vec2(0.5));
+	vec2 edgeL = abs((texCoord - vec2(0.495, 0.5)) / vec2(0.5));
+	vec2 edgeR = abs((texCoord - vec2(0.505, 0.5)) / vec2(0.5));
+	
+	vec3 edge = 0.2 * ((edgeC.x > edgeSize || edgeC.y > edgeSize || (edgeC.x * edgeC.y > edgeSize * edgeSize - 0.01 * edgeSize)) ? 1 : 0) * vec3(0.5);
+	edge += 0.2 * ((edgeU.x > edgeSize || edgeU.y > edgeSize || (edgeU.x * edgeU.y > edgeSize * edgeSize - 0.01 * edgeSize)) ? 1 : 0) * vec3(0.5);
+	edge += 0.2 * ((edgeD.x > edgeSize || edgeD.y > edgeSize || (edgeD.x * edgeD.y > edgeSize * edgeSize - 0.01 * edgeSize)) ? 1 : 0) * vec3(0.5);
+	edge += 0.2 * ((edgeL.x > edgeSize || edgeL.y > edgeSize || (edgeL.x * edgeL.y > edgeSize * edgeSize - 0.01 * edgeSize)) ? 1 : 0) * vec3(0.5);
+	edge += 0.2 * ((edgeR.x > edgeSize || edgeR.y > edgeSize || (edgeR.x * edgeR.y > edgeSize * edgeSize - 0.01 * edgeSize)) ? 1 : 0) * vec3(0.5);
+	
+	totalLight.rgb -= totalLight.rgb * edge;
+	
+	fragColor = pow(vec4(mix(color, totalLight + 0.00001 * texture(cubeTexture, texCoord).rgb * totalLight, 1), 0.3), gamma);
 }

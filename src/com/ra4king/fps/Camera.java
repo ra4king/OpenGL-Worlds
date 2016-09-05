@@ -69,7 +69,7 @@ public class Camera {
 	public void update(long deltaTime) {
 		if(cameraUpdate != null) {
 			Vector3 lastPos = new Vector3(position);
-			cameraUpdate.updateCamera(this, deltaTime, projectionMatrix, position, orientation);
+			cameraUpdate.updateCamera(this, deltaTime);
 			delta.set(position).sub(lastPos);
 		}
 	}
@@ -115,6 +115,6 @@ public class Camera {
 	}
 	
 	public interface CameraUpdate {
-		void updateCamera(Camera camera, long deltaTime, Matrix4 projectionMatrix, Vector3 position, Quaternion orientation);
+		void updateCamera(Camera camera, long deltaTime);
 	}
 }

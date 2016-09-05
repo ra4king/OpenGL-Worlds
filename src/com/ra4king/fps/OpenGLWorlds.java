@@ -89,7 +89,7 @@ public class OpenGLWorlds extends GLProgram {
 		System.out.println(glGetString(GL_RENDERER));
 		
 		printDebug(true);
-		checkError(true);
+		checkError(false);
 		setFPS(0);
 		
 		RenderUtils.init();
@@ -118,14 +118,16 @@ public class OpenGLWorlds extends GLProgram {
 		resetCamera();
 		
 		for(int a = 0; a < WORLD_COUNT; a++) {
-			worlds[a] = new World(4, 4, 4);
+			worlds[a] = new World(3, 2, 2);
 			worldRenderers[a] = new WorldRenderer(this, worlds[a]);
 			worlds[a].generateAllBlocks();//generateRandomBlocks();
 			worldsMap.put(worlds[a], worldRenderers[a]);
 		}
 		
-		Portal portal1 = new Portal(this, worlds[0], new Vector3(0, 0, 0), new Vector2(10, 20), new Quaternion(), worlds[1]);
-		Portal portal2 = new Portal(this, worlds[1], new Vector3(10, 0, 0), new Vector2(10, 20), new Quaternion((float)Math.PI * 0.25f, Vector3.UP).mult(new Quaternion((float)Math.PI * 0.25f, Vector3.RIGHT)), worlds[0]);
+		Portal portal1 = new Portal(this, worlds[0], new Vector3(0, 0, 10), new Vector2(10, 20), new Quaternion(), 
+		                           worlds[1]);
+		Portal portal2 = new Portal(this, worlds[1], new Vector3(10, 0, 20), new Vector2(10, 20), new Quaternion(
+		                                                                                                        (float)Math.PI * 0.25f, Vector3.UP).mult(new Quaternion((float)Math.PI * 0.25f, Vector3.RIGHT)), worlds[0]);
 		portal1.setDestPortal(portal2);
 		portal2.setDestPortal(portal1);
 		

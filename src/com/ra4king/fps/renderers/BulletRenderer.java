@@ -82,7 +82,7 @@ public class BulletRenderer {
 	}
 	
 	public int getBulletLightData(Matrix4 viewMatrix, FloatBuffer bulletData, int maxBulletCount) {
-		final float bulletK = 1f, nonSolidBulletK = 1f;
+		final float bulletK = 1f, nonSolidBulletK = 60f;
 		
 		BulletVectorPair[] bulletVectorPairs = new BulletVectorPair[bulletManager.getBullets().size()];
 		for(int a = 0; a < bulletVectorPairs.length; a++)
@@ -102,7 +102,7 @@ public class BulletRenderer {
 			bulletData.put(v.toBuffer());
 			bulletData.put(b.getRange());
 			bulletData.put(b.getColor().toBuffer());
-			bulletData.put((b.isSolid() ? bulletK / (0.1f * b.getSize()) : nonSolidBulletK) / b.getAlpha());
+			bulletData.put((b.isSolid() ? bulletK / (0.01f * b.getSize()) : nonSolidBulletK) / b.getAlpha());
 			
 			count++;
 		}

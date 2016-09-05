@@ -27,7 +27,6 @@ import org.lwjgl.opengl.OpenGLException;
 
 import com.ra4king.fps.Camera;
 import com.ra4king.fps.OpenGLWorlds;
-import com.ra4king.fps.actors.Actor;
 import com.ra4king.fps.actors.Bullet;
 import com.ra4king.fps.actors.Portal;
 import com.ra4king.fps.world.Chunk;
@@ -125,12 +124,11 @@ public class WorldRenderer {
 	
 	public void loadActors() {
 		portalRenderers = new ArrayList<>();
-		for(Actor actor : world.getActors()) {
-			if(actor instanceof Portal) {
-				Portal portal = (Portal)actor;
-				portalRenderers.add(new PortalRenderer(portal, game.getRenderer(portal.getDestWorld())));
-			}
-		}
+		
+		world.getActors().stream().filter(actor -> actor instanceof Portal).forEach(actor -> {
+			Portal portal = (Portal)actor;
+			portalRenderers.add(new PortalRenderer(portal, game.getRenderer(portal.getDestWorld())));
+		});
 	}
 	
 	private void loadShaders() {
@@ -148,6 +146,19 @@ public class WorldRenderer {
 		deferredProgram = new ShaderProgram(Utils.readFully(Resources.getInputStream("shaders/deferred.vert")),
 		                                     Utils.readFully(Resources.getInputStream("shaders/deferred.geom")),
 				                                   Utils.readFully(Resources.getInputStream("shaders/deferred.frag")));
+
+//		ByteBuffer buffer = BufferUtils.createByteBuffer(128 * 1024);
+//		IntBuffer length = BufferUtils.createIntBuffer(1);
+//		IntBuffer binaryFormat = BufferUtils.createIntBuffer(1);
+//		ARBGetProgramBinary.glGetProgramBinary(deferredProgram.getProgram(), length, binaryFormat, buffer);
+//		
+//		byte[] bytes = new byte[length.get(0)];
+//		buffer.get(bytes);
+//		try {
+//			Files.write(Paths.get(System.getProperty("user.dir"), "deferredProgram.bin"), bytes);
+//		} catch(Exception exc) {
+//			exc.printStackTrace();
+//		}
 	}
 	
 	private void loadCube() {
@@ -427,7 +438,7 @@ public class WorldRenderer {
 	}
 	
 	public void render(Vector4 clipPlane, Portal surroundingPortal, int currentFbo, Camera camera) {
-//		glClearColor(0.4f, 0.6f, 0.9f, 0f);
+		//glClearColor(0.4f, 0.6f, 0.9f, 0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		
 		Stopwatch.start("WorldRender Setup");
@@ -455,8 +466,6 @@ public class WorldRenderer {
 		int currentOffset = chunkRendererStorage.getBufferIndex() * chunkRenderers.length * Chunk.TOTAL_BLOCKS;
 		
 		for(ChunkRenderer chunkRenderer : chunkRenderers) {
-			Chunk chunk = chunkRenderer.getChunk();
-			
 			if(chunkRenderer.render(command, culling, currentOffset)) {
 				commandsBuffer.put(command.toBuffer());
 				
