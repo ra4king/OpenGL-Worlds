@@ -1,18 +1,83 @@
 package com.ra4king.fps.renderers;
 
-import static org.lwjgl.opengl.GL11.*;
+import static org.lwjgl.opengl.GL11.GL_ALWAYS;
+import static org.lwjgl.opengl.GL11.GL_BLEND;
+import static org.lwjgl.opengl.GL11.GL_COLOR_BUFFER_BIT;
+import static org.lwjgl.opengl.GL11.GL_DEPTH_BUFFER_BIT;
+import static org.lwjgl.opengl.GL11.GL_DEPTH_COMPONENT;
+import static org.lwjgl.opengl.GL11.GL_DEPTH_TEST;
+import static org.lwjgl.opengl.GL11.GL_FLOAT;
+import static org.lwjgl.opengl.GL11.GL_LESS;
+import static org.lwjgl.opengl.GL11.GL_LINEAR;
+import static org.lwjgl.opengl.GL11.GL_LINEAR_MIPMAP_LINEAR;
+import static org.lwjgl.opengl.GL11.GL_ONE;
+import static org.lwjgl.opengl.GL11.GL_ONE_MINUS_SRC_ALPHA;
+import static org.lwjgl.opengl.GL11.GL_POINTS;
+import static org.lwjgl.opengl.GL11.GL_RGB;
+import static org.lwjgl.opengl.GL11.GL_RGB8;
+import static org.lwjgl.opengl.GL11.GL_RGBA;
+import static org.lwjgl.opengl.GL11.GL_SRC_ALPHA;
+import static org.lwjgl.opengl.GL11.GL_TEXTURE_2D;
+import static org.lwjgl.opengl.GL11.GL_TEXTURE_MAG_FILTER;
+import static org.lwjgl.opengl.GL11.GL_TEXTURE_MIN_FILTER;
+import static org.lwjgl.opengl.GL11.GL_TEXTURE_WRAP_S;
+import static org.lwjgl.opengl.GL11.GL_TEXTURE_WRAP_T;
+import static org.lwjgl.opengl.GL11.GL_TRIANGLES;
+import static org.lwjgl.opengl.GL11.GL_UNSIGNED_BYTE;
+import static org.lwjgl.opengl.GL11.GL_UNSIGNED_INT;
+import static org.lwjgl.opengl.GL11.GL_UNSIGNED_SHORT;
+import static org.lwjgl.opengl.GL11.glBindTexture;
+import static org.lwjgl.opengl.GL11.glBlendFunc;
+import static org.lwjgl.opengl.GL11.glClear;
+import static org.lwjgl.opengl.GL11.glClearColor;
+import static org.lwjgl.opengl.GL11.glDeleteTextures;
+import static org.lwjgl.opengl.GL11.glDepthFunc;
+import static org.lwjgl.opengl.GL11.glDisable;
+import static org.lwjgl.opengl.GL11.glDrawArrays;
+import static org.lwjgl.opengl.GL11.glEnable;
+import static org.lwjgl.opengl.GL11.glGenTextures;
 import static org.lwjgl.opengl.GL11.glGetInteger;
-import static org.lwjgl.opengl.GL12.*;
-import static org.lwjgl.opengl.GL13.*;
-import static org.lwjgl.opengl.GL15.*;
-import static org.lwjgl.opengl.GL20.*;
+import static org.lwjgl.opengl.GL11.glTexImage2D;
+import static org.lwjgl.opengl.GL11.glTexParameteri;
+import static org.lwjgl.opengl.GL12.GL_CLAMP_TO_EDGE;
+import static org.lwjgl.opengl.GL13.GL_TEXTURE0;
+import static org.lwjgl.opengl.GL13.glActiveTexture;
+import static org.lwjgl.opengl.GL15.GL_ARRAY_BUFFER;
+import static org.lwjgl.opengl.GL15.GL_ELEMENT_ARRAY_BUFFER;
+import static org.lwjgl.opengl.GL15.GL_STATIC_DRAW;
+import static org.lwjgl.opengl.GL15.GL_STREAM_DRAW;
+import static org.lwjgl.opengl.GL15.glBindBuffer;
+import static org.lwjgl.opengl.GL15.glBufferData;
+import static org.lwjgl.opengl.GL15.glGenBuffers;
+import static org.lwjgl.opengl.GL20.glDrawBuffers;
+import static org.lwjgl.opengl.GL20.glEnableVertexAttribArray;
+import static org.lwjgl.opengl.GL20.glUniform1f;
+import static org.lwjgl.opengl.GL20.glUniform1i;
 import static org.lwjgl.opengl.GL20.glUniform4;
 import static org.lwjgl.opengl.GL20.glUniformMatrix3;
 import static org.lwjgl.opengl.GL20.glUniformMatrix4;
-import static org.lwjgl.opengl.GL30.*;
-import static org.lwjgl.opengl.GL32.*;
-import static org.lwjgl.opengl.GL40.*;
-import static org.lwjgl.opengl.GL43.*;
+import static org.lwjgl.opengl.GL20.glVertexAttribPointer;
+import static org.lwjgl.opengl.GL30.GL_CLIP_DISTANCE0;
+import static org.lwjgl.opengl.GL30.GL_COLOR_ATTACHMENT0;
+import static org.lwjgl.opengl.GL30.GL_COLOR_ATTACHMENT1;
+import static org.lwjgl.opengl.GL30.GL_COLOR_ATTACHMENT2;
+import static org.lwjgl.opengl.GL30.GL_DEPTH_ATTACHMENT;
+import static org.lwjgl.opengl.GL30.GL_DEPTH_COMPONENT32F;
+import static org.lwjgl.opengl.GL30.GL_DRAW_FRAMEBUFFER;
+import static org.lwjgl.opengl.GL30.GL_FRAMEBUFFER;
+import static org.lwjgl.opengl.GL30.GL_FRAMEBUFFER_COMPLETE;
+import static org.lwjgl.opengl.GL30.GL_RG;
+import static org.lwjgl.opengl.GL30.GL_RGB32F;
+import static org.lwjgl.opengl.GL30.glBindFramebuffer;
+import static org.lwjgl.opengl.GL30.glCheckFramebufferStatus;
+import static org.lwjgl.opengl.GL30.glDeleteFramebuffers;
+import static org.lwjgl.opengl.GL30.glFramebufferTexture2D;
+import static org.lwjgl.opengl.GL30.glGenFramebuffers;
+import static org.lwjgl.opengl.GL30.glGenerateMipmap;
+import static org.lwjgl.opengl.GL30.glVertexAttribIPointer;
+import static org.lwjgl.opengl.GL32.GL_DEPTH_CLAMP;
+import static org.lwjgl.opengl.GL40.GL_DRAW_INDIRECT_BUFFER;
+import static org.lwjgl.opengl.GL43.glMultiDrawElementsIndirect;
 
 import java.io.InputStream;
 import java.nio.ByteBuffer;
@@ -22,6 +87,7 @@ import java.nio.ShortBuffer;
 import java.util.ArrayList;
 
 import org.lwjgl.BufferUtils;
+import org.lwjgl.input.Keyboard;
 import org.lwjgl.opengl.EXTTextureFilterAnisotropic;
 import org.lwjgl.opengl.OpenGLException;
 
@@ -371,16 +437,16 @@ public class WorldRenderer {
 				});
 		drawBuffers.flip();
 		glDrawBuffers(drawBuffers);
-		
+
 		int fboStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-		if(fboStatus != GL_FRAMEBUFFER_COMPLETE) {
+		if (fboStatus != GL_FRAMEBUFFER_COMPLETE) {
 			throw new OpenGLException("FBO not complete, status: " + fboStatus);
 		}
-		
+
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-		
+
 		deferredProgram.begin();
-		glUniform1i(deferredProgram.getUniformLocation("cubeTexture"), CUBE_TEXTURE_BINDING);
+		//		glUniform1i(deferredProgram.getUniformLocation("cubeTexture"), CUBE_TEXTURE_BINDING);
 		glUniform1i(deferredProgram.getUniformLocation("cameraPositions"), CAMERA_POSITIONS_TEXTURE_BINDING);
 		glUniform1i(deferredProgram.getUniformLocation("normals"), NORMALS_TEXTURE_BINDING);
 		glUniform1i(deferredProgram.getUniformLocation("texCoords"), TEX_COORDS_TEXTURE_BINDING);
@@ -409,20 +475,34 @@ public class WorldRenderer {
 	public int getChunksRenderedCount() {
 		return chunksRendered;
 	}
-	
+
 	public int getBlocksRenderedCount() {
 		return blocksRendered;
 	}
-	
+
 	public void resized() {
 		setupDeferredFBO();
-		
+
 		portalRenderers.forEach(PortalRenderer::resized);
 	}
-	
+
+	private boolean pressedT;
+	private float showBoxes = 1.0f;
+
 	public void update(long deltaTime) {
-		for(PortalRenderer portalRenderer : portalRenderers)
+		if (!pressedT && Keyboard.isKeyDown(Keyboard.KEY_T)) {
+			showBoxes = showBoxes == 1.0f ? 0.0f : 1.0f;
+			deferredProgram.begin();
+			glUniform1f(deferredProgram.getUniformLocation("showBoxes"), showBoxes);
+			deferredProgram.end();
+			pressedT = true;
+		} else if (!Keyboard.isKeyDown(Keyboard.KEY_T)) {
+			pressedT = false;
+		}
+
+		for (PortalRenderer portalRenderer : portalRenderers) {
 			portalRenderer.update(deltaTime);
+		}
 	}
 	
 	private final Bullet aim = new Bullet(new Vector3(), new Vector3(), 4, 0, Long.MAX_VALUE, false, new Vector3(1));
@@ -539,27 +619,28 @@ public class WorldRenderer {
 			Vector3 diffuseColor = new Vector3(0.5f, 0.1f, 0.1f);
 			
 			FloatBuffer lightsBuffer = lightsBufferObject.bind().asFloatBuffer();
-			
+
 			// ambient
 			lightsBuffer.put(0).put(0).put(0).put(0);
 			lightsBuffer.put(ambientColor.toBuffer());
 			lightsBuffer.put(0);
-			
+
 			// camera is light source
 			lightsBuffer.put(0).put(0).put(0); // camera position
 			lightsBuffer.put(1000);
 			lightsBuffer.put(diffuseColor.toBuffer());
-			lightsBuffer.put(0.1f);
+			lightsBuffer.put(0.001f);
 
-//			Vector4 result = new Vector4();
-//			System.out.println(camera.getProjectionMatrix().mult4(new Vector4(10, 10, -3, 1), result).divide(result.w()).toString());
-			
+			//			Vector4 result = new Vector4();
+			//			System.out.println(camera.getProjectionMatrix().mult4(new Vector4(10, 10, -3, 1), result)
+			//			.divide(result.w()).toString());
+
 			int lightCount = bulletRenderer.getBulletLightData(viewMatrix, lightsBuffer, MAX_NUM_LIGHTS - 2);
-			
+
 			lightsBufferObject.unbind();
-			
+
 			glDepthFunc(GL_ALWAYS);
-			
+
 			RenderUtils.glBindVertexArray(deferredVAO);
 			glDrawArrays(GL_POINTS, 0, lightCount + 2);
 			
@@ -572,20 +653,26 @@ public class WorldRenderer {
 			if(portalRenderer.getPortal().getDestPortal() == surroundingPortal) {
 				continue;
 			}
-			
+
 			portalRenderer.render(currentFbo, camera, viewMatrix, culling);
 		}
-		
+
 		Stopwatch.start("BulletRenderer");
-		
+
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		
+
 		bulletRenderer.render(camera.getProjectionMatrix(), tempStack.setTop(viewMatrix), culling);
-		
+
 		glDisable(GL_DEPTH_TEST);
-		bulletRenderer.render(new Matrix4().clearToOrtho(-RenderUtils.getWidth() / 2, RenderUtils.getWidth() / 2, -RenderUtils.getHeight() / 2, RenderUtils.getHeight() / 2, -1, 1), new MatrixStack(), null, aim);
+		bulletRenderer.render(new Matrix4().clearToOrtho(
+			-RenderUtils.getWidth() / 2.0f,
+			RenderUtils.getWidth() / 2.0f,
+			-RenderUtils.getHeight() / 2.0f,
+			RenderUtils.getHeight() / 2.0f,
+			-1,
+			1), new MatrixStack(), null, aim);
 		glEnable(GL_DEPTH_TEST);
-		
+
 		Stopwatch.stop();
 	}
 	
