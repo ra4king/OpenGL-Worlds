@@ -154,40 +154,52 @@ public class World implements CameraUpdate {
 			if(Keyboard.isKeyDown(Keyboard.KEY_D)) {
 				delta.x(speed);
 			}
-			if(Keyboard.isKeyDown(Keyboard.KEY_A)) {
+			if (Keyboard.isKeyDown(Keyboard.KEY_A)) {
 				delta.x(delta.x() - speed);
 			}
-			
-			if(Keyboard.isKeyDown(Keyboard.KEY_SPACE)) {
+
+			if (Keyboard.isKeyDown(Keyboard.KEY_SPACE)) {
 				delta.y(speed);
 			}
-			if(Keyboard.isKeyDown(Keyboard.KEY_LCONTROL)) {
+			if (Keyboard.isKeyDown(Keyboard.KEY_LCONTROL)) {
 				delta.y(delta.y() - speed);
 			}
-			
-			if(delta.x() != 0f || delta.y() != 0f || delta.z() != 0f) {
+
+			if (delta.x() != 0f || delta.y() != 0f || delta.z() != 0f) {
 				position.add(inverse.mult3(delta, delta));
 			}
 		} else {
 			inverse = new Quaternion(orientation).inverse();
 		}
-		
+
 		long diff;
-		if((Mouse.isButtonDown(0) || Keyboard.isKeyDown(Keyboard.KEY_C)) && (diff = System.nanoTime() - bulletCooldown) > (long)5e7) {
-			int bulletSpeed = 500;
-			
-			bulletManager.addBullet(new Bullet(new Vector3(position).add(inverse.mult3(new Vector3(1f, -1f, 0f), new 
-			                                                                                                     Vector3())), inverse.mult3(Vector3.FORWARD, new Vector3()).mult(bulletSpeed), 1, 30));
-			bulletManager.addBullet(new Bullet(new Vector3(position).add(inverse.mult3(new Vector3(-1f, -1f, 0f), new 
-			                                                                                                      Vector3())), inverse.mult3(Vector3.FORWARD, new Vector3()).mult(bulletSpeed), 1, 30));
+		if ((Mouse.isButtonDown(0) || Keyboard.isKeyDown(Keyboard.KEY_C)) &&
+		    (diff = System.nanoTime() - bulletCooldown) > (long)5e7) {
+			int bulletSpeed = 300;
+
+			bulletManager.addBullet(new Bullet(new Vector3(position).add(inverse.mult3(new Vector3(1f, -1f, 0f),
+			                                                                           new Vector3())),
+			                                   inverse.mult3(Vector3.FORWARD, new Vector3()).mult(bulletSpeed),
+			                                   1,
+			                                   30));
+			bulletManager.addBullet(new Bullet(new Vector3(position).add(inverse.mult3(new Vector3(-1f, -1f, 0f),
+			                                                                           new Vector3())),
+			                                   inverse.mult3(Vector3.FORWARD, new Vector3()).mult(bulletSpeed),
+			                                   1,
+			                                   30));
 			bulletCooldown += diff;
 		}
-		
-		if((Mouse.isButtonDown(1) || Keyboard.isKeyDown(Keyboard.KEY_V)) && (diff = System.nanoTime() - blastCoolDown) > (long)3e8) {
+
+		if ((Mouse.isButtonDown(1) || Keyboard.isKeyDown(Keyboard.KEY_V)) &&
+		    (diff = System.nanoTime() - blastCoolDown) > (long)3e8) {
 			int blastSpeed = 200;
-			
-			bulletManager.addBullet(new Bullet(new Vector3(position).add(inverse.mult3(new Vector3(0, 0, -2f), new Vector3())), inverse.mult3(Vector3.FORWARD, new Vector3()).mult(blastSpeed), 10, 100));
-			
+
+			bulletManager.addBullet(new Bullet(new Vector3(position).add(inverse.mult3(new Vector3(0, 0, -2f),
+			                                                                           new Vector3())),
+			                                   inverse.mult3(Vector3.FORWARD, new Vector3()).mult(blastSpeed),
+			                                   10,
+			                                   100));
+
 			blastCoolDown += diff;
 		}
 	}
