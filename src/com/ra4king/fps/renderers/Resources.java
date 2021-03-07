@@ -7,7 +7,7 @@ import java.io.InputStream;
  */
 public class Resources {
 	public static final String RESOURCES_ROOT_PATH = "/res/";
-	
+
 	public static InputStream getInputStream(String path) {
 		return Resources.class.getResourceAsStream(RESOURCES_ROOT_PATH + path);
 	}

@@ -42,8 +42,6 @@ import com.ra4king.opengl.util.render.MonospaceFont;
 import com.ra4king.opengl.util.render.PerformanceGraph;
 import com.ra4king.opengl.util.render.RenderUtils;
 
-import net.indiespot.struct.cp.Struct;
-
 /**
  * @author Roi Atalla
  */
@@ -82,40 +80,40 @@ public class OpenGLWorlds extends GLProgram {
 	private PerformanceGraph performanceGraphBulletRender;
 	private PerformanceGraph performanceGraphDisplayUpdate;
 	private PerformanceGraph performanceGraphFPS;
-	
+
 	// private Fractal fractal;
-	
+
 	public OpenGLWorlds() {
 		super("OpenGLWorlds", 800, 600, true);
 	}
-	
+
 	public Camera getCamera() {
 		return camera;
 	}
-	
+
 	@Override
 	public void init() {
 		System.out.println(glGetString(GL_VERSION));
 		System.out.println(glGetString(GL_VENDOR));
 		System.out.println(glGetString(GL_RENDERER));
-		
+
 		printDebug(true);
 		checkError(false);
 		setFPS(0);
-		
+
 		RenderUtils.init();
-		
-		if(RenderUtils.GL_VERSION < 21) {
+
+		if (RenderUtils.GL_VERSION < 21) {
 			System.out.println("Your OpenGL version is too old.");
 			System.exit(1);
 		}
-		
+
 		glEnable(GL_DEPTH_TEST);
-		
+
 		glEnable(GL_CULL_FACE);
 		glCullFace(GL_BACK);
 		glFrontFace(GL_CW);
-		
+
 		glEnable(GL_DEPTH_CLAMP);
 
 		worldsMap = new HashMap<>();
@@ -232,7 +230,7 @@ public class OpenGLWorlds extends GLProgram {
 		                                           new Vector4(0, 1, 0, 1),
 		                                           this::getLastFps); // Green
 	}
-	
+
 	private void loadFont() {
 		String file;
 		int charWidth;
@@ -256,34 +254,33 @@ public class OpenGLWorlds extends GLProgram {
 			data = BufferUtils.createByteBuffer(imageWidth * imageHeight * 4);
 			imageDecoder.decode(data, imageWidth * 4, Format.RGBA);
 			data.flip();
-		}
-		catch(Exception exc) {
+		} catch (Exception exc) {
 			throw new RuntimeException(exc);
 		}
-		
+
 		font = MonospaceFont.init("DejaVu-Sans-Mono", charWidth, imageWidth, imageHeight, data, characters);
 	}
-	
+
 	public WorldRenderer getRenderer(World world) {
 		return worldsMap.get(world);
 	}
-	
+
 	@Override
 	public void resized() {
 		super.resized();
-		
+
 		camera.setWindowSize(RenderUtils.getWidth(), RenderUtils.getHeight());
-		
-		for(int a = 0; a < WORLD_COUNT; a++) {
+
+		for (int a = 0; a < WORLD_COUNT; a++) {
 			worldRenderers[a].resized();
 		}
 	}
-	
+
 	@Override
 	public boolean shouldStop() {
 		return false;
 	}
-	
+
 	@Override
 	public void keyPressed(int key, char c) {
 		if (key == Keyboard.KEY_ESCAPE) {
@@ -318,41 +315,42 @@ public class OpenGLWorlds extends GLProgram {
 			showPerformanceGraphs = !showPerformanceGraphs;
 		}
 	}
-	
+
 	public void resetCamera() {
 		camera.setPosition(new Vector3(-Chunk.BLOCK_SIZE, -Chunk.BLOCK_SIZE, Chunk.BLOCK_SIZE).mult(5));
 		Utils.lookAt(camera.getPosition(), Vector3.ZERO, Vector3.UP).toQuaternion(camera.getOrientation()).normalize();
 	}
-	
+
 	public World getWorld() {
 		return worlds[currentWorld];
 	}
-	
+
 	public void setWorld(World world) {
-		for(int i = 0; i < worlds.length; i++) {
-			if(world == worlds[i]) {
+		for (int i = 0; i < worlds.length; i++) {
+			if (world == worlds[i]) {
 				currentWorld = i;
 				camera.setCameraUpdate(worlds[currentWorld]);
 				break;
 			}
 		}
 	}
-	
+
 	@Override
 	public void update(long deltaTime) {
 		Stopwatch.start("Camera Update");
 		camera.update(deltaTime);
 		Stopwatch.stop();
-		
+
 		Stopwatch.start("World Update");
-		for(World w : worlds)
+		for (World w : worlds) {
 			w.update(deltaTime);
+		}
 		Stopwatch.stop();
-		
+
 		Stopwatch.start("WorldRenderer Update");
 		worldRenderers[currentWorld].update(deltaTime);
 		Stopwatch.stop();
-		
+
 		performanceGraphUpdate.update(deltaTime);
 		performanceGraphRender.update(deltaTime);
 		performanceGraphChunkRenderers.update(deltaTime);
@@ -362,14 +360,14 @@ public class OpenGLWorlds extends GLProgram {
 		performanceGraphDisplayUpdate.update(deltaTime);
 		performanceGraphFPS.update(deltaTime);
 	}
-	
+
 	@Override
 	public void render() {
 		Stopwatch.start("World Render");
-		worldRenderers[currentWorld].render(Struct.nullStruct(Vector4.class), null, 0, camera);
+		worldRenderers[currentWorld].render(null, null, 0, camera);
 		Stopwatch.stop();
-		
-		if(showPerformanceGraphs) {
+
+		if (showPerformanceGraphs) {
 			Stopwatch.start("Performance Graphs Render");
 			performanceGraphUpdate.render();
 			performanceGraphRender.render();
@@ -383,26 +381,30 @@ public class OpenGLWorlds extends GLProgram {
 		}
 
 		font.render(getLastFps() + " FPS", 100, 75, 20, new Vector4(0, 1, 0, 1));
-		font.render(String.format("Update: %.2f ms", Stopwatch.getTimePerFrame("Update")),
-		            100,
-		            55,
-		            20,
-		            new Vector4(0, 0, 1, 1));
-		font.render(String.format("Render: %.2f ms", Stopwatch.getTimePerFrame("Render")),
-		            100,
-		            35,
-		            20,
-		            new Vector4(0, 1, 1, 1));
-		font.render(String.format("Display.update(): %.2f ms", Stopwatch.getTimePerFrame("Display.update()")),
-		            100,
-		            15,
-		            20,
-		            new Vector4(1, 0, 1, 1));
+		font.render(
+			String.format("Update: %.2f ms", Stopwatch.getTimePerFrame("Update")),
+			100,
+			55,
+			20,
+			new Vector4(1, 0.5f, 0, 1));
+		font.render(
+			String.format("Render: %.2f ms", Stopwatch.getTimePerFrame("Render")),
+			100,
+			35,
+			20,
+			new Vector4(0, 1, 1, 1));
+		font.render(
+			String.format("Display.update(): %.2f ms", Stopwatch.getTimePerFrame("Display.update()")),
+			100,
+			15,
+			20,
+			new Vector4(1, 0, 1, 1));
 
-		font.render(String.format("Update Compact Array: %.2f ms", Stopwatch.getTimePerFrame("Update Compact Array")),
-		            360,
-		            75,
-		            20,
+		font.render(
+			String.format("Update Compact Array: %.2f ms", Stopwatch.getTimePerFrame("Update Compact Array")),
+			360,
+			75,
+			20,
 		            new Vector4(1, 0, 0, 1));
 		font.render(String.format("Bullet Render: %.2f ms", Stopwatch.getTimePerFrame("BulletRenderer")),
 		            360,

@@ -7,6 +7,6 @@ import com.ra4king.opengl.util.math.Vector3;
  */
 public interface Actor {
 	void update(long deltaTime);
-	
+
 	Vector3 getPosition();
 }
